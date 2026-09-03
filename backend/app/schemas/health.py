@@ -1,22 +1,18 @@
 from typing import Literal
 
-from pydantic import BaseModel, ConfigDict
+from app.schemas.base import ApiModel
 
 
-class ApiResponse(BaseModel):
-    model_config = ConfigDict(frozen=True)
-
-
-class HealthResponse(ApiResponse):
+class HealthResponse(ApiModel):
     status: Literal["ok"] = "ok"
     service: str
 
 
-class ReadinessCheck(ApiResponse):
+class ReadinessCheck(ApiModel):
     name: str
-    status: Literal["ok"] = "ok"
+    status: Literal["ok", "error"] = "ok"
 
 
-class ReadinessResponse(ApiResponse):
-    status: Literal["ready"] = "ready"
+class ReadinessResponse(ApiModel):
+    status: Literal["ready", "not_ready"] = "ready"
     checks: list[ReadinessCheck]

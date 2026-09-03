@@ -6,3 +6,6 @@ __pycache__/
 .coverage
 htmlcov/
 .env
+*.db
+*.db-shm
+*.db-wal
