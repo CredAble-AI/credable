@@ -46,6 +46,14 @@ def test_ready_returns_current_dependency_checks(client: TestClient) -> None:
                 "name": "demo_consent_scopes",
                 "status": "ok",
             },
+            {
+                "name": "data_source_repository",
+                "status": "ok",
+            },
+            {
+                "name": "data_source_adapter",
+                "status": "ok",
+            },
         ],
     }
 
@@ -64,3 +72,5 @@ def test_openapi_exposes_health_routes(client: TestClient) -> None:
     assert "/v1/sessions/{session_id}/consents" in paths
     assert "/v1/sessions/{session_id}/consents/{source_type}/grant" in paths
     assert "/v1/sessions/{session_id}/consents/{source_type}/withdraw" in paths
+    assert "/v1/sessions/{session_id}/data-sources" in paths
+    assert "/v1/sessions/{session_id}/data-sources/refresh" in paths

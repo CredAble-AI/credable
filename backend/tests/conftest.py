@@ -3,13 +3,16 @@ from collections.abc import Generator
 import pytest
 from fastapi.testclient import TestClient
 
+from app.adapters.data_source_adapter import EmptyDemoDataSourceAdapter
 from app.core.config import settings
 from app.main import create_app
 from app.repositories.case_repository import SqliteCaseRepository
 from app.repositories.consent_repository import SqliteConsentRepository
+from app.repositories.data_source_repository import SqliteDataSourceRepository
 from app.repositories.session_repository import SqliteCustomerSessionRepository
 from app.services.case_service import CaseService, DemoCaseCatalog
 from app.services.consent_service import ConsentService, DemoConsentScopeCatalog
+from app.services.data_source_service import DataSourceService
 from app.services.session_service import CustomerSessionService, DemoProfileCatalog
 
 
@@ -59,16 +62,35 @@ def consent_service(
 
 
 @pytest.fixture
+def data_source_repository(tmp_path) -> SqliteDataSourceRepository:
+    return SqliteDataSourceRepository(tmp_path / "test.db")
+
+
+@pytest.fixture
+def data_source_service(
+    data_source_repository: SqliteDataSourceRepository,
+    consent_service: ConsentService,
+) -> DataSourceService:
+    return DataSourceService(
+        repository=data_source_repository,
+        consent_service=consent_service,
+        adapter=EmptyDemoDataSourceAdapter(),
+    )
+
+
+@pytest.fixture
 def client(
     case_service: CaseService,
     session_service: CustomerSessionService,
     consent_service: ConsentService,
+    data_source_service: DataSourceService,
 ) -> Generator[TestClient]:
     with TestClient(
         create_app(
             case_service=case_service,
             session_service=session_service,
             consent_service=consent_service,
+            data_source_service=data_source_service,
         )
     ) as test_client:
         yield test_client
