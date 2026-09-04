@@ -10,6 +10,7 @@ import DataConnectionPage from './pages/DataConnectionPage'
 import EligibilityPage from './pages/EligibilityPage'
 import EvidencePage from './pages/EvidencePage'
 import EvidenceQualityPage from './pages/EvidenceQualityPage'
+import ProductComparisonPage from './pages/ProductComparisonPage'
 import SecondLookPage from './pages/SecondLookPage'
 
 const principles = [
@@ -108,6 +109,6 @@ function LandingPage() {
 }
 
 function App() {
-  return <Routes><Route path="/" element={<LandingPage />} /><Route path="/start" element={<CustomerStartPage />} /><Route path="/consent" element={<ConsentPage />} /><Route path="/data-connection" element={<DataConnectionPage />} /><Route path="/assessment" element={<AssessmentPage />} /><Route path="/case" element={<CaseStartPage />} /><Route path="/eligibility" element={<EligibilityPage />} /><Route path="/evidence" element={<EvidencePage />} /><Route path="/evidence-quality" element={<EvidenceQualityPage />} /><Route path="/second-look" element={<SecondLookPage />} /></Routes>
+  return <Routes><Route path="/" element={<LandingPage />} /><Route path="/start" element={<CustomerStartPage />} /><Route path="/consent" element={<ConsentPage />} /><Route path="/data-connection" element={<DataConnectionPage />} /><Route path="/assessment" element={<AssessmentPage />} /><Route path="/products" element={<ProductComparisonPage />} /><Route path="/case" element={<CaseStartPage />} /><Route path="/eligibility" element={<EligibilityPage />} /><Route path="/evidence" element={<EvidencePage />} /><Route path="/evidence-quality" element={<EvidenceQualityPage />} /><Route path="/second-look" element={<SecondLookPage />} /></Routes>
 }
 export default App
