@@ -31,12 +31,18 @@ Demo Profile은 소상공인과 스타트업 예시만 제공합니다. 같은 P
 세션을 생성하며, 생성된 세션은 `sessionId`로 복구할 수 있습니다.
 
 ```bash
+curl http://127.0.0.1:8000/v1/demo-profiles
+
 curl -X POST http://127.0.0.1:8000/v1/sessions/demo \
   -H 'Content-Type: application/json' \
   -d '{"demoProfileId":"small-business"}'
 
 curl http://127.0.0.1:8000/v1/sessions/<sessionId>
 ```
+
+Frontend는 `GET /v1/demo-profiles` 응답의 `demoProfileId`를 세션 생성 요청에 사용합니다.
+응답에는 표시용 이름·설명과 `dataVersion`, `demoOnly`가 포함되므로 Profile 목록을 별도로
+하드코딩하지 않습니다.
 
 세션에는 평가점수·등급·한도·금리를 포함하지 않습니다. 현재 단계에서는 합성 Demo Profile,
 `demoOnly`, 데이터 버전과 생성 시각만 저장합니다.
