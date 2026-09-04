@@ -147,20 +147,6 @@ Backend는 카탈로그 원본 순서를 유지하고 실제 정렬은 수행하
 존재하는 공개·개인화 한도와 최저금리의 정렬 가능 여부를 제공합니다. 값이 없는 항목은
 Frontend에서 마지막에 배치해야 하며, 원본 순서에는 추천·순위 의미가 없습니다.
 
-## Legacy Demo Case API
-
-```bash
-curl -X POST http://127.0.0.1:8000/v1/cases/demo \
-  -H 'Content-Type: application/json' \
-  -d '{"demoCaseId":"borderline"}'
-
-curl http://127.0.0.1:8000/v1/cases/case-demo-borderline
-```
-
-Demo Case 원본은 `app/data/demo_cases.json`, 실행 중 Case와 Audit 상태는
-Repository 인터페이스 뒤의 `data/credable.db`에 분리하여 저장합니다.
-모든 Demo Case 데이터는 합성 데이터이며 동일 `demoCaseId` 요청은 같은 Case를 반환합니다.
-
 ## 검증
 
 ```bash
@@ -172,7 +158,10 @@ uv run pytest
 ## 현재 범위
 
 현재 FastAPI 애플리케이션, liveness/readiness API, Demo 고객 세션, 데이터 출처별 동의와
-조회·검증 상태, 보완평가 실행 기반, 합성 자사 상품 카탈로그와 비교 API를 제공합니다. 기존
-Case Repository와 4개 Demo Case는 호환성을 위해 유지합니다. 합성 데이터 출처 상태와
-보완평가 상태, 소상공인용 개인화 상품 조건은 기존 Frontend Fixture와 일치합니다. 실제 평가
-모델·은행 상품정책·은행 연동과 Frontend의 Backend API 전환은 별도 작업으로 진행합니다.
+조회·검증 상태, 보완평가 실행 기반, 합성 자사 상품 카탈로그와 비교 API를 제공합니다. 합성
+데이터 출처 상태와 보완평가 상태, 소상공인용 개인화 상품 조건은 기존 Frontend Fixture와
+일치합니다. Legacy `/v1/cases/*` 흐름은 제거됐습니다. 실제 평가모델·은행 상품정책·은행 연동과
+Frontend의 Backend API 전환은 별도 작업으로 진행합니다.
+
+기존 SQLite 파일에 남아 있을 수 있는 Legacy Case 테이블과 데이터는 보존·삭제 정책이 정해질
+때까지 애플리케이션이 자동으로 삭제하지 않습니다.

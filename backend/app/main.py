@@ -10,13 +10,11 @@ from app.adapters.assessment_adapter import DemoAssessmentAdapter
 from app.adapters.data_source_adapter import DemoDataSourceAdapter
 from app.adapters.product_catalog_adapter import DemoProductCatalogAdapter
 from app.adapters.product_condition_adapter import DemoProductConditionAdapter
-from app.api.cases import router as cases_router
 from app.api.health import router as health_router
 from app.api.sessions import router as sessions_router
 from app.core.config import settings
 from app.core.errors import ApiDomainError
 from app.repositories.assessment_repository import SqliteAssessmentRepository
-from app.repositories.case_repository import SqliteCaseRepository
 from app.repositories.consent_repository import SqliteConsentRepository
 from app.repositories.data_source_repository import SqliteDataSourceRepository
 from app.repositories.product_catalog_repository import SqliteProductCatalogRepository
@@ -24,20 +22,12 @@ from app.repositories.product_condition_repository import SqliteProductCondition
 from app.repositories.session_repository import SqliteCustomerSessionRepository
 from app.schemas.error import ApiErrorDetail, ApiErrorResponse
 from app.services.assessment_service import AssessmentService
-from app.services.case_service import CaseService, DemoCaseCatalog
 from app.services.comparison_service import ProductComparisonService
 from app.services.consent_service import ConsentService, DemoConsentScopeCatalog
 from app.services.data_source_service import DataSourceService
 from app.services.product_catalog_service import ProductCatalogService
 from app.services.product_condition_service import ProductConditionService
 from app.services.session_service import CustomerSessionService, DemoProfileCatalog
-
-
-def build_case_service() -> CaseService:
-    return CaseService(
-        repository=SqliteCaseRepository(settings.database_path),
-        catalog=DemoCaseCatalog(settings.demo_cases_path),
-    )
 
 
 def build_session_service() -> CustomerSessionService:
@@ -106,7 +96,6 @@ def build_product_condition_service(
 
 
 def create_app(
-    case_service: CaseService | None = None,
     session_service: CustomerSessionService | None = None,
     consent_service: ConsentService | None = None,
     data_source_service: DataSourceService | None = None,
@@ -114,7 +103,6 @@ def create_app(
     product_catalog_service: ProductCatalogService | None = None,
     product_condition_service: ProductConditionService | None = None,
 ) -> FastAPI:
-    resolved_case_service = case_service or build_case_service()
     resolved_session_service = session_service or build_session_service()
     resolved_consent_service = consent_service or build_consent_service(resolved_session_service)
     resolved_data_source_service = data_source_service or build_data_source_service(
@@ -145,7 +133,6 @@ def create_app(
 
     @asynccontextmanager
     async def lifespan(_: FastAPI) -> AsyncIterator[None]:
-        resolved_case_service.initialize()
         resolved_session_service.initialize()
         resolved_consent_service.initialize()
         resolved_data_source_service.initialize()
@@ -162,7 +149,6 @@ def create_app(
         openapi_url="/openapi.json",
         lifespan=lifespan,
     )
-    application.state.case_service = resolved_case_service
     application.state.session_service = resolved_session_service
     application.state.consent_service = resolved_consent_service
     application.state.data_source_service = resolved_data_source_service
@@ -197,7 +183,6 @@ def create_app(
         )
 
     application.include_router(health_router)
-    application.include_router(cases_router)
     application.include_router(sessions_router)
     return application
 

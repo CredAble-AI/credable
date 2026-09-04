@@ -10,32 +10,17 @@ from app.adapters.product_condition_adapter import UnconfiguredProductConditionA
 from app.core.config import settings
 from app.main import create_app
 from app.repositories.assessment_repository import SqliteAssessmentRepository
-from app.repositories.case_repository import SqliteCaseRepository
 from app.repositories.consent_repository import SqliteConsentRepository
 from app.repositories.data_source_repository import SqliteDataSourceRepository
 from app.repositories.product_catalog_repository import SqliteProductCatalogRepository
 from app.repositories.product_condition_repository import SqliteProductConditionRepository
 from app.repositories.session_repository import SqliteCustomerSessionRepository
 from app.services.assessment_service import AssessmentService
-from app.services.case_service import CaseService, DemoCaseCatalog
 from app.services.consent_service import ConsentService, DemoConsentScopeCatalog
 from app.services.data_source_service import DataSourceService
 from app.services.product_catalog_service import ProductCatalogService
 from app.services.product_condition_service import ProductConditionService
 from app.services.session_service import CustomerSessionService, DemoProfileCatalog
-
-
-@pytest.fixture
-def case_repository(tmp_path) -> SqliteCaseRepository:
-    return SqliteCaseRepository(tmp_path / "test.db")
-
-
-@pytest.fixture
-def case_service(case_repository: SqliteCaseRepository) -> CaseService:
-    return CaseService(
-        repository=case_repository,
-        catalog=DemoCaseCatalog(settings.demo_cases_path),
-    )
 
 
 @pytest.fixture
@@ -150,7 +135,6 @@ def product_condition_service(
 
 @pytest.fixture
 def client(
-    case_service: CaseService,
     session_service: CustomerSessionService,
     consent_service: ConsentService,
     data_source_service: DataSourceService,
@@ -160,7 +144,6 @@ def client(
 ) -> Generator[TestClient]:
     with TestClient(
         create_app(
-            case_service=case_service,
             session_service=session_service,
             consent_service=consent_service,
             data_source_service=data_source_service,

@@ -18,22 +18,6 @@ class ResourceConflictError(ApiDomainError):
         super().__init__(code=code, message=message, status_code=409)
 
 
-class DemoCaseNotFoundError(ResourceNotFoundError):
-    def __init__(self, demo_case_id: str) -> None:
-        super().__init__(
-            code="DEMO_CASE_NOT_FOUND",
-            message=f"Demo Case를 찾을 수 없습니다: {demo_case_id}",
-        )
-
-
-class CaseNotFoundError(ResourceNotFoundError):
-    def __init__(self, case_id: str) -> None:
-        super().__init__(
-            code="CASE_NOT_FOUND",
-            message=f"Case를 찾을 수 없습니다: {case_id}",
-        )
-
-
 class DemoProfileNotFoundError(ResourceNotFoundError):
     def __init__(self, demo_profile_id: str) -> None:
         super().__init__(
