@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Request, status
 
 from app.schemas.assessment import AssessmentResponse
+from app.schemas.comparison import ProductComparisonResponse
 from app.schemas.consent import ConsentListResponse, ConsentState
 from app.schemas.data_source import DataSourceListResponse
 from app.schemas.error import ApiErrorResponse
@@ -12,6 +13,7 @@ from app.schemas.session import (
     DemoSessionCreateResponse,
 )
 from app.services.assessment_service import AssessmentService
+from app.services.comparison_service import ProductComparisonService
 from app.services.consent_service import ConsentService
 from app.services.data_source_service import DataSourceService
 from app.services.product_catalog_service import ProductCatalogService
@@ -43,6 +45,10 @@ def get_product_catalog_service(request: Request) -> ProductCatalogService:
 
 def get_product_condition_service(request: Request) -> ProductConditionService:
     return request.app.state.product_condition_service
+
+
+def get_product_comparison_service(request: Request) -> ProductComparisonService:
+    return request.app.state.product_comparison_service
 
 
 @router.post(
@@ -226,3 +232,15 @@ async def query_product_conditions(
         session_id,
         request.state.request_id,
     )
+
+
+@router.get(
+    "/{session_id}/comparison",
+    response_model=ProductComparisonResponse,
+    responses={404: {"model": ApiErrorResponse}},
+)
+async def get_product_comparison(
+    session_id: str,
+    request: Request,
+) -> ProductComparisonResponse:
+    return get_product_comparison_service(request).get_comparison(session_id)

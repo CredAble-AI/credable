@@ -104,3 +104,4 @@ def test_openapi_exposes_health_routes(client: TestClient) -> None:
     assert "/v1/sessions/{session_id}/products/refresh" in paths
     assert "/v1/sessions/{session_id}/product-conditions" in paths
     assert "/v1/sessions/{session_id}/product-conditions/query" in paths
+    assert "/v1/sessions/{session_id}/comparison" in paths
