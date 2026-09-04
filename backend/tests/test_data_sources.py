@@ -2,7 +2,8 @@ from datetime import UTC, datetime
 
 from fastapi.testclient import TestClient
 
-from app.adapters.data_source_adapter import DataSourceAdapter
+from app.adapters.data_source_adapter import DataSourceAdapter, DemoDataSourceAdapter
+from app.core.config import settings
 from app.repositories.data_source_repository import SqliteDataSourceRepository
 from app.repositories.session_repository import SqliteCustomerSessionRepository
 from app.schemas.audit import AuditStage
@@ -15,10 +16,10 @@ from app.schemas.data_source import (
 from app.services.data_source_service import DataSourceService
 
 
-def create_session(client: TestClient) -> str:
+def create_session(client: TestClient, demo_profile_id: str = "small-business") -> str:
     response = client.post(
         "/v1/sessions/demo",
-        json={"demoProfileId": "small-business"},
+        json={"demoProfileId": demo_profile_id},
     )
     assert response.status_code == 201
     return response.json()["sessionId"]
@@ -34,9 +35,10 @@ class ResultAdapter(DataSourceAdapter):
         self,
         *,
         session_id: str,
+        demo_profile_id: str,
         source_type: ConsentSourceType,
     ) -> AdapterRetrievalResult:
-        del session_id
+        del session_id, demo_profile_id
         if source_type == ConsentSourceType.CREDIT_INFORMATION:
             raise RuntimeError("sensitive adapter detail must not escape")
         return AdapterRetrievalResult(
@@ -135,6 +137,52 @@ def test_refresh_isolates_source_failure_and_records_verified_metadata(
     assert sources["CREDIT_INFORMATION"]["reasonCode"] == "DATA_SOURCE_ADAPTER_ERROR"
     assert "sensitive adapter detail" not in response.text
     assert sources["CUSTOMER_SUBMITTED"]["retrievalStatus"] == "CONSENT_REQUIRED"
+
+
+def test_demo_data_sources_match_small_business_frontend_fixture(
+    client: TestClient,
+    data_source_service: DataSourceService,
+) -> None:
+    session_id = create_session(client)
+    for source_type in ConsentSourceType:
+        grant(client, session_id, source_type.value)
+    adapter = DemoDataSourceAdapter(settings.demo_data_sources_path)
+    data_source_service.adapter = adapter
+
+    response = client.post(f"/v1/sessions/{session_id}/data-sources/refresh")
+
+    assert adapter.is_ready() is True
+    assert response.status_code == 200
+    sources = response.json()["dataSources"]
+    assert {item["retrievalStatus"] for item in sources} == {"RETRIEVED"}
+    assert {item["verificationStatus"] for item in sources} == {"VERIFIED"}
+    assert {item["observedAt"] for item in sources} == {"2026-08-31T23:59:59+09:00"}
+    assert {item["dataVersion"] for item in sources} == {"synthetic-demo-v1"}
+    assert all(item["demoOnly"] is True for item in sources)
+
+
+def test_demo_data_sources_keep_startup_stale_and_failed_states_separate(
+    client: TestClient,
+    data_source_service: DataSourceService,
+) -> None:
+    session_id = create_session(client, "startup")
+    for source_type in ConsentSourceType:
+        grant(client, session_id, source_type.value)
+    data_source_service.adapter = DemoDataSourceAdapter(settings.demo_data_sources_path)
+
+    response = client.post(f"/v1/sessions/{session_id}/data-sources/refresh")
+
+    sources = {item["sourceType"]: item for item in response.json()["dataSources"]}
+    assert sources["BANK_INTERNAL"]["verificationStatus"] == "VERIFIED"
+    assert sources["CREDIT_INFORMATION"]["verificationStatus"] == "VERIFIED"
+    assert sources["CUSTOMER_SUBMITTED"]["retrievalStatus"] == "RETRIEVED"
+    assert sources["CUSTOMER_SUBMITTED"]["verificationStatus"] == "STALE"
+    assert sources["CUSTOMER_SUBMITTED"]["reasonCode"] == "DEMO_OBSERVATION_STALE"
+    assert sources["EXTERNAL_CONNECTED"]["retrievalStatus"] == "FAILED"
+    assert sources["EXTERNAL_CONNECTED"]["verificationStatus"] == "NOT_STARTED"
+    assert sources["EXTERNAL_CONNECTED"]["reasonCode"] == "DEMO_PARTNER_UNAVAILABLE"
+    assert sources["EXTERNAL_CONNECTED"]["observedAt"] is None
+    assert sources["EXTERNAL_CONNECTED"]["dataVersion"] is None
 
 
 def test_withdrawal_hides_stored_state_and_regrant_requires_refresh(

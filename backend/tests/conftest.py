@@ -79,10 +79,12 @@ def data_source_repository(tmp_path) -> SqliteDataSourceRepository:
 def data_source_service(
     data_source_repository: SqliteDataSourceRepository,
     consent_service: ConsentService,
+    session_service: CustomerSessionService,
 ) -> DataSourceService:
     return DataSourceService(
         repository=data_source_repository,
         consent_service=consent_service,
+        session_service=session_service,
         adapter=EmptyDemoDataSourceAdapter(),
     )
 

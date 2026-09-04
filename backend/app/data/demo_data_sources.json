@@ -1,0 +1,84 @@
+{
+  "dataVersion": "demo-data-sources-v1",
+  "sources": [
+    {
+      "demoProfileId": "small-business",
+      "sourceType": "BANK_INTERNAL",
+      "result": {
+        "retrievalStatus": "RETRIEVED",
+        "verificationStatus": "VERIFIED",
+        "observedAt": "2026-08-31T23:59:59+09:00",
+        "dataVersion": "synthetic-demo-v1"
+      }
+    },
+    {
+      "demoProfileId": "small-business",
+      "sourceType": "CREDIT_INFORMATION",
+      "result": {
+        "retrievalStatus": "RETRIEVED",
+        "verificationStatus": "VERIFIED",
+        "observedAt": "2026-08-31T23:59:59+09:00",
+        "dataVersion": "synthetic-demo-v1"
+      }
+    },
+    {
+      "demoProfileId": "small-business",
+      "sourceType": "CUSTOMER_SUBMITTED",
+      "result": {
+        "retrievalStatus": "RETRIEVED",
+        "verificationStatus": "VERIFIED",
+        "observedAt": "2026-08-31T23:59:59+09:00",
+        "dataVersion": "synthetic-demo-v1"
+      }
+    },
+    {
+      "demoProfileId": "small-business",
+      "sourceType": "EXTERNAL_CONNECTED",
+      "result": {
+        "retrievalStatus": "RETRIEVED",
+        "verificationStatus": "VERIFIED",
+        "observedAt": "2026-08-31T23:59:59+09:00",
+        "dataVersion": "synthetic-demo-v1"
+      }
+    },
+    {
+      "demoProfileId": "startup",
+      "sourceType": "BANK_INTERNAL",
+      "result": {
+        "retrievalStatus": "RETRIEVED",
+        "verificationStatus": "VERIFIED",
+        "observedAt": "2026-08-31T23:59:59+09:00",
+        "dataVersion": "synthetic-demo-v1"
+      }
+    },
+    {
+      "demoProfileId": "startup",
+      "sourceType": "CREDIT_INFORMATION",
+      "result": {
+        "retrievalStatus": "RETRIEVED",
+        "verificationStatus": "VERIFIED",
+        "observedAt": "2026-08-31T23:59:59+09:00",
+        "dataVersion": "synthetic-demo-v1"
+      }
+    },
+    {
+      "demoProfileId": "startup",
+      "sourceType": "CUSTOMER_SUBMITTED",
+      "result": {
+        "retrievalStatus": "RETRIEVED",
+        "verificationStatus": "STALE",
+        "observedAt": "2025-12-31T23:59:59+09:00",
+        "dataVersion": "synthetic-demo-v1",
+        "reasonCode": "DEMO_OBSERVATION_STALE"
+      }
+    },
+    {
+      "demoProfileId": "startup",
+      "sourceType": "EXTERNAL_CONNECTED",
+      "result": {
+        "retrievalStatus": "FAILED",
+        "reasonCode": "DEMO_PARTNER_UNAVAILABLE"
+      }
+    }
+  ]
+}
