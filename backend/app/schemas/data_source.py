@@ -112,3 +112,21 @@ class AdapterRetrievalResult(ApiModel):
         ):
             raise ValueError("unsuccessful adapter result requires reasonCode")
         return self
+
+
+class DemoDataSourceDefinition(ApiModel):
+    demo_profile_id: str = Field(min_length=1)
+    source_type: ConsentSourceType
+    result: AdapterRetrievalResult
+
+
+class DemoDataSourceCatalogData(ApiModel):
+    data_version: str = Field(min_length=1)
+    sources: list[DemoDataSourceDefinition] = Field(min_length=1)
+
+    @model_validator(mode="after")
+    def validate_unique_sources(self) -> "DemoDataSourceCatalogData":
+        keys = [(item.demo_profile_id, item.source_type) for item in self.sources]
+        if len(keys) != len(set(keys)):
+            raise ValueError("demo profile and sourceType keys must be unique")
+        return self

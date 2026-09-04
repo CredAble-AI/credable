@@ -73,9 +73,11 @@ curl -X POST \
   http://127.0.0.1:8000/v1/sessions/<sessionId>/data-sources/refresh
 ```
 
-Mock 데이터가 아직 연결되지 않은 현재 Demo Adapter는 정상적인 데이터 부재를 `NO_DATA`와
-`DEMO_DATA_NOT_CONFIGURED`로 반환합니다. 이를 연동 오류인 `FAILED` 또는 신용상 불리한
-신호로 처리하지 않습니다. 원시 금융데이터는 응답·상태·Audit에 저장하지 않습니다.
+기본 Demo Adapter는 Frontend Mock과 같은 합성 조회·검증 상태를 프로필별로 제공합니다.
+소상공인 출처는 조회·검증 완료, 스타트업의 고객 제출 자료는 `STALE`, 제휴 외부 데이터는
+`FAILED`로 구분합니다. 동의하지 않은 출처는 Adapter를 호출하지 않으며, Fixture에 없는 상태는
+값을 만들지 않고 `NO_DATA`로 반환합니다. 원시 금융데이터는 응답·상태·Audit에 저장하지
+않습니다.
 
 ## Demo 보완평가 실행 기반
 
@@ -169,6 +171,6 @@ uv run pytest
 
 현재 FastAPI 애플리케이션, liveness/readiness API, Demo 고객 세션, 데이터 출처별 동의와
 조회·검증 상태, 보완평가 실행 기반, 합성 자사 상품 카탈로그와 비교 API를 제공합니다. 기존
-Case Repository와 4개 Demo Case는 호환성을 위해 유지합니다. Mock 원본 금융데이터·평가모델,
-실제 은행 상품정책과 은행 연동은 후속 기능입니다. 소상공인용 개인화 상품 조건은 기존
-Frontend 합성 Fixture와 일치하며, Frontend의 Backend API 전환도 별도 작업으로 진행합니다.
+Case Repository와 4개 Demo Case는 호환성을 위해 유지합니다. 합성 데이터 출처 상태와
+소상공인용 개인화 상품 조건은 기존 Frontend Fixture와 일치합니다. Mock 평가모델, 실제 은행
+상품정책·은행 연동과 Frontend의 Backend API 전환은 별도 작업으로 진행합니다.

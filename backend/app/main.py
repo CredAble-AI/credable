@@ -7,7 +7,7 @@ from fastapi import Request as FastAPIRequest
 from fastapi.responses import JSONResponse
 
 from app.adapters.assessment_adapter import UnconfiguredDemoAssessmentAdapter
-from app.adapters.data_source_adapter import EmptyDemoDataSourceAdapter
+from app.adapters.data_source_adapter import DemoDataSourceAdapter
 from app.adapters.product_catalog_adapter import DemoProductCatalogAdapter
 from app.adapters.product_condition_adapter import DemoProductConditionAdapter
 from app.api.cases import router as cases_router
@@ -55,11 +55,15 @@ def build_consent_service(session_service: CustomerSessionService) -> ConsentSer
     )
 
 
-def build_data_source_service(consent_service: ConsentService) -> DataSourceService:
+def build_data_source_service(
+    consent_service: ConsentService,
+    session_service: CustomerSessionService,
+) -> DataSourceService:
     return DataSourceService(
         repository=SqliteDataSourceRepository(settings.database_path),
         consent_service=consent_service,
-        adapter=EmptyDemoDataSourceAdapter(),
+        session_service=session_service,
+        adapter=DemoDataSourceAdapter(settings.demo_data_sources_path),
     )
 
 
@@ -114,7 +118,8 @@ def create_app(
     resolved_session_service = session_service or build_session_service()
     resolved_consent_service = consent_service or build_consent_service(resolved_session_service)
     resolved_data_source_service = data_source_service or build_data_source_service(
-        resolved_consent_service
+        resolved_consent_service,
+        resolved_session_service,
     )
     resolved_assessment_service = assessment_service or build_assessment_service(
         resolved_session_service,

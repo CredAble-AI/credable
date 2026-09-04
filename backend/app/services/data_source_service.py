@@ -15,6 +15,7 @@ from app.schemas.data_source import (
     VerificationStatus,
 )
 from app.services.consent_service import ConsentService
+from app.services.session_service import CustomerSessionService
 
 
 class DataSourceService:
@@ -22,10 +23,12 @@ class DataSourceService:
         self,
         repository: DataSourceRepository,
         consent_service: ConsentService,
+        session_service: CustomerSessionService,
         adapter: DataSourceAdapter,
     ) -> None:
         self.repository = repository
         self.consent_service = consent_service
+        self.session_service = session_service
         self.adapter = adapter
 
     def initialize(self) -> None:
@@ -41,6 +44,7 @@ class DataSourceService:
         return DataSourceListResponse(session_id=session_id, data_sources=states)
 
     def refresh(self, session_id: str, request_id: str) -> DataSourceListResponse:
+        session = self.session_service.get_session(session_id).session
         consent_response = self.consent_service.list_consents(session_id)
         states: list[DataSourceState] = []
         for consent in consent_response.consents:
@@ -52,6 +56,7 @@ class DataSourceService:
             try:
                 result = self.adapter.retrieve(
                     session_id=session_id,
+                    demo_profile_id=session.demo_profile.demo_profile_id,
                     source_type=consent.source_type,
                 )
             except Exception:
@@ -77,6 +82,8 @@ class DataSourceService:
                         session_id=session_id,
                         consent=consent,
                         state=state,
+                        demo_profile_id=session.demo_profile.demo_profile_id,
+                        profile_data_version=session.data_version,
                         request_id=request_id,
                     ),
                 )
@@ -123,12 +130,16 @@ class DataSourceService:
         session_id: str,
         consent: ConsentState,
         state: DataSourceState,
+        demo_profile_id: str,
+        profile_data_version: str,
         request_id: str,
     ) -> SessionAuditEvent:
         snapshot = {
             "sourceType": consent.source_type.value,
             "consentStatus": consent.status.value,
             "consentScopeVersion": consent.scope_version,
+            "demoProfileId": demo_profile_id,
+            "profileDataVersion": profile_data_version,
         }
         snapshot_json = json.dumps(snapshot, separators=(",", ":"), sort_keys=True)
         return SessionAuditEvent(
