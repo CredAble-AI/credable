@@ -153,6 +153,9 @@ class ProductConditionQueryState(ApiModel):
             return self
         if self.catalog_snapshot_id is None or self.data_snapshot_id is None:
             raise ValueError("condition results require catalog and data snapshots")
+        product_ids = [item.product_id for item in self.conditions]
+        if len(product_ids) != len(set(product_ids)):
+            raise ValueError("condition productId values must be unique")
         failed_count = sum(
             item.status == ProductConditionStatus.QUERY_FAILED for item in self.conditions
         )

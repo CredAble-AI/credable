@@ -25,6 +25,7 @@ from app.repositories.session_repository import SqliteCustomerSessionRepository
 from app.schemas.error import ApiErrorDetail, ApiErrorResponse
 from app.services.assessment_service import AssessmentService
 from app.services.case_service import CaseService, DemoCaseCatalog
+from app.services.comparison_service import ProductComparisonService
 from app.services.consent_service import ConsentService, DemoConsentScopeCatalog
 from app.services.data_source_service import DataSourceService
 from app.services.product_catalog_service import ProductCatalogService
@@ -131,6 +132,11 @@ def create_app(
             resolved_data_source_service,
         )
     )
+    resolved_product_comparison_service = ProductComparisonService(
+        session_service=resolved_session_service,
+        catalog_service=resolved_product_catalog_service,
+        condition_service=resolved_product_condition_service,
+    )
 
     @asynccontextmanager
     async def lifespan(_: FastAPI) -> AsyncIterator[None]:
@@ -158,6 +164,7 @@ def create_app(
     application.state.assessment_service = resolved_assessment_service
     application.state.product_catalog_service = resolved_product_catalog_service
     application.state.product_condition_service = resolved_product_condition_service
+    application.state.product_comparison_service = resolved_product_comparison_service
 
     @application.middleware("http")
     async def attach_request_id(request: FastAPIRequest, call_next):
