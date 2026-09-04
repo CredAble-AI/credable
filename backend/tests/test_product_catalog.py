@@ -2,7 +2,11 @@ from datetime import date
 
 from fastapi.testclient import TestClient
 
-from app.adapters.product_catalog_adapter import ProductCatalogAdapter
+from app.adapters.product_catalog_adapter import (
+    DemoProductCatalogAdapter,
+    ProductCatalogAdapter,
+)
+from app.core.config import settings
 from app.repositories.product_catalog_repository import SqliteProductCatalogRepository
 from app.repositories.session_repository import SqliteCustomerSessionRepository
 from app.schemas.audit import AuditStage
@@ -131,6 +135,47 @@ def test_refresh_without_product_mock_returns_not_configured_and_audit(
         "productCount": 0,
         "demoOnly": True,
     }
+
+
+def test_demo_catalog_matches_frontend_fixture_and_is_comparison_ready(
+    client: TestClient,
+    product_catalog_service: ProductCatalogService,
+) -> None:
+    session_id = create_session(client)
+    adapter = DemoProductCatalogAdapter(settings.demo_products_path)
+    product_catalog_service.adapter = adapter
+
+    response = client.post(f"/v1/sessions/{session_id}/products/refresh")
+
+    assert adapter.is_ready() is True
+    assert response.status_code == 200
+    catalog = response.json()["catalog"]
+    assert catalog["status"] == "AVAILABLE"
+    assert catalog["catalogVersion"] == "demo-catalog-v1"
+    assert [item["productId"] for item in catalog["products"]] == [
+        "demo-working-capital",
+        "demo-daily-bridge",
+        "demo-steady-business",
+        "demo-balance-partner",
+    ]
+    assert [item["publicMaxAmount"]["amount"] for item in catalog["products"]] == [
+        "50000000",
+        "30000000",
+        "70000000",
+        "40000000",
+    ]
+    assert all(item["demoOnly"] is True for item in catalog["products"])
+    assert all("합성" in item["eligibilitySummary"] for item in catalog["products"])
+
+    comparison = client.get(f"/v1/sessions/{session_id}/comparison").json()
+    assert comparison["status"] == "PUBLIC_ONLY"
+    assert len(comparison["items"]) == 4
+    assert [item["productId"] for item in comparison["items"]] == [
+        "demo-working-capital",
+        "demo-daily-bridge",
+        "demo-steady-business",
+        "demo-balance-partner",
+    ]
 
 
 def test_available_catalog_keeps_public_conditions_structured(

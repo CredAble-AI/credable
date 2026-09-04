@@ -1,4 +1,5 @@
 from abc import ABC, abstractmethod
+from pathlib import Path
 
 from app.schemas.product import ProductCatalogAdapterResult, ProductCatalogStatus
 
@@ -30,4 +31,25 @@ class UnconfiguredProductCatalogAdapter(ProductCatalogAdapter):
         )
 
     def is_ready(self) -> bool:
+        return True
+
+
+class DemoProductCatalogAdapter(ProductCatalogAdapter):
+    def __init__(self, catalog_path: Path) -> None:
+        self.catalog_path = catalog_path
+
+    @property
+    def adapter_version(self) -> str:
+        return "demo-product-catalog-adapter-v1"
+
+    def load(self) -> ProductCatalogAdapterResult:
+        return ProductCatalogAdapterResult.model_validate_json(
+            self.catalog_path.read_text(encoding="utf-8")
+        )
+
+    def is_ready(self) -> bool:
+        try:
+            self.load()
+        except (OSError, ValueError):
+            return False
         return True

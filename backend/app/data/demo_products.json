@@ -1,0 +1,123 @@
+{
+  "status": "AVAILABLE",
+  "catalogVersion": "demo-catalog-v1",
+  "products": [
+    {
+      "productId": "demo-working-capital",
+      "productName": "사업 운영자금 플러스",
+      "eligibilitySummary": "음식업 개인사업자를 위한 합성 운전자금 상품",
+      "publicMaxAmount": {
+        "amount": "50000000",
+        "currency": "KRW"
+      },
+      "annualRateRange": {
+        "minPercent": "4.20",
+        "maxPercent": "8.90"
+      },
+      "termRangeMonths": {
+        "minMonths": 12,
+        "maxMonths": 60
+      },
+      "repaymentMethods": [
+        "원리금균등분할상환",
+        "만기일시상환"
+      ],
+      "officialSource": {
+        "sourceName": "CredAble 도입 은행 Demo 카탈로그",
+        "sourceUrl": null,
+        "effectiveDate": "2026-09-01"
+      },
+      "productVersion": "demo-product-v1",
+      "applicationUrl": null,
+      "applicationReference": null,
+      "demoOnly": true
+    },
+    {
+      "productId": "demo-daily-bridge",
+      "productName": "데일리 브릿지론",
+      "eligibilitySummary": "일상적인 사업자금 수요를 위한 합성 상품",
+      "publicMaxAmount": {
+        "amount": "30000000",
+        "currency": "KRW"
+      },
+      "annualRateRange": {
+        "minPercent": "4.80",
+        "maxPercent": "9.50"
+      },
+      "termRangeMonths": {
+        "minMonths": 6,
+        "maxMonths": 36
+      },
+      "repaymentMethods": [
+        "원금균등분할상환"
+      ],
+      "officialSource": {
+        "sourceName": "CredAble 도입 은행 Demo 카탈로그",
+        "sourceUrl": null,
+        "effectiveDate": "2026-09-01"
+      },
+      "productVersion": "demo-product-v1",
+      "applicationUrl": null,
+      "applicationReference": null,
+      "demoOnly": true
+    },
+    {
+      "productId": "demo-steady-business",
+      "productName": "스테디 비즈니스론",
+      "eligibilitySummary": "업력 조건을 확인하는 합성 사업자 상품",
+      "publicMaxAmount": {
+        "amount": "70000000",
+        "currency": "KRW"
+      },
+      "annualRateRange": {
+        "minPercent": "4.50",
+        "maxPercent": "9.20"
+      },
+      "termRangeMonths": {
+        "minMonths": 12,
+        "maxMonths": 72
+      },
+      "repaymentMethods": [
+        "원리금균등분할상환"
+      ],
+      "officialSource": {
+        "sourceName": "CredAble 도입 은행 Demo 카탈로그",
+        "sourceUrl": null,
+        "effectiveDate": "2026-09-01"
+      },
+      "productVersion": "demo-product-v1",
+      "applicationUrl": null,
+      "applicationReference": null,
+      "demoOnly": true
+    },
+    {
+      "productId": "demo-balance-partner",
+      "productName": "밸런스 파트너론",
+      "eligibilitySummary": "사업 운영 계획을 확인하는 합성 사업자 상품",
+      "publicMaxAmount": {
+        "amount": "40000000",
+        "currency": "KRW"
+      },
+      "annualRateRange": {
+        "minPercent": "4.60",
+        "maxPercent": "9.10"
+      },
+      "termRangeMonths": {
+        "minMonths": 12,
+        "maxMonths": 48
+      },
+      "repaymentMethods": [
+        "원금균등분할상환"
+      ],
+      "officialSource": {
+        "sourceName": "CredAble 도입 은행 Demo 카탈로그",
+        "sourceUrl": null,
+        "effectiveDate": "2026-09-01"
+      },
+      "productVersion": "demo-product-v1",
+      "applicationUrl": null,
+      "applicationReference": null,
+      "demoOnly": true
+    }
+  ]
+}

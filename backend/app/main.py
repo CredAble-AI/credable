@@ -8,7 +8,7 @@ from fastapi.responses import JSONResponse
 
 from app.adapters.assessment_adapter import UnconfiguredDemoAssessmentAdapter
 from app.adapters.data_source_adapter import EmptyDemoDataSourceAdapter
-from app.adapters.product_catalog_adapter import UnconfiguredProductCatalogAdapter
+from app.adapters.product_catalog_adapter import DemoProductCatalogAdapter
 from app.adapters.product_condition_adapter import UnconfiguredProductConditionAdapter
 from app.api.cases import router as cases_router
 from app.api.health import router as health_router
@@ -81,7 +81,7 @@ def build_product_catalog_service(
     return ProductCatalogService(
         repository=SqliteProductCatalogRepository(settings.database_path),
         session_service=session_service,
-        adapter=UnconfiguredProductCatalogAdapter(),
+        adapter=DemoProductCatalogAdapter(settings.demo_products_path),
     )
 
 
