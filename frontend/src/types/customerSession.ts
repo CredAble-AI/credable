@@ -1,4 +1,10 @@
-export type DemoProfileType = 'SMALL_BUSINESS' | 'STARTUP'
+export type DemoProfileType = string
+
+export interface DemoProfile {
+  demoProfileId: string
+  displayName: string
+  description: string
+}
 
 export interface ConsentSelections {
   required: Record<'customerIdentity' | 'accountSummary' | 'creditInformation', boolean>
@@ -9,6 +15,7 @@ export interface ConsentSelections {
 export interface CustomerSession {
   sessionId: string
   selectedProfileType: DemoProfileType
+  demoProfile: DemoProfile
   consents: ConsentSelections
   demoOnly: true
   createdAt: string

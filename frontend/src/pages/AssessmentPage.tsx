@@ -4,12 +4,12 @@ import { liveAssessmentProvider, normalizeAssessmentError } from '../api/assessm
 import { liveDataConnectionProvider } from '../api/dataConnectionClient'
 import Header from '../components/Header'
 import { isMockMode, selectProvider } from '../config/providerMode'
-import { findDemoProfile } from '../data/demoProfiles'
+import { useCustomerSession } from '../hooks/useCustomerSession'
 import { mockAssessmentProvider } from '../mocks/assessmentProvider'
-import { customerSessionProvider } from '../mocks/customerSessionProvider'
 import { mockDataConnectionProvider } from '../mocks/dataConnectionProvider'
 import type { AssessmentRequest, AssessmentResult, AssessmentStatus } from '../types/assessment'
 import type { ApiError } from '../types/api'
+import type { DataConnectionRequest } from '../types/dataConnection'
 import './AssessmentPage.css'
 
 const provider = selectProvider(mockAssessmentProvider, liveAssessmentProvider)
@@ -26,20 +26,25 @@ const formatDate = (value?: string | null) => value ? new Intl.DateTimeFormat('k
 
 function AssessmentPage() {
   const navigate = useNavigate()
-  const [session] = useState(() => customerSessionProvider.get())
+  const { session, loading: sessionLoading } = useCustomerSession()
   const [result, setResult] = useState<AssessmentResult | null>(null)
   const [error, setError] = useState<ApiError | null>(null)
   const [phase, setPhase] = useState<'loading' | 'running' | 'idle'>('loading')
   const controllerRef = useRef<AbortController | null>(null)
   const requestSequence = useRef(0)
   const requiredComplete = session ? Object.values(session.consents.required).every(Boolean) : false
-  const requestRef = useRef<AssessmentRequest | null>(session ? { sessionId: session.sessionId, profileType: session.selectedProfileType } : null)
-  const connectionRequestRef = useRef(session ? { sessionId: session.sessionId, profileType: session.selectedProfileType, consents: session.consents } : null)
+  const requestRef = useRef<AssessmentRequest | null>(null)
+  const connectionRequestRef = useRef<DataConnectionRequest | null>(null)
+  useEffect(() => {
+    requestRef.current = session ? { sessionId: session.sessionId, profileType: session.selectedProfileType } : null
+    connectionRequestRef.current = session ? { sessionId: session.sessionId, profileType: session.selectedProfileType, consents: session.consents } : null
+  }, [session])
 
   useEffect(() => {
+    if (sessionLoading) return
     if (!session) navigate('/start', { replace: true })
     else if (!requiredComplete) navigate('/consent', { replace: true })
-  }, [navigate, requiredComplete, session])
+  }, [navigate, requiredComplete, session, sessionLoading])
 
   const load = useCallback(async (forceRun = false) => {
     const request = requestRef.current
@@ -82,18 +87,18 @@ function AssessmentPage() {
   useEffect(() => {
     if (requestRef.current && requiredComplete) void load()
     return () => controllerRef.current?.abort()
-    // Run once for the fixed session snapshot on this visit.
+    // Fires once the session finishes loading; subsequent phase/requiredComplete changes are handled by explicit reloads.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
+  }, [session])
 
-  if (!session || !requiredComplete) return null
+  if (sessionLoading || !session || !requiredComplete) return null
   const state = result?.assessment
   const copy = state ? statusCopy[state.status] : null
   const incomplete = state && state.status !== 'COMPLETED'
 
   return <div className="workspace-shell customer-flow"><Header /><main className="assessment-page"><div className="container assessment-page__inner">
     <nav className="assessment-steps" aria-label="진행 단계"><span>시작</span><span>동의</span><span>데이터 연결</span><strong aria-current="step">보완 평가</strong><span>상품 비교</span></nav>
-    <header className="assessment-heading"><div>{isMockMode && <span className="assessment-badge">Mock result · Demo Only</span>}<p className="flow-kicker">COMPLEMENTARY ASSESSMENT</p><h1>연결된 데이터를 바탕으로 보완 평가를 확인합니다</h1><p>은행이 승인한 데이터와 평가 방식으로 생성된 결과를 보여줍니다. 외부 신용점수를 직접 변경하거나 대출 승인을 확정하는 결과가 아닙니다.</p></div><aside><span>현재 Demo 프로필</span><strong>{findDemoProfile(session.selectedProfileType)?.name}</strong><small>프로필별 Demo 평가 방식은 서로 독립적입니다.</small></aside></header>
+    <header className="assessment-heading"><div>{isMockMode && <span className="assessment-badge">Mock result · Demo Only</span>}<p className="flow-kicker">COMPLEMENTARY ASSESSMENT</p><h1>연결된 데이터를 바탕으로 보완 평가를 확인합니다</h1><p>은행이 승인한 데이터와 평가 방식으로 생성된 결과를 보여줍니다. 외부 신용점수를 직접 변경하거나 대출 승인을 확정하는 결과가 아닙니다.</p></div><aside><span>현재 Demo 프로필</span><strong>{session.demoProfile.displayName}</strong><small>프로필별 Demo 평가 방식은 서로 독립적입니다.</small></aside></header>
 
     <div className="assessment-live" role="status" aria-live="polite">{phase === 'loading' ? '기존 보완 평가 결과를 확인하고 있습니다.' : phase === 'running' ? '보완 평가를 실행하고 있습니다.' : error ? '보완 평가를 확인하지 못했습니다.' : '보완 평가 상태를 확인했습니다.'}</div>
     {error && <section className="assessment-error" role="alert"><div><strong>{error.message}</strong><small>오류 코드: {error.code}{error.requestId ? ` · Request ID: ${error.requestId}` : ''}</small></div>{error.retryable && <button type="button" onClick={() => void load()}>평가 다시 확인</button>}</section>}

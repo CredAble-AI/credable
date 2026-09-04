@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
+import { normalizeSessionError } from '../api/sessionClient'
 import Header from '../components/Header'
-import { findDemoProfile } from '../data/demoProfiles'
-import { customerSessionProvider } from '../mocks/customerSessionProvider'
+import { sessionProvider, useCustomerSession } from '../hooks/useCustomerSession'
+import type { ApiError } from '../types/api'
 import { emptyConsents, type ConsentSelections } from '../types/customerSession'
 import './ConsentPage.css'
 
@@ -20,20 +21,36 @@ const optionalItems = [
 
 function ConsentPage() {
   const navigate = useNavigate()
-  const [session] = useState(() => customerSessionProvider.get())
-  const [consents, setConsents] = useState<ConsentSelections>(() => session?.consents ?? emptyConsents())
+  const { session, loading: sessionLoading } = useCustomerSession()
+  const [consents, setConsents] = useState<ConsentSelections>(emptyConsents())
+  const [loadedSessionId, setLoadedSessionId] = useState<string | null>(null)
+  const [submitting, setSubmitting] = useState(false)
+  const [error, setError] = useState<ApiError | null>(null)
 
-  useEffect(() => { if (!session) navigate('/start', { replace: true }) }, [navigate, session])
-  if (!session) return null
+  if (session && session.sessionId !== loadedSessionId) {
+    setLoadedSessionId(session.sessionId)
+    setConsents(session.consents)
+  }
+  useEffect(() => { if (!sessionLoading && !session) navigate('/start', { replace: true }) }, [navigate, session, sessionLoading])
+  if (sessionLoading || !session) return null
 
   const requiredComplete = Object.values(consents.required).every(Boolean)
   const setConsent = (group: keyof ConsentSelections, key: string, checked: boolean) => {
     setConsents((current) => ({ ...current, [group]: { ...current[group], [key]: checked } }))
   }
-  const submit = () => {
-    if (!requiredComplete) return
-    if (customerSessionProvider.updateConsents(consents)) navigate('/data-connection')
-    else navigate('/start', { replace: true })
+  const submit = async () => {
+    if (!requiredComplete || submitting) return
+    setSubmitting(true)
+    setError(null)
+    try {
+      const updated = await sessionProvider.updateConsents(consents, new AbortController().signal)
+      if (updated) navigate('/data-connection')
+      else navigate('/start', { replace: true })
+    } catch (caught) {
+      setError(normalizeSessionError(caught))
+    } finally {
+      setSubmitting(false)
+    }
   }
 
   return (
@@ -43,7 +60,7 @@ function ConsentPage() {
         <div className="container consent-page__inner">
           <header className="consent-heading">
             <div><p className="flow-kicker">DATA CONSENT</p><h1>연결할 데이터의 이용 범위를 확인해주세요</h1><p>동의는 데이터 연결 성공과 별개의 단계이며, 선택 항목은 동의하지 않아도 계속할 수 있습니다.</p></div>
-            <div className="session-summary"><span>Demo Only</span><strong>{findDemoProfile(session.selectedProfileType)?.name}</strong><small>합성 데이터 세션</small></div>
+            <div className="session-summary"><span>Demo Only</span><strong>{session.demoProfile.displayName}</strong><small>합성 데이터 세션</small></div>
           </header>
 
           <fieldset className="consent-group">
@@ -69,8 +86,8 @@ function ConsentPage() {
           </fieldset>
 
           <div className="consent-actions">
-            <p aria-live="polite">{requiredComplete ? '필수 동의가 완료되었습니다.' : '계속하려면 필수 항목에 모두 동의해주세요.'}</p>
-            <div><Link className="button button--secondary" to="/start">이전으로</Link><button className="button button--primary" type="button" disabled={!requiredComplete} onClick={submit}>동의하고 데이터 연결로 이동</button></div>
+            <p aria-live="polite">{error ? error.message : requiredComplete ? '필수 동의가 완료되었습니다.' : '계속하려면 필수 항목에 모두 동의해주세요.'}</p>
+            <div><Link className="button button--secondary" to="/start">이전으로</Link><button className="button button--primary" type="button" disabled={!requiredComplete || submitting} onClick={() => void submit()}>{submitting ? '처리 중…' : '동의하고 데이터 연결로 이동'}</button></div>
           </div>
         </div>
       </main>
