@@ -6,7 +6,7 @@ from fastapi import FastAPI
 from fastapi import Request as FastAPIRequest
 from fastapi.responses import JSONResponse
 
-from app.adapters.assessment_adapter import UnconfiguredDemoAssessmentAdapter
+from app.adapters.assessment_adapter import DemoAssessmentAdapter
 from app.adapters.data_source_adapter import DemoDataSourceAdapter
 from app.adapters.product_catalog_adapter import DemoProductCatalogAdapter
 from app.adapters.product_condition_adapter import DemoProductConditionAdapter
@@ -75,7 +75,7 @@ def build_assessment_service(
         repository=SqliteAssessmentRepository(settings.database_path),
         session_service=session_service,
         data_source_service=data_source_service,
-        adapter=UnconfiguredDemoAssessmentAdapter(),
+        adapter=DemoAssessmentAdapter(settings.demo_assessments_path),
     )
 
 

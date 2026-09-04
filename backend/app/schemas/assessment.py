@@ -5,6 +5,7 @@ from typing import Literal
 from pydantic import Field, model_validator
 
 from app.schemas.base import ApiModel
+from app.schemas.consent import ConsentSourceType
 from app.schemas.data_source import DataSourceState
 
 
@@ -38,6 +39,27 @@ class AdapterAssessmentResult(ApiModel):
                 raise ValueError("COMPLETED assessment requires modelVersion")
         elif not self.reason_code:
             raise ValueError("incomplete assessment requires reasonCode")
+        return self
+
+
+class DemoAssessmentDefinition(ApiModel):
+    demo_profile_id: str = Field(min_length=1)
+    result: AdapterAssessmentResult
+
+
+class DemoAssessmentCatalogData(ApiModel):
+    data_version: str = Field(min_length=1)
+    required_verified_sources: list[ConsentSourceType] = Field(min_length=1)
+    assessments: list[DemoAssessmentDefinition] = Field(min_length=1)
+
+    @model_validator(mode="after")
+    def validate_unique_profiles(self) -> "DemoAssessmentCatalogData":
+        source_types = self.required_verified_sources
+        if len(source_types) != len(set(source_types)):
+            raise ValueError("required verified sourceType values must be unique")
+        profile_ids = [item.demo_profile_id for item in self.assessments]
+        if len(profile_ids) != len(set(profile_ids)):
+            raise ValueError("demoProfileId values must be unique")
         return self
 
 

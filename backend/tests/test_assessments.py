@@ -1,20 +1,40 @@
 from fastapi.testclient import TestClient
 
-from app.adapters.assessment_adapter import AssessmentAdapter
+from app.adapters.assessment_adapter import AssessmentAdapter, DemoAssessmentAdapter
+from app.adapters.data_source_adapter import DemoDataSourceAdapter
+from app.core.config import settings
 from app.repositories.assessment_repository import SqliteAssessmentRepository
 from app.repositories.session_repository import SqliteCustomerSessionRepository
 from app.schemas.assessment import AdapterAssessmentResult, AssessmentInputSnapshot
 from app.schemas.audit import AuditStage
+from app.schemas.consent import ConsentSourceType
 from app.services.assessment_service import AssessmentService
+from app.services.data_source_service import DataSourceService
 
 
-def create_session(client: TestClient) -> str:
+def create_session(client: TestClient, demo_profile_id: str = "startup") -> str:
     response = client.post(
         "/v1/sessions/demo",
-        json={"demoProfileId": "startup"},
+        json={"demoProfileId": demo_profile_id},
     )
     assert response.status_code == 201
     return response.json()["sessionId"]
+
+
+def prepare_required_demo_sources(
+    client: TestClient,
+    session_id: str,
+    data_source_service: DataSourceService,
+) -> None:
+    data_source_service.adapter = DemoDataSourceAdapter(settings.demo_data_sources_path)
+    for source_type in (
+        ConsentSourceType.BANK_INTERNAL,
+        ConsentSourceType.CREDIT_INFORMATION,
+    ):
+        response = client.post(f"/v1/sessions/{session_id}/consents/{source_type.value}/grant")
+        assert response.status_code == 200
+    response = client.post(f"/v1/sessions/{session_id}/data-sources/refresh")
+    assert response.status_code == 200
 
 
 class FailingAssessmentAdapter(AssessmentAdapter):
@@ -100,6 +120,64 @@ def test_run_without_model_returns_explicit_state_and_preserves_snapshot(
         "assessmentStatus": "MODEL_NOT_CONFIGURED",
         "demoOnly": True,
     }
+
+
+def test_demo_assessment_requires_verified_bank_sources(
+    client: TestClient,
+    assessment_service: AssessmentService,
+) -> None:
+    session_id = create_session(client, "small-business")
+    adapter = DemoAssessmentAdapter(settings.demo_assessments_path)
+    assessment_service.adapter = adapter
+
+    response = client.post(f"/v1/sessions/{session_id}/assessment/run")
+
+    assert adapter.is_ready() is True
+    assert response.status_code == 200
+    assessment = response.json()["assessment"]
+    assert assessment["status"] == "INSUFFICIENT_DATA"
+    assert assessment["reasonCode"] == "DEMO_REQUIRED_DATA_NOT_VERIFIED"
+    assert assessment["modelVersion"] is None
+
+
+def test_demo_assessment_completes_small_business_fixture(
+    client: TestClient,
+    assessment_service: AssessmentService,
+    data_source_service: DataSourceService,
+) -> None:
+    session_id = create_session(client, "small-business")
+    prepare_required_demo_sources(client, session_id, data_source_service)
+    assessment_service.adapter = DemoAssessmentAdapter(settings.demo_assessments_path)
+
+    response = client.post(f"/v1/sessions/{session_id}/assessment/run")
+
+    assert response.status_code == 200
+    assessment = response.json()["assessment"]
+    assert assessment["status"] == "COMPLETED"
+    assert assessment["modelVersion"] == "demo-small-business-assessment-v1"
+    assert assessment["reasonCode"] is None
+    assert assessment["demoOnly"] is True
+    assert "score" not in response.text.lower()
+    assert "grade" not in response.text.lower()
+
+
+def test_demo_assessment_keeps_startup_as_insufficient_data(
+    client: TestClient,
+    assessment_service: AssessmentService,
+    data_source_service: DataSourceService,
+) -> None:
+    session_id = create_session(client)
+    prepare_required_demo_sources(client, session_id, data_source_service)
+    assessment_service.adapter = DemoAssessmentAdapter(settings.demo_assessments_path)
+
+    response = client.post(f"/v1/sessions/{session_id}/assessment/run")
+
+    assessment = response.json()["assessment"]
+    assert assessment["status"] == "INSUFFICIENT_DATA"
+    assert assessment["reasonCode"] == "DEMO_VERIFIED_DATA_INSUFFICIENT"
+    assert assessment["modelVersion"] is None
+    assert "score" not in response.text.lower()
+    assert "grade" not in response.text.lower()
 
 
 def test_each_run_is_preserved_and_get_returns_latest(

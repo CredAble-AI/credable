@@ -1,10 +1,13 @@
 from abc import ABC, abstractmethod
+from pathlib import Path
 
 from app.schemas.assessment import (
     AdapterAssessmentResult,
     AssessmentInputSnapshot,
     AssessmentStatus,
+    DemoAssessmentCatalogData,
 )
+from app.schemas.data_source import RetrievalStatus, VerificationStatus
 
 
 class AssessmentAdapter(ABC):
@@ -29,3 +32,50 @@ class UnconfiguredDemoAssessmentAdapter(AssessmentAdapter):
 
     def is_ready(self) -> bool:
         return True
+
+
+class DemoAssessmentAdapter(AssessmentAdapter):
+    def __init__(self, catalog_path: Path) -> None:
+        self.catalog_path = catalog_path
+        self._catalog: DemoAssessmentCatalogData | None = None
+        self._results: dict[str, AdapterAssessmentResult] = {}
+
+    def run(self, snapshot: AssessmentInputSnapshot) -> AdapterAssessmentResult:
+        self._initialize()
+        if self._catalog is None:
+            raise RuntimeError("Demo assessment catalog is not initialized")
+        sources = {item.source_type: item for item in snapshot.data_sources}
+        required_sources_ready = all(
+            source_type in sources
+            and sources[source_type].retrieval_status == RetrievalStatus.RETRIEVED
+            and sources[source_type].verification_status == VerificationStatus.VERIFIED
+            for source_type in self._catalog.required_verified_sources
+        )
+        if not required_sources_ready:
+            return AdapterAssessmentResult(
+                status=AssessmentStatus.INSUFFICIENT_DATA,
+                reason_code="DEMO_REQUIRED_DATA_NOT_VERIFIED",
+            )
+        return self._results.get(
+            snapshot.demo_profile_id,
+            AdapterAssessmentResult(
+                status=AssessmentStatus.UNSUPPORTED_CUSTOMER_TYPE,
+                reason_code="DEMO_CUSTOMER_TYPE_NOT_CONFIGURED",
+            ),
+        )
+
+    def is_ready(self) -> bool:
+        try:
+            self._initialize()
+        except (OSError, ValueError):
+            return False
+        return True
+
+    def _initialize(self) -> None:
+        if self._catalog is not None:
+            return
+        catalog = DemoAssessmentCatalogData.model_validate_json(
+            self.catalog_path.read_text(encoding="utf-8")
+        )
+        self._catalog = catalog
+        self._results = {item.demo_profile_id: item.result for item in catalog.assessments}
