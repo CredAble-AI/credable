@@ -30,7 +30,7 @@ const item = (
 })
 
 const fixture = (request: ProductRequest): ProductComparisonResult => {
-  if (request.profileType === 'STARTUP') return {
+  if (request.profileType === 'startup') return {
     sessionId: request.sessionId, products: [], status: 'CATALOG_UNAVAILABLE',
     sortableFields: [], nullPlacement: 'LAST', initialOrder: 'CATALOG_SOURCE',
     canViewProducts: false, cannotProceedReason: '보완 평가 단계에서 상품 조건 조회를 진행할 수 없는 상태로 확인되었습니다.',

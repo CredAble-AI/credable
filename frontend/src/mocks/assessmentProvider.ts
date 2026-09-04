@@ -16,7 +16,7 @@ const notRun = (request: AssessmentRequest): AssessmentResult => ({
 
 const fixture = (request: AssessmentRequest): AssessmentResult => {
   const calculatedAt = '2026-09-04T11:00:00+09:00'
-  if (request.profileType === 'STARTUP') return {
+  if (request.profileType === 'startup') return {
     sessionId: request.sessionId,
     assessment: { assessmentId: `asm_demo_${request.sessionId}`, status: 'INSUFFICIENT_DATA', calculatedAt, inputSnapshotId: 'dss_demo_startup_v1', modelVersion: null, reasonCode: 'DEMO_VERIFIED_DATA_INSUFFICIENT', demoOnly: true },
     summary: '현재 연결·검증된 데이터만으로는 보완 평가 결과를 산출할 수 없습니다.',

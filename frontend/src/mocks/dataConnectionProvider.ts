@@ -41,11 +41,11 @@ const fixture = (request: DataConnectionRequest): DataConnectionResult => {
   ]
 
   if (!selected(request, 'CUSTOMER_SUBMITTED')) sources.push(notSelected('CUSTOMER_SUBMITTED', '고객 제출 데이터'))
-  else if (request.profileType === 'STARTUP') sources.push(state('CUSTOMER_SUBMITTED', '고객 제출 재무 자료', { verificationStatus: 'STALE', observedAt: '2025-12-31T23:59:59+09:00', reasonCode: 'DEMO_OBSERVATION_STALE' }))
+  else if (request.profileType === 'startup') sources.push(state('CUSTOMER_SUBMITTED', '고객 제출 재무 자료', { verificationStatus: 'STALE', observedAt: '2025-12-31T23:59:59+09:00', reasonCode: 'DEMO_OBSERVATION_STALE' }))
   else sources.push(state('CUSTOMER_SUBMITTED', '고객 제출 사업 자료'))
 
   if (!selected(request, 'EXTERNAL_CONNECTED')) sources.push(notSelected('EXTERNAL_CONNECTED', '외부 연결 데이터'))
-  else if (request.profileType === 'STARTUP') sources.push(state('EXTERNAL_CONNECTED', '제휴 외부 데이터', { retrievalStatus: 'FAILED', verificationStatus: 'NOT_STARTED', observedAt: null, dataVersion: null, reasonCode: 'DEMO_PARTNER_UNAVAILABLE' }))
+  else if (request.profileType === 'startup') sources.push(state('EXTERNAL_CONNECTED', '제휴 외부 데이터', { retrievalStatus: 'FAILED', verificationStatus: 'NOT_STARTED', observedAt: null, dataVersion: null, reasonCode: 'DEMO_PARTNER_UNAVAILABLE' }))
   else sources.push(state('EXTERNAL_CONNECTED', '외부 연결 데이터'))
 
   return {

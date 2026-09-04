@@ -3,8 +3,7 @@ import { Link, useNavigate } from 'react-router-dom'
 import { liveDataConnectionProvider, normalizeDataConnectionError } from '../api/dataConnectionClient'
 import Header from '../components/Header'
 import { isMockMode, selectProvider } from '../config/providerMode'
-import { findDemoProfile } from '../data/demoProfiles'
-import { customerSessionProvider } from '../mocks/customerSessionProvider'
+import { useCustomerSession } from '../hooks/useCustomerSession'
 import { mockDataConnectionProvider } from '../mocks/dataConnectionProvider'
 import type { ApiError } from '../types/api'
 import type { ConsentSourceType, DataConnectionRequest, DataConnectionResult, DataSourceState, RetrievalStatus, VerificationStatus } from '../types/dataConnection'
@@ -36,7 +35,7 @@ function SourceCard({ source, busy, error, onRetry }: { source: DataSourceState;
 
 function DataConnectionPage() {
   const navigate = useNavigate()
-  const [session] = useState(() => customerSessionProvider.get())
+  const { session, loading: sessionLoading } = useCustomerSession()
   const [result, setResult] = useState<DataConnectionResult | null>(null)
   const [error, setError] = useState<ApiError | null>(null)
   const [itemErrors, setItemErrors] = useState<Partial<Record<ConsentSourceType, ApiError>>>({})
@@ -45,12 +44,16 @@ function DataConnectionPage() {
   const requestSequence = useRef(0)
   const controllerRef = useRef<AbortController | null>(null)
   const requiredComplete = session ? Object.values(session.consents.required).every(Boolean) : false
-  const requestRef = useRef<DataConnectionRequest | null>(session ? { sessionId: session.sessionId, profileType: session.selectedProfileType, consents: session.consents } : null)
+  const requestRef = useRef<DataConnectionRequest | null>(null)
+  useEffect(() => {
+    requestRef.current = session ? { sessionId: session.sessionId, profileType: session.selectedProfileType, consents: session.consents } : null
+  }, [session])
 
   useEffect(() => {
+    if (sessionLoading) return
     if (!session) navigate('/start', { replace: true })
     else if (!requiredComplete) navigate('/consent', { replace: true })
-  }, [navigate, requiredComplete, session])
+  }, [navigate, requiredComplete, session, sessionLoading])
 
   const load = useCallback(async (refresh = false) => {
     const request = requestRef.current
@@ -74,7 +77,7 @@ function DataConnectionPage() {
   useEffect(() => {
     if (requestRef.current && requiredComplete) void load()
     return () => controllerRef.current?.abort()
-  }, [load, requiredComplete])
+  }, [load, requiredComplete, session])
 
   const retrySource = async (sourceType: ConsentSourceType) => {
     const request = requestRef.current
@@ -93,12 +96,12 @@ function DataConnectionPage() {
     }
   }
 
-  if (!session || !requiredComplete) return null
+  if (sessionLoading || !session || !requiredComplete) return null
   const bankSources = result?.dataSources.filter((source) => presentation[source.sourceType].group === 'bank') ?? []
   const consentedSources = result?.dataSources.filter((source) => presentation[source.sourceType].group === 'consented') ?? []
   return <div className="workspace-shell customer-flow"><Header /><main className="connection-page"><div className="container connection-page__inner">
     <nav className="flow-steps" aria-label="진행 단계"><span>시작</span><span>동의</span><strong aria-current="step">데이터 연결</strong><span>보완 평가</span><span>상품 비교</span></nav>
-    <header className="connection-heading"><div>{isMockMode && <span className="connection-badge">Mock mode · Demo Only</span>}<p className="flow-kicker">DATA CONNECTION</p><h1>보완 평가에 사용할 데이터를 확인합니다</h1><p>은행 보유 데이터와 고객이 동의한 데이터의 연결·검증 상태를 확인합니다. 데이터가 없거나 연결되지 않았다는 이유만으로 신용이 불리하게 판단되지는 않습니다.</p></div><aside><span>현재 Demo 프로필</span><strong>{findDemoProfile(session.selectedProfileType)?.name}</strong><small>대표 합성 사례이며 이용 대상을 제한하지 않습니다.</small></aside></header>
+    <header className="connection-heading"><div>{isMockMode && <span className="connection-badge">Mock mode · Demo Only</span>}<p className="flow-kicker">DATA CONNECTION</p><h1>보완 평가에 사용할 데이터를 확인합니다</h1><p>은행 보유 데이터와 고객이 동의한 데이터의 연결·검증 상태를 확인합니다. 데이터가 없거나 연결되지 않았다는 이유만으로 신용이 불리하게 판단되지는 않습니다.</p></div><aside><span>현재 Demo 프로필</span><strong>{session.demoProfile.displayName}</strong><small>대표 합성 사례이며 이용 대상을 제한하지 않습니다.</small></aside></header>
     <div className="connection-status" aria-live="polite" role="status">{isLoading ? '데이터 연결·검증 상태를 확인하고 있습니다.' : retrying ? `${result?.dataSources.find((item) => item.sourceType === retrying)?.displayName} 항목을 다시 확인하고 있습니다.` : '현재 데이터 상태를 확인했습니다.'}</div>
     {error && <section className="connection-error" role="alert"><div><strong>{error.message}</strong><small>오류 코드: {error.code}{error.requestId ? ` · Request ID: ${error.requestId}` : ''}</small></div>{error.retryable && <button type="button" onClick={() => void load()}>다시 확인</button>}</section>}
     {isLoading && !result && <div className="source-skeletons" aria-hidden="true"><span /><span /><span /></div>}
