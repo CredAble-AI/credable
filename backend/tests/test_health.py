@@ -23,14 +23,6 @@ def test_ready_returns_current_dependency_checks(client: TestClient) -> None:
                 "status": "ok",
             },
             {
-                "name": "repository",
-                "status": "ok",
-            },
-            {
-                "name": "demo_cases",
-                "status": "ok",
-            },
-            {
                 "name": "session_repository",
                 "status": "ok",
             },
@@ -89,8 +81,7 @@ def test_openapi_exposes_health_routes(client: TestClient) -> None:
     paths = response.json()["paths"]
     assert "/health" in paths
     assert "/ready" in paths
-    assert "/v1/cases/demo" in paths
-    assert "/v1/cases/{case_id}" in paths
+    assert all(not path.startswith("/v1/cases") for path in paths)
     assert "/v1/sessions/demo" in paths
     assert "/v1/sessions/{session_id}" in paths
     assert "/v1/sessions/{session_id}/consents" in paths
@@ -105,3 +96,11 @@ def test_openapi_exposes_health_routes(client: TestClient) -> None:
     assert "/v1/sessions/{session_id}/product-conditions" in paths
     assert "/v1/sessions/{session_id}/product-conditions/query" in paths
     assert "/v1/sessions/{session_id}/comparison" in paths
+
+
+def test_removed_legacy_case_routes_return_not_found(client: TestClient) -> None:
+    create_response = client.post("/v1/cases/demo", json={"demoCaseId": "borderline"})
+    get_response = client.get("/v1/cases/case-demo-borderline")
+
+    assert create_response.status_code == 404
+    assert get_response.status_code == 404
