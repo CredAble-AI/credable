@@ -24,6 +24,7 @@ function CaseStartPage() {
     try {
       const response = await provider.create({ demoCaseType: selectedType })
       sessionStorage.setItem('credable.caseId', response.caseId)
+      sessionStorage.removeItem('credable.evidenceSubmitted')
       navigate('/eligibility')
     } catch (caughtError) {
       setError(normalizeApiError(caughtError))

@@ -75,3 +75,35 @@ export interface EvidenceRecommendation {
 }
 
 export interface EvidenceRequirementRequest { caseId: string; recomputeReason?: string }
+
+export type EvidenceStatus = 'PASS' | 'FAIL' | 'SUSPICIOUS'
+export type EvidenceConsistency = 'OK' | 'CHECK' | 'FAIL'
+export type SourceType = 'PUBLIC' | 'MOCK' | 'BANK' | 'PARTNER'
+
+export interface EvidenceQualityItem {
+  evidenceId: string
+  evidenceType?: string
+  displayName?: string
+  status: EvidenceStatus
+  coveragePct?: number
+  freshnessDays?: number
+  sourceVerified: boolean
+  consistency: EvidenceConsistency
+  anomalyFlags: string[]
+  usableForRisk: boolean
+  pointInTimeValid: boolean
+  sourceType?: SourceType
+  observedAt?: string
+  retrievedAt?: string
+  featureCutoffAt?: string
+}
+
+export interface EvidenceQualityResponse {
+  items: EvidenceQualityItem[]
+  overallGrade: string
+  routeHint?: string
+  demoOnly: boolean
+  evaluatedAt?: string
+}
+
+export interface EvidenceQualityRequest { caseId: string; submissionState: 'DEMO_SUBMITTED' }

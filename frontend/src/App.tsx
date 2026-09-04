@@ -6,6 +6,7 @@ import CaseStartPage from './pages/CaseStartPage'
 import EligibilityPage from './pages/EligibilityPage'
 import EvidencePage from './pages/EvidencePage'
 import EvidenceQualityPage from './pages/EvidenceQualityPage'
+import SecondLookPage from './pages/SecondLookPage'
 
 const principles = [
   { number: '01', title: 'No Data ≠ Bad Credit', body: '데이터가 없다는 이유만으로 위험을 더 높게 판단하지 않습니다.' },
@@ -103,6 +104,6 @@ function LandingPage() {
 }
 
 function App() {
-  return <Routes><Route path="/" element={<LandingPage />} /><Route path="/case" element={<CaseStartPage />} /><Route path="/eligibility" element={<EligibilityPage />} /><Route path="/evidence" element={<EvidencePage />} /><Route path="/evidence-quality" element={<EvidenceQualityPage />} /></Routes>
+  return <Routes><Route path="/" element={<LandingPage />} /><Route path="/case" element={<CaseStartPage />} /><Route path="/eligibility" element={<EligibilityPage />} /><Route path="/evidence" element={<EvidencePage />} /><Route path="/evidence-quality" element={<EvidenceQualityPage />} /><Route path="/second-look" element={<SecondLookPage />} /></Routes>
 }
 export default App

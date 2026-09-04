@@ -46,7 +46,7 @@ function EvidencePage() {
         setCaseSummary(nextCase)
         setEligibility(nextEligibility)
         setRecommendation(next)
-        if (recomputeReason) { setIsReadyForQuality(true); setAnnouncement('추천이 최신 정보로 다시 계산되었습니다') }
+        if (recomputeReason) { sessionStorage.setItem('credable.evidenceSubmitted', 'true'); setIsReadyForQuality(true); setAnnouncement('추천이 최신 정보로 다시 계산되었습니다') }
       }
     } catch (caughtError) {
       if (!controller.signal.aborted && sequence === sequenceRef.current) setError(normalizeEvidenceError(caughtError))
