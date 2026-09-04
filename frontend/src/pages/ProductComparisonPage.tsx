@@ -1,7 +1,9 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { normalizeProductError } from '../api/productClient'
+import { liveAssessmentProvider } from '../api/assessmentClient'
+import { liveProductProvider, normalizeProductError } from '../api/productClient'
 import Header from '../components/Header'
+import { isMockMode, selectProvider } from '../config/providerMode'
 import { findDemoProfile } from '../data/demoProfiles'
 import { customerSessionProvider } from '../mocks/customerSessionProvider'
 import { mockAssessmentProvider } from '../mocks/assessmentProvider'
@@ -10,7 +12,8 @@ import type { ApiError } from '../types/api'
 import type { AnnualRateRange, ComparisonSortField, MoneyAmount, ProductComparisonItem, ProductComparisonResult, ProductConditionStatus, ProductSortDirection, TermRangeMonths, ProductView } from '../types/product'
 import './ProductComparisonPage.css'
 
-const provider = mockProductProvider
+const provider = selectProvider(mockProductProvider, liveProductProvider)
+const assessmentProvider = selectProvider(mockAssessmentProvider, liveAssessmentProvider)
 type SortSelection = ComparisonSortField | 'CATALOG_ORDER'
 const sortFieldLabels: Record<ComparisonSortField, string> = {
   PUBLIC_MAX_AMOUNT: '공개 한도', PUBLIC_MIN_ANNUAL_RATE: '공개 최저 금리',
@@ -75,7 +78,7 @@ function ProductComparisonPage() {
     setLoading(true); setError(null)
     try {
       const request = { sessionId: session.sessionId, profileType: session.selectedProfileType }
-      const assessment = await mockAssessmentProvider.get(request, controller.signal)
+      const assessment = await assessmentProvider.get(request, controller.signal)
       if (assessment.assessment.status === 'NOT_RUN') { navigate('/assessment', { replace: true }); return }
       const next = await (refresh ? provider.refresh(request, controller.signal) : provider.get(request, controller.signal))
       if (next.sessionId !== session.sessionId) throw { code: 'PRODUCT_SESSION_MISMATCH', message: '현재 세션의 상품 결과를 확인할 수 없습니다.', retryable: true } satisfies ApiError
@@ -103,7 +106,7 @@ function ProductComparisonPage() {
   if (!session || !requiredComplete) return null
   return <div className="workspace-shell customer-flow"><Header /><main className="products-page"><div className="container products-page__inner">
     <nav className="product-steps" aria-label="진행 단계"><span>시작</span><span>동의</span><span>데이터 연결</span><span>보완 평가</span><strong aria-current="step">상품 비교</strong></nav>
-    <header className="products-heading"><div><span className="products-badge">Mock mode · Demo Only</span><p className="flow-kicker">OWN-BANK PRODUCT COMPARISON</p><h1>자사 대출상품 조건을 비교합니다</h1><p>현재 확인 가능한 상품 조건을 같은 기준으로 보여드립니다. 특정 상품을 권하거나 자동으로 선택하지 않으며, 정렬 기준과 상품은 고객이 직접 선택합니다.</p></div><aside><span>현재 Demo 프로필</span><strong>{findDemoProfile(session.selectedProfileType)?.name}</strong><small>합성 상품·조건이며 실제 승인 결과가 아닙니다.</small></aside></header>
+    <header className="products-heading"><div>{isMockMode && <span className="products-badge">Mock mode · Demo Only</span>}<p className="flow-kicker">OWN-BANK PRODUCT COMPARISON</p><h1>자사 대출상품 조건을 비교합니다</h1><p>현재 확인 가능한 상품 조건을 같은 기준으로 보여드립니다. 특정 상품을 권하거나 자동으로 선택하지 않으며, 정렬 기준과 상품은 고객이 직접 선택합니다.</p></div><aside><span>현재 Demo 프로필</span><strong>{findDemoProfile(session.selectedProfileType)?.name}</strong><small>합성 상품·조건이며 실제 승인 결과가 아닙니다.</small></aside></header>
     <div className="products-live" role="status" aria-live="polite">{loading ? '자사 상품 조건을 확인하고 있습니다.' : error ? '상품 조건을 확인하지 못했습니다.' : result?.canViewProducts ? `${products.length}개 상품 조건을 확인했습니다.` : '상품 비교를 진행할 수 없는 상태입니다.'}</div>
     {error && <section className="products-error" role="alert"><div><strong>{error.message}</strong><small>오류 코드: {error.code}{error.requestId ? ` · Request ID: ${error.requestId}` : ''}</small></div>{error.retryable && <button type="button" onClick={() => void load()}>다시 확인</button>}</section>}
     {loading && !result && <div className="product-skeletons" aria-hidden="true"><span /><span /><span /></div>}
