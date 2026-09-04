@@ -1,5 +1,6 @@
 import sqlite3
 from abc import ABC, abstractmethod
+from datetime import datetime
 from pathlib import Path
 
 from app.schemas.audit import SessionAuditEvent
@@ -27,6 +28,17 @@ class CustomerSessionRepository(ABC):
     @abstractmethod
     def list_audit_events(self, session_id: str) -> list[SessionAuditEvent]:
         """Return stored audit events in creation order."""
+
+    @abstractmethod
+    def list_audit_events_page(
+        self,
+        session_id: str,
+        *,
+        before_timestamp: datetime | None,
+        before_event_id: str | None,
+        limit: int,
+    ) -> list[SessionAuditEvent]:
+        """Return one newest-first page of stored audit events."""
 
     @abstractmethod
     def is_ready(self) -> bool:
@@ -137,6 +149,41 @@ class SqliteCustomerSessionRepository(CustomerSessionRepository):
                 ORDER BY timestamp, event_id
                 """,
                 (session_id,),
+            ).fetchall()
+        return [SessionAuditEvent.model_validate_json(row["event_json"]) for row in rows]
+
+    def list_audit_events_page(
+        self,
+        session_id: str,
+        *,
+        before_timestamp: datetime | None,
+        before_event_id: str | None,
+        limit: int,
+    ) -> list[SessionAuditEvent]:
+        if (before_timestamp is None) != (before_event_id is None):
+            raise ValueError("audit cursor fields must be provided together")
+
+        parameters: list[str | int] = [session_id]
+        cursor_condition = ""
+        if before_timestamp is not None and before_event_id is not None:
+            cursor_condition = """
+                AND (timestamp < ? OR (timestamp = ? AND event_id < ?))
+            """
+            encoded_timestamp = before_timestamp.isoformat()
+            parameters.extend([encoded_timestamp, encoded_timestamp, before_event_id])
+        parameters.append(limit)
+
+        with self._connect() as connection:
+            rows = connection.execute(
+                f"""
+                SELECT event_json
+                FROM customer_session_audit_events
+                WHERE session_id = ?
+                {cursor_condition}
+                ORDER BY timestamp DESC, event_id DESC
+                LIMIT ?
+                """,
+                parameters,
             ).fetchall()
         return [SessionAuditEvent.model_validate_json(row["event_json"]) for row in rows]
 

@@ -1,8 +1,14 @@
+import os
 from pathlib import Path
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field, SecretStr
 
 BACKEND_ROOT = Path(__file__).resolve().parents[2]
+
+
+def load_admin_api_key() -> SecretStr | None:
+    value = os.getenv("CREDABLE_ADMIN_API_KEY")
+    return SecretStr(value) if value else None
 
 
 class Settings(BaseModel):
@@ -20,6 +26,7 @@ class Settings(BaseModel):
     demo_product_conditions_path: Path = (
         BACKEND_ROOT / "app" / "data" / "demo_product_conditions.json"
     )
+    admin_api_key: SecretStr | None = Field(default_factory=load_admin_api_key)
 
 
 settings = Settings()

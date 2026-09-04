@@ -18,6 +18,33 @@ class ResourceConflictError(ApiDomainError):
         super().__init__(code=code, message=message, status_code=409)
 
 
+class AdminAuthenticationError(ApiDomainError):
+    def __init__(self) -> None:
+        super().__init__(
+            code="ADMIN_AUTHENTICATION_FAILED",
+            message="유효한 관리자 API 키가 필요합니다.",
+            status_code=401,
+        )
+
+
+class AdminAuthenticationNotConfiguredError(ApiDomainError):
+    def __init__(self) -> None:
+        super().__init__(
+            code="ADMIN_AUTHENTICATION_NOT_CONFIGURED",
+            message="관리자 API 인증이 설정되지 않았습니다.",
+            status_code=503,
+        )
+
+
+class InvalidAuditCursorError(ApiDomainError):
+    def __init__(self) -> None:
+        super().__init__(
+            code="INVALID_AUDIT_CURSOR",
+            message="감사 이력 조회 커서가 올바르지 않습니다.",
+            status_code=400,
+        )
+
+
 class DemoProfileNotFoundError(ResourceNotFoundError):
     def __init__(self, demo_profile_id: str) -> None:
         super().__init__(
