@@ -2,6 +2,7 @@ import { useEffect, useRef } from 'react'
 import { Link, Route, Routes } from 'react-router-dom'
 import './App.css'
 import Header from './components/Header'
+import AssessmentPage from './pages/AssessmentPage'
 import CaseStartPage from './pages/CaseStartPage'
 import ConsentPage from './pages/ConsentPage'
 import CustomerStartPage from './pages/CustomerStartPage'
@@ -107,6 +108,6 @@ function LandingPage() {
 }
 
 function App() {
-  return <Routes><Route path="/" element={<LandingPage />} /><Route path="/start" element={<CustomerStartPage />} /><Route path="/consent" element={<ConsentPage />} /><Route path="/data-connection" element={<DataConnectionPage />} /><Route path="/case" element={<CaseStartPage />} /><Route path="/eligibility" element={<EligibilityPage />} /><Route path="/evidence" element={<EvidencePage />} /><Route path="/evidence-quality" element={<EvidenceQualityPage />} /><Route path="/second-look" element={<SecondLookPage />} /></Routes>
+  return <Routes><Route path="/" element={<LandingPage />} /><Route path="/start" element={<CustomerStartPage />} /><Route path="/consent" element={<ConsentPage />} /><Route path="/data-connection" element={<DataConnectionPage />} /><Route path="/assessment" element={<AssessmentPage />} /><Route path="/case" element={<CaseStartPage />} /><Route path="/eligibility" element={<EligibilityPage />} /><Route path="/evidence" element={<EvidencePage />} /><Route path="/evidence-quality" element={<EvidenceQualityPage />} /><Route path="/second-look" element={<SecondLookPage />} /></Routes>
 }
 export default App
