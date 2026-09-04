@@ -9,7 +9,7 @@ from fastapi.responses import JSONResponse
 from app.adapters.assessment_adapter import UnconfiguredDemoAssessmentAdapter
 from app.adapters.data_source_adapter import EmptyDemoDataSourceAdapter
 from app.adapters.product_catalog_adapter import DemoProductCatalogAdapter
-from app.adapters.product_condition_adapter import UnconfiguredProductConditionAdapter
+from app.adapters.product_condition_adapter import DemoProductConditionAdapter
 from app.api.cases import router as cases_router
 from app.api.health import router as health_router
 from app.api.sessions import router as sessions_router
@@ -97,7 +97,7 @@ def build_product_condition_service(
         catalog_service=product_catalog_service,
         assessment_service=assessment_service,
         data_source_service=data_source_service,
-        adapter=UnconfiguredProductConditionAdapter(),
+        adapter=DemoProductConditionAdapter(settings.demo_product_conditions_path),
     )
 
 

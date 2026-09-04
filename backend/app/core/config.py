@@ -16,6 +16,9 @@ class Settings(BaseModel):
     demo_profiles_path: Path = BACKEND_ROOT / "app" / "data" / "demo_profiles.json"
     demo_consent_scopes_path: Path = BACKEND_ROOT / "app" / "data" / "demo_consent_scopes.json"
     demo_products_path: Path = BACKEND_ROOT / "app" / "data" / "demo_products.json"
+    demo_product_conditions_path: Path = (
+        BACKEND_ROOT / "app" / "data" / "demo_product_conditions.json"
+    )
 
 
 settings = Settings()

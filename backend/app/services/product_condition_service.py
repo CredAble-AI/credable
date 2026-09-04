@@ -53,7 +53,7 @@ class ProductConditionService:
         return ProductConditionQueryResponse(session_id=session_id, query=state)
 
     def query(self, session_id: str, request_id: str) -> ProductConditionQueryResponse:
-        self.session_service.get_session(session_id)
+        session = self.session_service.get_session(session_id).session
         catalog = self.catalog_service.get_latest(session_id).catalog
         if catalog.status != ProductCatalogStatus.AVAILABLE:
             return self._save_catalog_unavailable(
@@ -69,6 +69,7 @@ class ProductConditionService:
             raise RuntimeError("available catalog must have catalogSnapshotId")
         snapshot = ProductConditionInputSnapshot(
             catalog_snapshot_id=catalog.catalog_snapshot_id,
+            demo_profile_id=session.demo_profile.demo_profile_id,
             products=catalog.products,
             assessment=assessment,
             data_sources=data_sources,
@@ -80,6 +81,7 @@ class ProductConditionService:
         conditions = [
             self._query_product(
                 session_id=session_id,
+                demo_profile_id=session.demo_profile.demo_profile_id,
                 catalog_snapshot_id=catalog.catalog_snapshot_id,
                 product=product,
                 assessment=assessment,
@@ -146,6 +148,7 @@ class ProductConditionService:
         self,
         *,
         session_id: str,
+        demo_profile_id: str,
         catalog_snapshot_id: str,
         product: BankProduct,
         assessment: AssessmentState,
@@ -155,6 +158,7 @@ class ProductConditionService:
     ) -> ProductCondition:
         input_data = ProductConditionAdapterInput(
             session_id=session_id,
+            demo_profile_id=demo_profile_id,
             product=product,
             catalog_snapshot_id=catalog_snapshot_id,
             assessment=assessment,

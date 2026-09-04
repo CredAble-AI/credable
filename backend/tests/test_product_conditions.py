@@ -2,10 +2,20 @@ from datetime import date
 
 from fastapi.testclient import TestClient
 
-from app.adapters.product_catalog_adapter import ProductCatalogAdapter
-from app.adapters.product_condition_adapter import ProductConditionAdapter
+from app.adapters.assessment_adapter import AssessmentAdapter
+from app.adapters.product_catalog_adapter import DemoProductCatalogAdapter, ProductCatalogAdapter
+from app.adapters.product_condition_adapter import (
+    DemoProductConditionAdapter,
+    ProductConditionAdapter,
+)
+from app.core.config import settings
 from app.repositories.product_condition_repository import SqliteProductConditionRepository
 from app.repositories.session_repository import SqliteCustomerSessionRepository
+from app.schemas.assessment import (
+    AdapterAssessmentResult,
+    AssessmentInputSnapshot,
+    AssessmentStatus,
+)
 from app.schemas.audit import AuditStage
 from app.schemas.product import (
     AnnualRateRange,
@@ -21,14 +31,15 @@ from app.schemas.product_condition import (
     ProductConditionAdapterResult,
     ProductConditionStatus,
 )
+from app.services.assessment_service import AssessmentService
 from app.services.product_catalog_service import ProductCatalogService
 from app.services.product_condition_service import ProductConditionService
 
 
-def create_session(client: TestClient) -> str:
+def create_session(client: TestClient, demo_profile_id: str = "small-business") -> str:
     response = client.post(
         "/v1/sessions/demo",
-        json={"demoProfileId": "small-business"},
+        json={"demoProfileId": demo_profile_id},
     )
     assert response.status_code == 201
     return response.json()["sessionId"]
@@ -102,6 +113,18 @@ class FailingConditionAdapter(ProductConditionAdapter):
     ) -> ProductConditionAdapterResult:
         del input_data
         raise RuntimeError("private policy detail must not escape")
+
+    def is_ready(self) -> bool:
+        return True
+
+
+class CompletedAssessmentAdapter(AssessmentAdapter):
+    def run(self, snapshot: AssessmentInputSnapshot) -> AdapterAssessmentResult:
+        del snapshot
+        return AdapterAssessmentResult(
+            status=AssessmentStatus.COMPLETED,
+            model_version="contract-test-assessment-v1",
+        )
 
     def is_ready(self) -> bool:
         return True
@@ -199,6 +222,111 @@ def test_products_without_policy_return_policy_not_configured(
     ]
     assert snapshot.catalog_snapshot_id == query["catalogSnapshotId"]
     assert snapshot.data_snapshot_id == query["dataSnapshotId"]
+
+
+def test_demo_policy_matches_frontend_fixture_for_small_business(
+    client: TestClient,
+    assessment_service: AssessmentService,
+    product_catalog_service: ProductCatalogService,
+    product_condition_service: ProductConditionService,
+) -> None:
+    session_id = create_session(client)
+    product_catalog_service.adapter = DemoProductCatalogAdapter(settings.demo_products_path)
+    product_condition_service.adapter = DemoProductConditionAdapter(
+        settings.demo_product_conditions_path
+    )
+    assessment_service.adapter = CompletedAssessmentAdapter()
+    client.post(f"/v1/sessions/{session_id}/assessment/run")
+    client.post(f"/v1/sessions/{session_id}/products/refresh")
+
+    response = client.post(f"/v1/sessions/{session_id}/product-conditions/query")
+
+    assert response.status_code == 200
+    query = response.json()["query"]
+    assert query["status"] == "PARTIAL"
+    conditions = {item["productId"]: item for item in query["conditions"]}
+    assert conditions["demo-working-capital"] == {
+        "productId": "demo-working-capital",
+        "status": "PERSONALIZED_AVAILABLE",
+        "personalizedMaxAmount": {"amount": "24000000", "currency": "KRW"},
+        "personalizedAnnualRateRange": {
+            "minPercent": "5.10",
+            "maxPercent": "7.30",
+        },
+        "personalizedTermRangeMonths": {"minMonths": 12, "maxMonths": 48},
+        "policyVersion": "demo-policy-v1",
+        "queriedAt": query["queriedAt"],
+        "reasonCode": None,
+        "finalApprovalRequired": True,
+        "demoOnly": True,
+    }
+    assert conditions["demo-daily-bridge"]["status"] == "PUBLIC_ONLY"
+    assert conditions["demo-steady-business"]["status"] == "INSUFFICIENT_DATA"
+    assert conditions["demo-steady-business"]["reasonCode"] == "DEMO_PRODUCT_DATA_INSUFFICIENT"
+    assert conditions["demo-balance-partner"]["status"] == "QUERY_FAILED"
+    assert conditions["demo-balance-partner"]["reasonCode"] == "DEMO_PRODUCT_CONDITION_UNAVAILABLE"
+
+    comparison = client.get(f"/v1/sessions/{session_id}/comparison").json()
+    assert comparison["status"] == "PARTIAL"
+    assert comparison["sortableFields"] == [
+        "PUBLIC_MAX_AMOUNT",
+        "PUBLIC_MIN_ANNUAL_RATE",
+        "PERSONALIZED_MAX_AMOUNT",
+        "PERSONALIZED_MIN_ANNUAL_RATE",
+    ]
+
+
+def test_demo_policy_requires_completed_assessment(
+    client: TestClient,
+    product_catalog_service: ProductCatalogService,
+    product_condition_service: ProductConditionService,
+) -> None:
+    session_id = create_session(client)
+    product_catalog_service.adapter = DemoProductCatalogAdapter(settings.demo_products_path)
+    product_condition_service.adapter = DemoProductConditionAdapter(
+        settings.demo_product_conditions_path
+    )
+    client.post(f"/v1/sessions/{session_id}/products/refresh")
+
+    response = client.post(f"/v1/sessions/{session_id}/product-conditions/query")
+
+    query = response.json()["query"]
+    assert query["status"] == "COMPLETED"
+    assert {item["status"] for item in query["conditions"]} == {"INSUFFICIENT_DATA"}
+    assert {item["reasonCode"] for item in query["conditions"]} == {"DEMO_ASSESSMENT_NOT_COMPLETED"}
+    assert all(item["personalizedMaxAmount"] is None for item in query["conditions"])
+
+
+def test_demo_policy_does_not_invent_startup_conditions(
+    client: TestClient,
+    assessment_service: AssessmentService,
+    product_catalog_service: ProductCatalogService,
+    product_condition_service: ProductConditionService,
+    product_condition_repository: SqliteProductConditionRepository,
+) -> None:
+    session_id = create_session(client, "startup")
+    product_catalog_service.adapter = DemoProductCatalogAdapter(settings.demo_products_path)
+    product_condition_service.adapter = DemoProductConditionAdapter(
+        settings.demo_product_conditions_path
+    )
+    assessment_service.adapter = CompletedAssessmentAdapter()
+    client.post(f"/v1/sessions/{session_id}/assessment/run")
+    client.post(f"/v1/sessions/{session_id}/products/refresh")
+
+    response = client.post(f"/v1/sessions/{session_id}/product-conditions/query")
+
+    query = response.json()["query"]
+    assert query["status"] == "COMPLETED"
+    assert {item["status"] for item in query["conditions"]} == {"POLICY_NOT_CONFIGURED"}
+    assert all(item["policyVersion"] is None for item in query["conditions"])
+    assert all(item["personalizedMaxAmount"] is None for item in query["conditions"])
+    snapshot = product_condition_repository.get_snapshot(query["queryId"])
+    assert snapshot is not None
+    assert snapshot.demo_profile_id == "startup"
+
+    comparison = client.get(f"/v1/sessions/{session_id}/comparison").json()
+    assert comparison["status"] == "PUBLIC_ONLY"
+    assert all(item["personalizedConditions"] is None for item in comparison["items"])
 
 
 def test_partial_failure_keeps_other_product_condition(
