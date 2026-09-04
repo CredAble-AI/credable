@@ -1,4 +1,4 @@
-import type { ApiError } from '../types/case'
+import type { ApiError } from '../types/api'
 import type { ProductCatalogResponse, ProductComparisonResult, ProductConditionQueryResponse, ProductRequest } from '../types/product'
 
 export interface ProductProvider {

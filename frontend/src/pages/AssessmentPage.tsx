@@ -7,7 +7,7 @@ import { mockAssessmentProvider } from '../mocks/assessmentProvider'
 import { customerSessionProvider } from '../mocks/customerSessionProvider'
 import { mockDataConnectionProvider } from '../mocks/dataConnectionProvider'
 import type { AssessmentRequest, AssessmentResult, AssessmentStatus } from '../types/assessment'
-import type { ApiError } from '../types/case'
+import type { ApiError } from '../types/api'
 import './AssessmentPage.css'
 
 const provider = mockAssessmentProvider
