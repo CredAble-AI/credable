@@ -82,8 +82,9 @@ curl -X POST \
 ## Demo 보완평가 실행 기반
 
 보완평가는 현재 데이터 출처 상태를 고정된 입력 Snapshot으로 저장한 뒤 별도 Adapter를
-호출합니다. 평가모델과 척도가 확정되지 않았으므로 기본 Demo Adapter는 점수나 등급을
-만들지 않고 `MODEL_NOT_CONFIGURED`를 반환합니다.
+호출합니다. 기본 Demo Adapter는 Frontend Mock과 같은 결과 상태를 사용하되 점수·등급을
+생성하지 않습니다. 은행 내부 데이터와 정식 조회 신용정보가 모두 검증된 경우 소상공인은
+`COMPLETED`, 스타트업은 `INSUFFICIENT_DATA`를 반환합니다.
 
 ```bash
 curl http://127.0.0.1:8000/v1/sessions/<sessionId>/assessment
@@ -93,7 +94,8 @@ curl -X POST \
 ```
 
 실행 이력마다 `assessmentId`, 입력 `inputSnapshotId`, 실행시각과 모델 버전을 분리해
-보존합니다. 실제 Demo 모델이 확정되면 Assessment Adapter에 연결하며, 생성형 AI가 평가값을
+보존합니다. 두 필수 출처가 준비되지 않았으면 `DEMO_REQUIRED_DATA_NOT_VERIFIED`를 반환하며,
+이는 신용상 불리한 결과가 아닙니다. 모든 분기는 합성 Demo 규칙이고 생성형 AI가 평가값을
 생성하지 않습니다.
 
 ## 자사 상품 카탈로그 API
@@ -172,5 +174,5 @@ uv run pytest
 현재 FastAPI 애플리케이션, liveness/readiness API, Demo 고객 세션, 데이터 출처별 동의와
 조회·검증 상태, 보완평가 실행 기반, 합성 자사 상품 카탈로그와 비교 API를 제공합니다. 기존
 Case Repository와 4개 Demo Case는 호환성을 위해 유지합니다. 합성 데이터 출처 상태와
-소상공인용 개인화 상품 조건은 기존 Frontend Fixture와 일치합니다. Mock 평가모델, 실제 은행
-상품정책·은행 연동과 Frontend의 Backend API 전환은 별도 작업으로 진행합니다.
+보완평가 상태, 소상공인용 개인화 상품 조건은 기존 Frontend Fixture와 일치합니다. 실제 평가
+모델·은행 상품정책·은행 연동과 Frontend의 Backend API 전환은 별도 작업으로 진행합니다.

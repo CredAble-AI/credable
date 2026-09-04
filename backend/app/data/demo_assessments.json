@@ -1,0 +1,23 @@
+{
+  "dataVersion": "demo-assessments-v1",
+  "requiredVerifiedSources": [
+    "BANK_INTERNAL",
+    "CREDIT_INFORMATION"
+  ],
+  "assessments": [
+    {
+      "demoProfileId": "small-business",
+      "result": {
+        "status": "COMPLETED",
+        "modelVersion": "demo-small-business-assessment-v1"
+      }
+    },
+    {
+      "demoProfileId": "startup",
+      "result": {
+        "status": "INSUFFICIENT_DATA",
+        "reasonCode": "DEMO_VERIFIED_DATA_INSUFFICIENT"
+      }
+    }
+  ]
+}
