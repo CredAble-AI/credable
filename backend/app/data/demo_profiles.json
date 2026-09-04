@@ -1,0 +1,15 @@
+{
+  "dataVersion": "demo-profiles-v1",
+  "profiles": [
+    {
+      "demoProfileId": "small-business",
+      "displayName": "소상공인 Demo",
+      "description": "소상공인 고객 흐름을 확인하기 위한 합성 Demo Profile"
+    },
+    {
+      "demoProfileId": "startup",
+      "displayName": "스타트업 Demo",
+      "description": "스타트업 고객 흐름을 확인하기 위한 합성 Demo Profile"
+    }
+  ]
+}

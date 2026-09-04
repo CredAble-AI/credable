@@ -8,11 +8,14 @@ from fastapi.responses import JSONResponse
 
 from app.api.cases import router as cases_router
 from app.api.health import router as health_router
+from app.api.sessions import router as sessions_router
 from app.core.config import settings
 from app.core.errors import ResourceNotFoundError
 from app.repositories.case_repository import SqliteCaseRepository
+from app.repositories.session_repository import SqliteCustomerSessionRepository
 from app.schemas.error import ApiErrorDetail, ApiErrorResponse
 from app.services.case_service import CaseService, DemoCaseCatalog
+from app.services.session_service import CustomerSessionService, DemoProfileCatalog
 
 
 def build_case_service() -> CaseService:
@@ -22,12 +25,24 @@ def build_case_service() -> CaseService:
     )
 
 
-def create_app(case_service: CaseService | None = None) -> FastAPI:
+def build_session_service() -> CustomerSessionService:
+    return CustomerSessionService(
+        repository=SqliteCustomerSessionRepository(settings.database_path),
+        catalog=DemoProfileCatalog(settings.demo_profiles_path),
+    )
+
+
+def create_app(
+    case_service: CaseService | None = None,
+    session_service: CustomerSessionService | None = None,
+) -> FastAPI:
     resolved_case_service = case_service or build_case_service()
+    resolved_session_service = session_service or build_session_service()
 
     @asynccontextmanager
     async def lifespan(_: FastAPI) -> AsyncIterator[None]:
         resolved_case_service.initialize()
+        resolved_session_service.initialize()
         yield
 
     application = FastAPI(
@@ -39,6 +54,7 @@ def create_app(case_service: CaseService | None = None) -> FastAPI:
         lifespan=lifespan,
     )
     application.state.case_service = resolved_case_service
+    application.state.session_service = resolved_session_service
 
     @application.middleware("http")
     async def attach_request_id(request: FastAPIRequest, call_next):
@@ -67,6 +83,7 @@ def create_app(case_service: CaseService | None = None) -> FastAPI:
 
     application.include_router(health_router)
     application.include_router(cases_router)
+    application.include_router(sessions_router)
     return application
 
 
