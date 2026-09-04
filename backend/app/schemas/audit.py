@@ -12,6 +12,7 @@ class AuditStage(StrEnum):
     DATA_SOURCE_REFRESHED = "DATA_SOURCE_REFRESHED"
     ASSESSMENT_RUN = "ASSESSMENT_RUN"
     PRODUCT_CATALOG_REFRESHED = "PRODUCT_CATALOG_REFRESHED"
+    PRODUCT_CONDITIONS_QUERIED = "PRODUCT_CONDITIONS_QUERIED"
 
 
 class AuditActor(StrEnum):
@@ -46,3 +47,4 @@ class SessionAuditEvent(ApiModel):
     output_summary: dict[str, str | bool | int]
     data_version: str | None = None
     model_version: str | None = None
+    policy_version: str | None = None
