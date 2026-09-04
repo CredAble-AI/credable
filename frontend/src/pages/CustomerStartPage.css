@@ -1,5 +1,4 @@
-.customer-flow { color: #fff; }
-.customer-page { min-height: calc(100svh - 88px); padding: 72px 0 96px; background: radial-gradient(circle at 80% 10%, rgba(49,130,246,.2), transparent 32%), linear-gradient(145deg, var(--color-navy), var(--color-navy-light)); }
+.customer-page { min-height: calc(100svh - 88px); padding: 72px 0 96px; color: #fff; background: radial-gradient(circle at 80% 10%, rgba(49,130,246,.2), transparent 32%), linear-gradient(145deg, var(--color-navy), var(--color-navy-light)); }
 .customer-page__inner { max-width: 980px; }
 .flow-heading { max-width: 760px; }
 .flow-kicker { color: var(--color-sky); font-size: 12px; font-weight: 800; letter-spacing: .13em; }
