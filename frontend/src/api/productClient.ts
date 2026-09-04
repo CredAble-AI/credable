@@ -27,7 +27,7 @@ const combine = (request: ProductRequest, catalog: ProductCatalogResponse, condi
   const conditionById = new Map(conditions.query.conditions.map((item) => [item.productId, item]))
   const products = catalog.catalog.products.flatMap((product) => {
     const condition = conditionById.get(product.productId)
-    return condition ? [{ product, condition }] : []
+    return condition ? [{ product, condition, applicationLinkAvailable: product.applicationUrl !== null, applicationUrl: product.applicationUrl }] : []
   })
   return {
     sessionId: request.sessionId, products, catalogStatus: catalog.catalog.status, queryStatus: conditions.query.status,

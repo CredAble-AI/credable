@@ -31,10 +31,10 @@ const fixture = (request: ProductRequest): ProductComparisonResult => {
   return {
     sessionId: request.sessionId,
     products: [
-      { product: alpha, condition: condition(alpha.productId, 'PERSONALIZED_AVAILABLE', { personalizedMaxAmount: money('24000000'), personalizedAnnualRateRange: rate('5.10', '7.30'), personalizedTermRangeMonths: term(12, 48), policyVersion: 'demo-policy-v1' }), sortValues: { PERSONALIZED_LIMIT: 24000000, PERSONALIZED_RATE: 5.1 } },
-      { product: bridge, condition: condition(bridge.productId, 'PUBLIC_ONLY'), sortValues: { PERSONALIZED_LIMIT: null, PERSONALIZED_RATE: null } },
-      { product: steady, condition: condition(steady.productId, 'INSUFFICIENT_DATA', { reasonCode: 'DEMO_PRODUCT_DATA_INSUFFICIENT' }), sortValues: { PERSONALIZED_LIMIT: null, PERSONALIZED_RATE: null } },
-      { product: balance, condition: condition(balance.productId, 'QUERY_FAILED', { reasonCode: 'DEMO_PRODUCT_CONDITION_UNAVAILABLE' }), sortValues: { PERSONALIZED_LIMIT: null, PERSONALIZED_RATE: null } },
+      { product: alpha, condition: condition(alpha.productId, 'PERSONALIZED_AVAILABLE', { personalizedMaxAmount: money('24000000'), personalizedAnnualRateRange: rate('5.10', '7.30'), personalizedTermRangeMonths: term(12, 48), policyVersion: 'demo-policy-v1' }), applicationLinkAvailable: false, applicationUrl: null, sortValues: { PERSONALIZED_LIMIT: 24000000, PERSONALIZED_RATE: 5.1 } },
+      { product: bridge, condition: condition(bridge.productId, 'PUBLIC_ONLY'), applicationLinkAvailable: false, applicationUrl: null, sortValues: { PERSONALIZED_LIMIT: null, PERSONALIZED_RATE: null } },
+      { product: steady, condition: condition(steady.productId, 'INSUFFICIENT_DATA', { reasonCode: 'DEMO_PRODUCT_DATA_INSUFFICIENT' }), applicationLinkAvailable: false, applicationUrl: null, sortValues: { PERSONALIZED_LIMIT: null, PERSONALIZED_RATE: null } },
+      { product: balance, condition: condition(balance.productId, 'QUERY_FAILED', { reasonCode: 'DEMO_PRODUCT_CONDITION_UNAVAILABLE' }), applicationLinkAvailable: false, applicationUrl: null, sortValues: { PERSONALIZED_LIMIT: null, PERSONALIZED_RATE: null } },
     ],
     catalogStatus: 'AVAILABLE', queryStatus: 'PARTIAL', availableSortOptions: [
       { field: 'ORIGINAL', label: '기본 순서', directions: ['NONE'] },
