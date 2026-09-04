@@ -22,3 +22,19 @@ class CaseNotFoundError(ResourceNotFoundError):
             code="CASE_NOT_FOUND",
             message=f"Case를 찾을 수 없습니다: {case_id}",
         )
+
+
+class DemoProfileNotFoundError(ResourceNotFoundError):
+    def __init__(self, demo_profile_id: str) -> None:
+        super().__init__(
+            code="DEMO_PROFILE_NOT_FOUND",
+            message=f"Demo Profile을 찾을 수 없습니다: {demo_profile_id}",
+        )
+
+
+class CustomerSessionNotFoundError(ResourceNotFoundError):
+    def __init__(self, session_id: str) -> None:
+        super().__init__(
+            code="CUSTOMER_SESSION_NOT_FOUND",
+            message=f"고객 세션을 찾을 수 없습니다: {session_id}",
+        )

@@ -30,6 +30,14 @@ def test_ready_returns_current_dependency_checks(client: TestClient) -> None:
                 "name": "demo_cases",
                 "status": "ok",
             },
+            {
+                "name": "session_repository",
+                "status": "ok",
+            },
+            {
+                "name": "demo_profiles",
+                "status": "ok",
+            },
         ],
     }
 
@@ -43,3 +51,5 @@ def test_openapi_exposes_health_routes(client: TestClient) -> None:
     assert "/ready" in paths
     assert "/v1/cases/demo" in paths
     assert "/v1/cases/{case_id}" in paths
+    assert "/v1/sessions/demo" in paths
+    assert "/v1/sessions/{session_id}" in paths
