@@ -4,16 +4,12 @@ import './App.css'
 import Header from './components/Header'
 import AssessmentPage from './pages/AssessmentPage'
 import ApplicationHandoffPage from './pages/ApplicationHandoffPage'
-import CaseStartPage from './pages/CaseStartPage'
 import ConsentPage from './pages/ConsentPage'
 import CustomerStartPage from './pages/CustomerStartPage'
 import DataConnectionPage from './pages/DataConnectionPage'
-import EligibilityPage from './pages/EligibilityPage'
-import EvidencePage from './pages/EvidencePage'
-import EvidenceQualityPage from './pages/EvidenceQualityPage'
+import NotFoundPage from './pages/NotFoundPage'
 import ProductComparisonPage from './pages/ProductComparisonPage'
 import ProductDetailPage from './pages/ProductDetailPage'
-import SecondLookPage from './pages/SecondLookPage'
 
 const principles = [
   { number: '01', title: '은행이 제공하는 보완 평가', body: '은행이 보유하거나 고객 동의를 받아 확인한 데이터를 바탕으로 진행합니다.' },
@@ -111,6 +107,6 @@ function LandingPage() {
 }
 
 function App() {
-  return <Routes><Route path="/" element={<LandingPage />} /><Route path="/start" element={<CustomerStartPage />} /><Route path="/consent" element={<ConsentPage />} /><Route path="/data-connection" element={<DataConnectionPage />} /><Route path="/assessment" element={<AssessmentPage />} /><Route path="/products" element={<ProductComparisonPage />} /><Route path="/products/:productId" element={<ProductDetailPage />} /><Route path="/products/:productId/apply" element={<ApplicationHandoffPage />} /><Route path="/case" element={<CaseStartPage />} /><Route path="/eligibility" element={<EligibilityPage />} /><Route path="/evidence" element={<EvidencePage />} /><Route path="/evidence-quality" element={<EvidenceQualityPage />} /><Route path="/second-look" element={<SecondLookPage />} /></Routes>
+  return <Routes><Route path="/" element={<LandingPage />} /><Route path="/start" element={<CustomerStartPage />} /><Route path="/consent" element={<ConsentPage />} /><Route path="/data-connection" element={<DataConnectionPage />} /><Route path="/assessment" element={<AssessmentPage />} /><Route path="/products" element={<ProductComparisonPage />} /><Route path="/products/:productId" element={<ProductDetailPage />} /><Route path="/products/:productId/apply" element={<ApplicationHandoffPage />} /><Route path="*" element={<NotFoundPage />} /></Routes>
 }
 export default App

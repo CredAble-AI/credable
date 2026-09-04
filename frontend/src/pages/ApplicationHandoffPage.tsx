@@ -6,7 +6,7 @@ import { mockAssessmentProvider } from '../mocks/assessmentProvider'
 import { customerSessionProvider } from '../mocks/customerSessionProvider'
 import { mockDataConnectionProvider } from '../mocks/dataConnectionProvider'
 import { mockProductProvider } from '../mocks/productProvider'
-import type { ApiError } from '../types/case'
+import type { ApiError } from '../types/api'
 import type { ProductView } from '../types/product'
 import './ApplicationHandoffPage.css'
 

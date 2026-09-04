@@ -6,7 +6,7 @@ import { findDemoProfile } from '../data/demoProfiles'
 import { customerSessionProvider } from '../mocks/customerSessionProvider'
 import { mockAssessmentProvider } from '../mocks/assessmentProvider'
 import { mockProductProvider } from '../mocks/productProvider'
-import type { ApiError } from '../types/case'
+import type { ApiError } from '../types/api'
 import type { AnnualRateRange, MoneyAmount, ProductComparisonResult, ProductConditionStatus, ProductSortDirection, ProductSortField, ProductView, TermRangeMonths } from '../types/product'
 import './ProductComparisonPage.css'
 

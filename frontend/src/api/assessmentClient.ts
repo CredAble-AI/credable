@@ -1,4 +1,4 @@
-import type { ApiError } from '../types/case'
+import type { ApiError } from '../types/api'
 import type { AssessmentRequest, AssessmentResponse, AssessmentResult } from '../types/assessment'
 
 export interface AssessmentProvider {

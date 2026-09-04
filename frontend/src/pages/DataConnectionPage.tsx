@@ -5,7 +5,7 @@ import Header from '../components/Header'
 import { findDemoProfile } from '../data/demoProfiles'
 import { customerSessionProvider } from '../mocks/customerSessionProvider'
 import { mockDataConnectionProvider } from '../mocks/dataConnectionProvider'
-import type { ApiError } from '../types/case'
+import type { ApiError } from '../types/api'
 import type { ConsentSourceType, DataConnectionRequest, DataConnectionResult, DataSourceState, RetrievalStatus, VerificationStatus } from '../types/dataConnection'
 import './DataConnectionPage.css'
 

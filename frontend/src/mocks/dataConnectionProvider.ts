@@ -1,5 +1,5 @@
 import type { DataConnectionProvider } from '../api/dataConnectionClient'
-import type { ApiError } from '../types/case'
+import type { ApiError } from '../types/api'
 import type { ConsentSourceType, DataConnectionRequest, DataConnectionResult, DataSourceState } from '../types/dataConnection'
 
 const wait = (signal: AbortSignal, milliseconds = 650) => new Promise<void>((resolve, reject) => {

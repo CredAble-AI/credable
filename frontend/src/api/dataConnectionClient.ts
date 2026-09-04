@@ -1,4 +1,4 @@
-import type { ApiError } from '../types/case'
+import type { ApiError } from '../types/api'
 import type { ConsentSourceType, DataConnectionRequest, DataConnectionResult, DataSourceListResponse, DataSourceState } from '../types/dataConnection'
 
 export interface DataConnectionProvider {
