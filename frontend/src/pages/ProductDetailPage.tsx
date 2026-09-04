@@ -1,7 +1,10 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
-import { normalizeProductError } from '../api/productClient'
+import { liveAssessmentProvider } from '../api/assessmentClient'
+import { liveDataConnectionProvider } from '../api/dataConnectionClient'
+import { liveProductProvider, normalizeProductError } from '../api/productClient'
 import Header from '../components/Header'
+import { isMockMode, selectProvider } from '../config/providerMode'
 import { mockAssessmentProvider } from '../mocks/assessmentProvider'
 import { customerSessionProvider } from '../mocks/customerSessionProvider'
 import { mockDataConnectionProvider } from '../mocks/dataConnectionProvider'
@@ -10,7 +13,9 @@ import type { ApiError } from '../types/api'
 import type { AnnualRateRange, MoneyAmount, ProductConditionStatus, ProductView, TermRangeMonths } from '../types/product'
 import './ProductDetailPage.css'
 
-const provider = mockProductProvider
+const provider = selectProvider(mockProductProvider, liveProductProvider)
+const assessmentProvider = selectProvider(mockAssessmentProvider, liveAssessmentProvider)
+const dataConnectionProvider = selectProvider(mockDataConnectionProvider, liveDataConnectionProvider)
 const statusCopy: Record<ProductConditionStatus, { label: string; icon: string; message: string }> = {
   PERSONALIZED_AVAILABLE: { label: '개인화 조건 조회 완료', icon: '✓', message: '현재 연결된 데이터와 은행 정책을 바탕으로 조회한 조건입니다. 최종 한도와 금리는 은행 심사 후 확정됩니다.' },
   PUBLIC_ONLY: { label: '공개 조건만 확인됨', icon: 'i', message: '은행이 공개한 일반 상품 조건입니다. 고객별 조회 결과가 아닙니다.' },
@@ -30,7 +35,7 @@ function DetailContent({ item, onRetry, busy }: { item: ProductView; onRetry: ()
   const personalized = product.conditionStatus === 'PERSONALIZED_AVAILABLE'
   const personalizedConditions = product.personalizedConditions
   return <>
-    <header className="detail-heading"><Link to="/products" className="detail-back">← 상품 비교로 돌아가기</Link><div className="detail-heading__badges"><span className={`detail-status detail-status--${(product.conditionStatus ?? 'PUBLIC_ONLY').toLowerCase()}`}><b aria-hidden="true">{status.icon}</b>{status.label}</span><span>Mock · Demo Only</span></div><h1>{product.productName}</h1><p>고객이 선택한 상품의 현재 확인 가능한 조건입니다. 최종 조건은 은행의 정식 심사와 약정 과정에서 확정됩니다.</p></header>
+    <header className="detail-heading"><Link to="/products" className="detail-back">← 상품 비교로 돌아가기</Link><div className="detail-heading__badges"><span className={`detail-status detail-status--${(product.conditionStatus ?? 'PUBLIC_ONLY').toLowerCase()}`}><b aria-hidden="true">{status.icon}</b>{status.label}</span>{isMockMode && <span>Mock · Demo Only</span>}</div><h1>{product.productName}</h1><p>고객이 선택한 상품의 현재 확인 가능한 조건입니다. 최종 조건은 은행의 정식 심사와 약정 과정에서 확정됩니다.</p></header>
     <section className="detail-notice" aria-labelledby="detail-status-title"><span aria-hidden="true">{status.icon}</span><div><h2 id="detail-status-title">현재 상품 결과 상태</h2><p>{status.message}</p>{product.conditionReasonCode && <small>상태 코드: {product.conditionReasonCode}</small>}{product.conditionStatus === 'QUERY_FAILED' && <button type="button" onClick={onRetry} disabled={busy}>{busy ? '다시 조회 중…' : '상품 조건 다시 조회'}</button>}</div></section>
     <div className="detail-grid">
       <section className="detail-card"><p className="detail-card__number">01</p><h2>기본 상품 정보</h2><dl><div><dt>상품명</dt><dd>{product.productName}</dd></div><div><dt>가입 대상·주요 조건</dt><dd>{product.eligibilitySummary}</dd></div><div><dt>상품 버전</dt><dd>{product.productVersion}</dd></div><div><dt>신청 안내 참조</dt><dd>{product.applicationReference ?? '은행 심사 후 확인'}</dd></div></dl></section>
@@ -56,9 +61,9 @@ function ProductDetailPage() {
     setLoading(true); setError(null)
     try {
       const request = { sessionId: session.sessionId, profileType: session.selectedProfileType }
-      const connection = await mockDataConnectionProvider.list({ ...request, consents: session.consents }, controller.signal)
+      const connection = await dataConnectionProvider.list({ ...request, consents: session.consents }, controller.signal)
       if (connection.canProceed !== true) { navigate('/data-connection', { replace: true }); return }
-      const assessment = await mockAssessmentProvider.get(request, controller.signal)
+      const assessment = await assessmentProvider.get(request, controller.signal)
       if (assessment.assessment.status === 'NOT_RUN') { navigate('/assessment', { replace: true }); return }
       const result = await (refresh ? provider.refresh(request, controller.signal) : provider.get(request, controller.signal))
       if (result.sessionId !== session.sessionId) throw { code: 'PRODUCT_SESSION_MISMATCH', message: '현재 세션의 상품 결과를 확인할 수 없습니다.', retryable: false } satisfies ApiError

@@ -1,7 +1,10 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
-import { normalizeProductError } from '../api/productClient'
+import { liveAssessmentProvider } from '../api/assessmentClient'
+import { liveDataConnectionProvider } from '../api/dataConnectionClient'
+import { liveProductProvider, normalizeProductError } from '../api/productClient'
 import Header from '../components/Header'
+import { selectProvider } from '../config/providerMode'
 import { mockAssessmentProvider } from '../mocks/assessmentProvider'
 import { customerSessionProvider } from '../mocks/customerSessionProvider'
 import { mockDataConnectionProvider } from '../mocks/dataConnectionProvider'
@@ -9,6 +12,10 @@ import { mockProductProvider } from '../mocks/productProvider'
 import type { ApiError } from '../types/api'
 import type { ProductView } from '../types/product'
 import './ApplicationHandoffPage.css'
+
+const assessmentProvider = selectProvider(mockAssessmentProvider, liveAssessmentProvider)
+const dataConnectionProvider = selectProvider(mockDataConnectionProvider, liveDataConnectionProvider)
+const productProvider = selectProvider(mockProductProvider, liveProductProvider)
 
 const safeHttpsUrl = (value: string | null) => {
   if (!value) return null
@@ -27,11 +34,11 @@ function ApplicationHandoffPage() {
     busyRef.current = true; controllerRef.current?.abort(); const controller = new AbortController(); controllerRef.current = controller; const sequence = ++sequenceRef.current; setLoading(true); setError(null)
     try {
       const request = { sessionId: session.sessionId, profileType: session.selectedProfileType }
-      const connection = await mockDataConnectionProvider.list({ ...request, consents: session.consents }, controller.signal)
+      const connection = await dataConnectionProvider.list({ ...request, consents: session.consents }, controller.signal)
       if (connection.canProceed !== true) { navigate('/data-connection', { replace: true }); return }
-      const assessment = await mockAssessmentProvider.get(request, controller.signal)
+      const assessment = await assessmentProvider.get(request, controller.signal)
       if (assessment.canProceed !== true) { navigate('/assessment', { replace: true }); return }
-      const result = await mockProductProvider.get(request, controller.signal)
+      const result = await productProvider.get(request, controller.signal)
       if (result.sessionId !== session.sessionId) throw { code: 'PRODUCT_SESSION_MISMATCH', message: '현재 세션의 상품 결과를 확인할 수 없습니다.', retryable: false } satisfies ApiError
       if (sequence === sequenceRef.current) setProduct(result.products.find((item) => item.product.productId === productId) ?? null)
     } catch (caught) { if (!controller.signal.aborted && sequence === sequenceRef.current) setError(normalizeProductError(caught)) }

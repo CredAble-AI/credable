@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { normalizeDataConnectionError } from '../api/dataConnectionClient'
+import { liveDataConnectionProvider, normalizeDataConnectionError } from '../api/dataConnectionClient'
 import Header from '../components/Header'
+import { isMockMode, selectProvider } from '../config/providerMode'
 import { findDemoProfile } from '../data/demoProfiles'
 import { customerSessionProvider } from '../mocks/customerSessionProvider'
 import { mockDataConnectionProvider } from '../mocks/dataConnectionProvider'
@@ -9,7 +10,7 @@ import type { ApiError } from '../types/api'
 import type { ConsentSourceType, DataConnectionRequest, DataConnectionResult, DataSourceState, RetrievalStatus, VerificationStatus } from '../types/dataConnection'
 import './DataConnectionPage.css'
 
-const provider = mockDataConnectionProvider
+const provider = selectProvider(mockDataConnectionProvider, liveDataConnectionProvider)
 const presentation: Record<ConsentSourceType, { group: 'bank' | 'consented'; owner: string; purpose: string }> = {
   BANK_INTERNAL: { group: 'bank', owner: '이용 은행', purpose: '고객확인 및 계좌·대출 요약 확인' },
   CREDIT_INFORMATION: { group: 'bank', owner: '이용 은행 및 정식 조회기관', purpose: '정식 절차로 조회한 정보 확인' },
@@ -25,7 +26,7 @@ function SourceCard({ source, busy, error, onRetry }: { source: DataSourceState;
   const meta = presentation[source.sourceType]
   return <article className={`source-card source-card--${source.retrievalStatus.toLowerCase()}`}>
     <div className="source-card__top"><span className="source-card__icon" aria-hidden="true">{statusIcon[source.retrievalStatus]}</span><div><span className="source-card__scope">{meta.group === 'bank' ? '은행 보유 · 필수' : '고객 동의 기반 · 선택'}</span><h3>{source.displayName}</h3></div></div>
-    <div className="status-row"><span>{retrievalLabel[source.retrievalStatus]}</span><span>{verificationLabel[source.verificationStatus]}</span><span>Mock · Demo</span></div>
+    <div className="status-row"><span>{retrievalLabel[source.retrievalStatus]}</span><span>{verificationLabel[source.verificationStatus]}</span>{isMockMode && <span>Mock · Demo</span>}</div>
     <dl><div><dt>보유·제공 주체</dt><dd>{meta.owner}</dd></div><div><dt>이용 목적</dt><dd>{meta.purpose}</dd></div><div><dt>출처</dt><dd>{source.displayName}</dd></div><div><dt>데이터 기준시점</dt><dd>{formatDate(source.observedAt)}</dd></div><div><dt>시스템 조회시점</dt><dd>{formatDate(source.retrievedAt)}</dd></div></dl>
     {source.reasonCode && <p className="source-card__reason">상태 코드: <span>{source.reasonCode}</span></p>}
     {error && <p className="source-card__error" role="alert">{error.message}{error.requestId ? <small>Request ID: {error.requestId}</small> : null}</p>}
@@ -97,7 +98,7 @@ function DataConnectionPage() {
   const consentedSources = result?.dataSources.filter((source) => presentation[source.sourceType].group === 'consented') ?? []
   return <div className="workspace-shell customer-flow"><Header /><main className="connection-page"><div className="container connection-page__inner">
     <nav className="flow-steps" aria-label="진행 단계"><span>시작</span><span>동의</span><strong aria-current="step">데이터 연결</strong><span>보완 평가</span><span>상품 비교</span></nav>
-    <header className="connection-heading"><div><span className="connection-badge">Mock mode · Demo Only</span><p className="flow-kicker">DATA CONNECTION</p><h1>보완 평가에 사용할 데이터를 확인합니다</h1><p>은행 보유 데이터와 고객이 동의한 데이터의 연결·검증 상태를 확인합니다. 데이터가 없거나 연결되지 않았다는 이유만으로 신용이 불리하게 판단되지는 않습니다.</p></div><aside><span>현재 Demo 프로필</span><strong>{findDemoProfile(session.selectedProfileType)?.name}</strong><small>대표 합성 사례이며 이용 대상을 제한하지 않습니다.</small></aside></header>
+    <header className="connection-heading"><div>{isMockMode && <span className="connection-badge">Mock mode · Demo Only</span>}<p className="flow-kicker">DATA CONNECTION</p><h1>보완 평가에 사용할 데이터를 확인합니다</h1><p>은행 보유 데이터와 고객이 동의한 데이터의 연결·검증 상태를 확인합니다. 데이터가 없거나 연결되지 않았다는 이유만으로 신용이 불리하게 판단되지는 않습니다.</p></div><aside><span>현재 Demo 프로필</span><strong>{findDemoProfile(session.selectedProfileType)?.name}</strong><small>대표 합성 사례이며 이용 대상을 제한하지 않습니다.</small></aside></header>
     <div className="connection-status" aria-live="polite" role="status">{isLoading ? '데이터 연결·검증 상태를 확인하고 있습니다.' : retrying ? `${result?.dataSources.find((item) => item.sourceType === retrying)?.displayName} 항목을 다시 확인하고 있습니다.` : '현재 데이터 상태를 확인했습니다.'}</div>
     {error && <section className="connection-error" role="alert"><div><strong>{error.message}</strong><small>오류 코드: {error.code}{error.requestId ? ` · Request ID: ${error.requestId}` : ''}</small></div>{error.retryable && <button type="button" onClick={() => void load()}>다시 확인</button>}</section>}
     {isLoading && !result && <div className="source-skeletons" aria-hidden="true"><span /><span /><span /></div>}

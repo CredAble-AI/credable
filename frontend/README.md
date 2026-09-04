@@ -2,6 +2,8 @@
 
 This template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.
 
+Set `VITE_API_MODE=live` in `.env` (copy from `.env.example`) to switch API providers from the built-in mock fixtures to the live backend; any unset or unrecognized value keeps the default `mock` mode.
+
 Currently, two official plugins are available:
 
 - [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
