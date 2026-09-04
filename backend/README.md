@@ -61,6 +61,22 @@ curl -X POST \
 `EXTERNAL_CONNECTED`입니다. 동의 상태와 변경 Audit만 저장하며 실제 데이터 연결은 후속
 기능에서 구현합니다.
 
+## Demo 데이터 조회·검증 상태 API
+
+데이터 출처별 조회·검증 상태는 동의 상태와 분리해 제공합니다. 동의하지 않은 출처는
+`CONSENT_REQUIRED`, 동의 후 조회 전에는 `NOT_REQUESTED`로 표시합니다.
+
+```bash
+curl http://127.0.0.1:8000/v1/sessions/<sessionId>/data-sources
+
+curl -X POST \
+  http://127.0.0.1:8000/v1/sessions/<sessionId>/data-sources/refresh
+```
+
+Mock 데이터가 아직 연결되지 않은 현재 Demo Adapter는 정상적인 데이터 부재를 `NO_DATA`와
+`DEMO_DATA_NOT_CONFIGURED`로 반환합니다. 이를 연동 오류인 `FAILED` 또는 신용상 불리한
+신호로 처리하지 않습니다. 원시 금융데이터는 응답·상태·Audit에 저장하지 않습니다.
+
 ## Legacy Demo Case API
 
 ```bash
@@ -85,6 +101,6 @@ uv run pytest
 
 ## 현재 범위
 
-현재 FastAPI 애플리케이션, liveness/readiness API, Demo 고객 세션과 데이터 출처별 동의
-상태 API를 제공합니다. 기존 Case Repository와 4개 Demo Case는 호환성을 위해 유지합니다.
-실제 데이터 연결·검증, 보완 평가와 상품 조건 조회는 후속 기능입니다.
+현재 FastAPI 애플리케이션, liveness/readiness API, Demo 고객 세션, 데이터 출처별 동의와
+조회·검증 상태 API를 제공합니다. 기존 Case Repository와 4개 Demo Case는 호환성을 위해
+유지합니다. Mock 원본 데이터 연결, 보완 평가와 상품 조건 조회는 후속 기능입니다.

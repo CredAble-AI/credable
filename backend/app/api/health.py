@@ -4,6 +4,7 @@ from app.core.config import settings
 from app.schemas.health import HealthResponse, ReadinessCheck, ReadinessResponse
 from app.services.case_service import CaseService
 from app.services.consent_service import ConsentService
+from app.services.data_source_service import DataSourceService
 from app.services.session_service import CustomerSessionService
 
 router = APIRouter(tags=["health"])
@@ -21,11 +22,13 @@ async def get_readiness(request: Request) -> ReadinessResponse:
     case_service: CaseService = request.app.state.case_service
     session_service: CustomerSessionService = request.app.state.session_service
     consent_service: ConsentService = request.app.state.consent_service
+    data_source_service: DataSourceService = request.app.state.data_source_service
     statuses = {
         "application": True,
         **case_service.readiness(),
         **session_service.readiness(),
         **consent_service.readiness(),
+        **data_source_service.readiness(),
     }
     checks = [
         ReadinessCheck(name=name, status="ok" if ready else "error")
