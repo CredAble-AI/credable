@@ -1,5 +1,6 @@
 from fastapi import APIRouter, Request, status
 
+from app.schemas.assessment import AssessmentResponse
 from app.schemas.consent import ConsentListResponse, ConsentState
 from app.schemas.data_source import DataSourceListResponse
 from app.schemas.error import ApiErrorResponse
@@ -8,6 +9,7 @@ from app.schemas.session import (
     DemoSessionCreateRequest,
     DemoSessionCreateResponse,
 )
+from app.services.assessment_service import AssessmentService
 from app.services.consent_service import ConsentService
 from app.services.data_source_service import DataSourceService
 from app.services.session_service import CustomerSessionService
@@ -25,6 +27,10 @@ def get_consent_service(request: Request) -> ConsentService:
 
 def get_data_source_service(request: Request) -> DataSourceService:
     return request.app.state.data_source_service
+
+
+def get_assessment_service(request: Request) -> AssessmentService:
+    return request.app.state.assessment_service
 
 
 @router.post(
@@ -124,6 +130,33 @@ async def refresh_data_sources(
     request: Request,
 ) -> DataSourceListResponse:
     return get_data_source_service(request).refresh(
+        session_id,
+        request.state.request_id,
+    )
+
+
+@router.get(
+    "/{session_id}/assessment",
+    response_model=AssessmentResponse,
+    responses={404: {"model": ApiErrorResponse}},
+)
+async def get_assessment(
+    session_id: str,
+    request: Request,
+) -> AssessmentResponse:
+    return get_assessment_service(request).get_latest(session_id)
+
+
+@router.post(
+    "/{session_id}/assessment/run",
+    response_model=AssessmentResponse,
+    responses={404: {"model": ApiErrorResponse}},
+)
+async def run_assessment(
+    session_id: str,
+    request: Request,
+) -> AssessmentResponse:
+    return get_assessment_service(request).run(
         session_id,
         request.state.request_id,
     )

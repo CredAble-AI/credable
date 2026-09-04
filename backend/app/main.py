@@ -6,17 +6,20 @@ from fastapi import FastAPI
 from fastapi import Request as FastAPIRequest
 from fastapi.responses import JSONResponse
 
+from app.adapters.assessment_adapter import UnconfiguredDemoAssessmentAdapter
 from app.adapters.data_source_adapter import EmptyDemoDataSourceAdapter
 from app.api.cases import router as cases_router
 from app.api.health import router as health_router
 from app.api.sessions import router as sessions_router
 from app.core.config import settings
 from app.core.errors import ApiDomainError
+from app.repositories.assessment_repository import SqliteAssessmentRepository
 from app.repositories.case_repository import SqliteCaseRepository
 from app.repositories.consent_repository import SqliteConsentRepository
 from app.repositories.data_source_repository import SqliteDataSourceRepository
 from app.repositories.session_repository import SqliteCustomerSessionRepository
 from app.schemas.error import ApiErrorDetail, ApiErrorResponse
+from app.services.assessment_service import AssessmentService
 from app.services.case_service import CaseService, DemoCaseCatalog
 from app.services.consent_service import ConsentService, DemoConsentScopeCatalog
 from app.services.data_source_service import DataSourceService
@@ -53,17 +56,34 @@ def build_data_source_service(consent_service: ConsentService) -> DataSourceServ
     )
 
 
+def build_assessment_service(
+    session_service: CustomerSessionService,
+    data_source_service: DataSourceService,
+) -> AssessmentService:
+    return AssessmentService(
+        repository=SqliteAssessmentRepository(settings.database_path),
+        session_service=session_service,
+        data_source_service=data_source_service,
+        adapter=UnconfiguredDemoAssessmentAdapter(),
+    )
+
+
 def create_app(
     case_service: CaseService | None = None,
     session_service: CustomerSessionService | None = None,
     consent_service: ConsentService | None = None,
     data_source_service: DataSourceService | None = None,
+    assessment_service: AssessmentService | None = None,
 ) -> FastAPI:
     resolved_case_service = case_service or build_case_service()
     resolved_session_service = session_service or build_session_service()
     resolved_consent_service = consent_service or build_consent_service(resolved_session_service)
     resolved_data_source_service = data_source_service or build_data_source_service(
         resolved_consent_service
+    )
+    resolved_assessment_service = assessment_service or build_assessment_service(
+        resolved_session_service,
+        resolved_data_source_service,
     )
 
     @asynccontextmanager
@@ -72,6 +92,7 @@ def create_app(
         resolved_session_service.initialize()
         resolved_consent_service.initialize()
         resolved_data_source_service.initialize()
+        resolved_assessment_service.initialize()
         yield
 
     application = FastAPI(
@@ -86,6 +107,7 @@ def create_app(
     application.state.session_service = resolved_session_service
     application.state.consent_service = resolved_consent_service
     application.state.data_source_service = resolved_data_source_service
+    application.state.assessment_service = resolved_assessment_service
 
     @application.middleware("http")
     async def attach_request_id(request: FastAPIRequest, call_next):

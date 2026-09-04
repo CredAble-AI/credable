@@ -10,6 +10,7 @@ class AuditStage(StrEnum):
     CONSENT_GRANTED = "CONSENT_GRANTED"
     CONSENT_WITHDRAWN = "CONSENT_WITHDRAWN"
     DATA_SOURCE_REFRESHED = "DATA_SOURCE_REFRESHED"
+    ASSESSMENT_RUN = "ASSESSMENT_RUN"
 
 
 class AuditActor(StrEnum):
@@ -43,3 +44,4 @@ class SessionAuditEvent(ApiModel):
     input_snapshot_hash: str
     output_summary: dict[str, str | bool]
     data_version: str | None = None
+    model_version: str | None = None
