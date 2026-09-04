@@ -12,7 +12,7 @@ function Header() {
           <a href="/#principles">서비스 소개</a>
           <a href="/#process">작동 방식</a>
         </nav>
-        <Link className="button button--small" to="/case">데모 시작</Link>
+        <Link className="button button--small" to="/start">조회 시작</Link>
       </div>
     </header>
   )
