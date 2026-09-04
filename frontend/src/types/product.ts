@@ -31,7 +31,14 @@ export interface ProductConditionQueryResponse {
   query: { queryId: string | null; status: ProductConditionQueryStatus; conditions: ProductCondition[]; queriedAt: string | null; catalogSnapshotId: string | null; assessmentId: string | null; dataSnapshotId: string | null; reasonCode: string | null; demoOnly: true }
 }
 export interface ProductRequest { sessionId: string; profileType: DemoProfileType }
-export interface ProductView { product: BankProduct; condition: ProductCondition; sortValues?: Partial<Record<'PERSONALIZED_LIMIT' | 'PERSONALIZED_RATE', number | null>> }
+export interface ProductView {
+  product: BankProduct
+  condition: ProductCondition
+  /** Provider-owned navigation capability; the component never infers this from condition status. */
+  applicationLinkAvailable: boolean
+  applicationUrl: string | null
+  sortValues?: Partial<Record<'PERSONALIZED_LIMIT' | 'PERSONALIZED_RATE', number | null>>
+}
 export interface SortOption { field: ProductSortField; label: string; directions: ProductSortDirection[] }
 export interface ProductComparisonResult {
   sessionId: string; products: ProductView[]; catalogStatus: ProductCatalogStatus; queryStatus: ProductConditionQueryStatus
