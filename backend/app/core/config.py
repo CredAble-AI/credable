@@ -14,6 +14,7 @@ class Settings(BaseModel):
     database_path: Path = BACKEND_ROOT / "data" / "credable.db"
     demo_cases_path: Path = BACKEND_ROOT / "app" / "data" / "demo_cases.json"
     demo_profiles_path: Path = BACKEND_ROOT / "app" / "data" / "demo_profiles.json"
+    demo_consent_scopes_path: Path = BACKEND_ROOT / "app" / "data" / "demo_consent_scopes.json"
 
 
 settings = Settings()
