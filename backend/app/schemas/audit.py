@@ -7,6 +7,8 @@ from app.schemas.base import ApiModel
 class AuditStage(StrEnum):
     CASE_CREATED = "CASE_CREATED"
     SESSION_CREATED = "SESSION_CREATED"
+    CONSENT_GRANTED = "CONSENT_GRANTED"
+    CONSENT_WITHDRAWN = "CONSENT_WITHDRAWN"
 
 
 class AuditActor(StrEnum):

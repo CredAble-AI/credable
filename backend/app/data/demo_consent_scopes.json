@@ -1,0 +1,29 @@
+{
+  "dataVersion": "demo-consent-scopes-v1",
+  "scopes": [
+    {
+      "sourceType": "BANK_INTERNAL",
+      "displayName": "은행 내부 데이터",
+      "description": "도입 은행이 보유한 고객·계좌·대출 관련 데이터",
+      "required": null
+    },
+    {
+      "sourceType": "CREDIT_INFORMATION",
+      "displayName": "신용정보",
+      "description": "은행이 정식 절차로 조회하는 신용정보",
+      "required": null
+    },
+    {
+      "sourceType": "CUSTOMER_SUBMITTED",
+      "displayName": "고객 제출 데이터",
+      "description": "고객이 직접 제출하는 소득·사업·재무 관련 데이터",
+      "required": null
+    },
+    {
+      "sourceType": "EXTERNAL_CONNECTED",
+      "displayName": "외부 연결 데이터",
+      "description": "고객 동의와 제휴 범위 안에서 연결하는 외부 데이터",
+      "required": null
+    }
+  ]
+}
