@@ -8,6 +8,7 @@ from fastapi.responses import JSONResponse
 
 from app.adapters.assessment_adapter import UnconfiguredDemoAssessmentAdapter
 from app.adapters.data_source_adapter import EmptyDemoDataSourceAdapter
+from app.adapters.product_catalog_adapter import UnconfiguredProductCatalogAdapter
 from app.api.cases import router as cases_router
 from app.api.health import router as health_router
 from app.api.sessions import router as sessions_router
@@ -17,12 +18,14 @@ from app.repositories.assessment_repository import SqliteAssessmentRepository
 from app.repositories.case_repository import SqliteCaseRepository
 from app.repositories.consent_repository import SqliteConsentRepository
 from app.repositories.data_source_repository import SqliteDataSourceRepository
+from app.repositories.product_catalog_repository import SqliteProductCatalogRepository
 from app.repositories.session_repository import SqliteCustomerSessionRepository
 from app.schemas.error import ApiErrorDetail, ApiErrorResponse
 from app.services.assessment_service import AssessmentService
 from app.services.case_service import CaseService, DemoCaseCatalog
 from app.services.consent_service import ConsentService, DemoConsentScopeCatalog
 from app.services.data_source_service import DataSourceService
+from app.services.product_catalog_service import ProductCatalogService
 from app.services.session_service import CustomerSessionService, DemoProfileCatalog
 
 
@@ -68,12 +71,23 @@ def build_assessment_service(
     )
 
 
+def build_product_catalog_service(
+    session_service: CustomerSessionService,
+) -> ProductCatalogService:
+    return ProductCatalogService(
+        repository=SqliteProductCatalogRepository(settings.database_path),
+        session_service=session_service,
+        adapter=UnconfiguredProductCatalogAdapter(),
+    )
+
+
 def create_app(
     case_service: CaseService | None = None,
     session_service: CustomerSessionService | None = None,
     consent_service: ConsentService | None = None,
     data_source_service: DataSourceService | None = None,
     assessment_service: AssessmentService | None = None,
+    product_catalog_service: ProductCatalogService | None = None,
 ) -> FastAPI:
     resolved_case_service = case_service or build_case_service()
     resolved_session_service = session_service or build_session_service()
@@ -85,6 +99,9 @@ def create_app(
         resolved_session_service,
         resolved_data_source_service,
     )
+    resolved_product_catalog_service = product_catalog_service or build_product_catalog_service(
+        resolved_session_service
+    )
 
     @asynccontextmanager
     async def lifespan(_: FastAPI) -> AsyncIterator[None]:
@@ -93,6 +110,7 @@ def create_app(
         resolved_consent_service.initialize()
         resolved_data_source_service.initialize()
         resolved_assessment_service.initialize()
+        resolved_product_catalog_service.initialize()
         yield
 
     application = FastAPI(
@@ -108,6 +126,7 @@ def create_app(
     application.state.consent_service = resolved_consent_service
     application.state.data_source_service = resolved_data_source_service
     application.state.assessment_service = resolved_assessment_service
+    application.state.product_catalog_service = resolved_product_catalog_service
 
     @application.middleware("http")
     async def attach_request_id(request: FastAPIRequest, call_next):
