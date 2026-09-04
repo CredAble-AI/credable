@@ -70,6 +70,14 @@ def test_ready_returns_current_dependency_checks(client: TestClient) -> None:
                 "name": "product_catalog_adapter",
                 "status": "ok",
             },
+            {
+                "name": "product_condition_repository",
+                "status": "ok",
+            },
+            {
+                "name": "product_condition_adapter",
+                "status": "ok",
+            },
         ],
     }
 
@@ -94,3 +102,5 @@ def test_openapi_exposes_health_routes(client: TestClient) -> None:
     assert "/v1/sessions/{session_id}/assessment/run" in paths
     assert "/v1/sessions/{session_id}/products" in paths
     assert "/v1/sessions/{session_id}/products/refresh" in paths
+    assert "/v1/sessions/{session_id}/product-conditions" in paths
+    assert "/v1/sessions/{session_id}/product-conditions/query" in paths

@@ -110,6 +110,23 @@ curl -X POST \
 은행 신청 연결 정보를 포함합니다. 금액·금리는 부동소수점 오차를 피하기 위해 문자열로
 표현합니다. 개인화 조건과 추천·적합도·우선순위 필드는 포함하지 않습니다.
 
+## 상품별 조건 조회 API
+
+상품별 조건 조회는 최신 카탈로그·평가·데이터 상태 Snapshot을 은행 정책 Adapter에 전달하고
+상품별 결과를 독립적으로 저장합니다. 서비스 계층은 자격·한도·금리를 계산하지 않습니다.
+
+```bash
+curl http://127.0.0.1:8000/v1/sessions/<sessionId>/product-conditions
+
+curl -X POST \
+  http://127.0.0.1:8000/v1/sessions/<sessionId>/product-conditions/query
+```
+
+카탈로그가 없으면 `CATALOG_UNAVAILABLE`, 상품은 있지만 정책이 없으면 상품별
+`POLICY_NOT_CONFIGURED`를 반환합니다. 한 상품의 조회 실패는 다른 상품 결과를 숨기지 않으며,
+개인화 조건에는 항상 최종 은행 심사가 필요하다는 표시를 포함합니다. 추천·적합도·최적 상품
+필드는 제공하지 않습니다.
+
 ## Legacy Demo Case API
 
 ```bash
@@ -137,4 +154,4 @@ uv run pytest
 현재 FastAPI 애플리케이션, liveness/readiness API, Demo 고객 세션, 데이터 출처별 동의와
 조회·검증 상태, 보완평가 실행 기반과 자사 상품 카탈로그 API를 제공합니다. 기존 Case
 Repository와 4개 Demo Case는 호환성을 위해 유지합니다. Mock 원본 데이터·평가모델·상품
-연결과 개인화 상품 조건 조회는 후속 기능입니다.
+연결과 실제 은행 상품정책 연동은 후속 기능입니다.
