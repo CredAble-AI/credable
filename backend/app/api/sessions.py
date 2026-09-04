@@ -4,6 +4,7 @@ from app.schemas.assessment import AssessmentResponse
 from app.schemas.consent import ConsentListResponse, ConsentState
 from app.schemas.data_source import DataSourceListResponse
 from app.schemas.error import ApiErrorResponse
+from app.schemas.product import ProductCatalogResponse
 from app.schemas.session import (
     CustomerSessionState,
     DemoSessionCreateRequest,
@@ -12,6 +13,7 @@ from app.schemas.session import (
 from app.services.assessment_service import AssessmentService
 from app.services.consent_service import ConsentService
 from app.services.data_source_service import DataSourceService
+from app.services.product_catalog_service import ProductCatalogService
 from app.services.session_service import CustomerSessionService
 
 router = APIRouter(prefix="/v1/sessions", tags=["sessions"])
@@ -31,6 +33,10 @@ def get_data_source_service(request: Request) -> DataSourceService:
 
 def get_assessment_service(request: Request) -> AssessmentService:
     return request.app.state.assessment_service
+
+
+def get_product_catalog_service(request: Request) -> ProductCatalogService:
+    return request.app.state.product_catalog_service
 
 
 @router.post(
@@ -157,6 +163,33 @@ async def run_assessment(
     request: Request,
 ) -> AssessmentResponse:
     return get_assessment_service(request).run(
+        session_id,
+        request.state.request_id,
+    )
+
+
+@router.get(
+    "/{session_id}/products",
+    response_model=ProductCatalogResponse,
+    responses={404: {"model": ApiErrorResponse}},
+)
+async def get_product_catalog(
+    session_id: str,
+    request: Request,
+) -> ProductCatalogResponse:
+    return get_product_catalog_service(request).get_latest(session_id)
+
+
+@router.post(
+    "/{session_id}/products/refresh",
+    response_model=ProductCatalogResponse,
+    responses={404: {"model": ApiErrorResponse}},
+)
+async def refresh_product_catalog(
+    session_id: str,
+    request: Request,
+) -> ProductCatalogResponse:
+    return get_product_catalog_service(request).refresh(
         session_id,
         request.state.request_id,
     )

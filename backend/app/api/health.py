@@ -6,6 +6,7 @@ from app.services.assessment_service import AssessmentService
 from app.services.case_service import CaseService
 from app.services.consent_service import ConsentService
 from app.services.data_source_service import DataSourceService
+from app.services.product_catalog_service import ProductCatalogService
 from app.services.session_service import CustomerSessionService
 
 router = APIRouter(tags=["health"])
@@ -25,6 +26,7 @@ async def get_readiness(request: Request) -> ReadinessResponse:
     consent_service: ConsentService = request.app.state.consent_service
     data_source_service: DataSourceService = request.app.state.data_source_service
     assessment_service: AssessmentService = request.app.state.assessment_service
+    product_catalog_service: ProductCatalogService = request.app.state.product_catalog_service
     statuses = {
         "application": True,
         **case_service.readiness(),
@@ -32,6 +34,7 @@ async def get_readiness(request: Request) -> ReadinessResponse:
         **consent_service.readiness(),
         **data_source_service.readiness(),
         **assessment_service.readiness(),
+        **product_catalog_service.readiness(),
     }
     checks = [
         ReadinessCheck(name=name, status="ok" if ready else "error")

@@ -5,17 +5,20 @@ from fastapi.testclient import TestClient
 
 from app.adapters.assessment_adapter import UnconfiguredDemoAssessmentAdapter
 from app.adapters.data_source_adapter import EmptyDemoDataSourceAdapter
+from app.adapters.product_catalog_adapter import UnconfiguredProductCatalogAdapter
 from app.core.config import settings
 from app.main import create_app
 from app.repositories.assessment_repository import SqliteAssessmentRepository
 from app.repositories.case_repository import SqliteCaseRepository
 from app.repositories.consent_repository import SqliteConsentRepository
 from app.repositories.data_source_repository import SqliteDataSourceRepository
+from app.repositories.product_catalog_repository import SqliteProductCatalogRepository
 from app.repositories.session_repository import SqliteCustomerSessionRepository
 from app.services.assessment_service import AssessmentService
 from app.services.case_service import CaseService, DemoCaseCatalog
 from app.services.consent_service import ConsentService, DemoConsentScopeCatalog
 from app.services.data_source_service import DataSourceService
+from app.services.product_catalog_service import ProductCatalogService
 from app.services.session_service import CustomerSessionService, DemoProfileCatalog
 
 
@@ -101,12 +104,30 @@ def assessment_service(
 
 
 @pytest.fixture
+def product_catalog_repository(tmp_path) -> SqliteProductCatalogRepository:
+    return SqliteProductCatalogRepository(tmp_path / "test.db")
+
+
+@pytest.fixture
+def product_catalog_service(
+    product_catalog_repository: SqliteProductCatalogRepository,
+    session_service: CustomerSessionService,
+) -> ProductCatalogService:
+    return ProductCatalogService(
+        repository=product_catalog_repository,
+        session_service=session_service,
+        adapter=UnconfiguredProductCatalogAdapter(),
+    )
+
+
+@pytest.fixture
 def client(
     case_service: CaseService,
     session_service: CustomerSessionService,
     consent_service: ConsentService,
     data_source_service: DataSourceService,
     assessment_service: AssessmentService,
+    product_catalog_service: ProductCatalogService,
 ) -> Generator[TestClient]:
     with TestClient(
         create_app(
@@ -115,6 +136,7 @@ def client(
             consent_service=consent_service,
             data_source_service=data_source_service,
             assessment_service=assessment_service,
+            product_catalog_service=product_catalog_service,
         )
     ) as test_client:
         yield test_client

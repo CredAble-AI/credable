@@ -94,6 +94,22 @@ curl -X POST \
 보존합니다. 실제 Demo 모델이 확정되면 Assessment Adapter에 연결하며, 생성형 AI가 평가값을
 생성하지 않습니다.
 
+## 자사 상품 카탈로그 API
+
+상품 카탈로그는 세션별 최신 상태 조회와 새로고침을 지원합니다. 현재는 실제·Mock 상품이
+제공되지 않아 기본 Adapter가 빈 목록과 `CATALOG_NOT_CONFIGURED`를 반환합니다.
+
+```bash
+curl http://127.0.0.1:8000/v1/sessions/<sessionId>/products
+
+curl -X POST \
+  http://127.0.0.1:8000/v1/sessions/<sessionId>/products/refresh
+```
+
+상품 계약은 공식 가입대상, 공개 최대한도, 공개 연 금리 범위, 기간, 상환방식, 공식 출처와
+은행 신청 연결 정보를 포함합니다. 금액·금리는 부동소수점 오차를 피하기 위해 문자열로
+표현합니다. 개인화 조건과 추천·적합도·우선순위 필드는 포함하지 않습니다.
+
 ## Legacy Demo Case API
 
 ```bash
@@ -119,6 +135,6 @@ uv run pytest
 ## 현재 범위
 
 현재 FastAPI 애플리케이션, liveness/readiness API, Demo 고객 세션, 데이터 출처별 동의와
-조회·검증 상태, 보완평가 실행 기반 API를 제공합니다. 기존 Case Repository와 4개 Demo
-Case는 호환성을 위해 유지합니다. Mock 원본 데이터·평가모델 연결과 상품 조건 조회는 후속
-기능입니다.
+조회·검증 상태, 보완평가 실행 기반과 자사 상품 카탈로그 API를 제공합니다. 기존 Case
+Repository와 4개 Demo Case는 호환성을 위해 유지합니다. Mock 원본 데이터·평가모델·상품
+연결과 개인화 상품 조건 조회는 후속 기능입니다.
