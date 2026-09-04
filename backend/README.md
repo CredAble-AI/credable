@@ -124,9 +124,11 @@ curl -X POST \
 ```
 
 카탈로그가 없으면 `CATALOG_UNAVAILABLE`, 상품은 있지만 정책이 없으면 상품별
-`POLICY_NOT_CONFIGURED`를 반환합니다. 한 상품의 조회 실패는 다른 상품 결과를 숨기지 않으며,
-개인화 조건에는 항상 최종 은행 심사가 필요하다는 표시를 포함합니다. 추천·적합도·최적 상품
-필드는 제공하지 않습니다.
+`POLICY_NOT_CONFIGURED`를 반환합니다. Demo Adapter는 기존 Frontend Mock에 정의된 소상공인
+조건만 파일에서 불러오며, 정의되지 않은 스타트업 조건은 값을 만들지 않고
+`POLICY_NOT_CONFIGURED`로 남깁니다. 보완평가가 완료되지 않은 세션에도 개인화 값을 제공하지
+않습니다. 한 상품의 조회 실패는 다른 상품 결과를 숨기지 않으며, 개인화 조건에는 항상 최종
+은행 심사가 필요하다는 표시를 포함합니다. 추천·적합도·최적 상품 필드는 제공하지 않습니다.
 
 ## 상품 비교 통합 응답 API
 
@@ -168,5 +170,5 @@ uv run pytest
 현재 FastAPI 애플리케이션, liveness/readiness API, Demo 고객 세션, 데이터 출처별 동의와
 조회·검증 상태, 보완평가 실행 기반, 합성 자사 상품 카탈로그와 비교 API를 제공합니다. 기존
 Case Repository와 4개 Demo Case는 호환성을 위해 유지합니다. Mock 원본 금융데이터·평가모델,
-개인화 상품정책과 실제 은행 연동은 후속 기능입니다. Frontend의 Backend API 전환도 별도
-작업으로 진행합니다.
+실제 은행 상품정책과 은행 연동은 후속 기능입니다. 소상공인용 개인화 상품 조건은 기존
+Frontend 합성 Fixture와 일치하며, Frontend의 Backend API 전환도 별도 작업으로 진행합니다.

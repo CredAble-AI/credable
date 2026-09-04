@@ -1,0 +1,48 @@
+{
+  "dataVersion": "demo-product-conditions-v1",
+  "conditions": [
+    {
+      "demoProfileId": "small-business",
+      "productId": "demo-working-capital",
+      "result": {
+        "status": "PERSONALIZED_AVAILABLE",
+        "personalizedMaxAmount": {
+          "amount": "24000000",
+          "currency": "KRW"
+        },
+        "personalizedAnnualRateRange": {
+          "minPercent": "5.10",
+          "maxPercent": "7.30"
+        },
+        "personalizedTermRangeMonths": {
+          "minMonths": 12,
+          "maxMonths": 48
+        },
+        "policyVersion": "demo-policy-v1"
+      }
+    },
+    {
+      "demoProfileId": "small-business",
+      "productId": "demo-daily-bridge",
+      "result": {
+        "status": "PUBLIC_ONLY"
+      }
+    },
+    {
+      "demoProfileId": "small-business",
+      "productId": "demo-steady-business",
+      "result": {
+        "status": "INSUFFICIENT_DATA",
+        "reasonCode": "DEMO_PRODUCT_DATA_INSUFFICIENT"
+      }
+    },
+    {
+      "demoProfileId": "small-business",
+      "productId": "demo-balance-partner",
+      "result": {
+        "status": "QUERY_FAILED",
+        "reasonCode": "DEMO_PRODUCT_CONDITION_UNAVAILABLE"
+      }
+    }
+  ]
+}

@@ -29,6 +29,7 @@ class ProductConditionStatus(StrEnum):
 
 class ProductConditionAdapterInput(ApiModel):
     session_id: str = Field(min_length=1)
+    demo_profile_id: str = Field(min_length=1)
     product: BankProduct
     catalog_snapshot_id: str = Field(min_length=1)
     assessment: AssessmentState
@@ -77,6 +78,24 @@ class ProductConditionAdapterResult(ApiModel):
         return self
 
 
+class DemoProductConditionDefinition(ApiModel):
+    demo_profile_id: str = Field(min_length=1)
+    product_id: str = Field(min_length=1)
+    result: ProductConditionAdapterResult
+
+
+class DemoProductConditionCatalogData(ApiModel):
+    data_version: str = Field(min_length=1)
+    conditions: list[DemoProductConditionDefinition] = Field(min_length=1)
+
+    @model_validator(mode="after")
+    def validate_unique_conditions(self) -> "DemoProductConditionCatalogData":
+        keys = [(item.demo_profile_id, item.product_id) for item in self.conditions]
+        if len(keys) != len(set(keys)):
+            raise ValueError("demo profile and product condition keys must be unique")
+        return self
+
+
 class ProductCondition(ApiModel):
     product_id: str = Field(min_length=1)
     status: ProductConditionStatus
@@ -106,6 +125,7 @@ class ProductCondition(ApiModel):
 
 class ProductConditionInputSnapshot(ApiModel):
     catalog_snapshot_id: str = Field(min_length=1)
+    demo_profile_id: str | None = Field(default=None, min_length=1)
     products: list[BankProduct]
     assessment: AssessmentState
     data_sources: list[DataSourceState]
