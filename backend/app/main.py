@@ -11,6 +11,7 @@ from app.adapters.data_source_adapter import DemoDataSourceAdapter
 from app.adapters.product_catalog_adapter import DemoProductCatalogAdapter
 from app.adapters.product_condition_adapter import DemoProductConditionAdapter
 from app.api.admin_audit import router as admin_audit_router
+from app.api.demo_profiles import router as demo_profiles_router
 from app.api.health import router as health_router
 from app.api.sessions import router as sessions_router
 from app.core.admin_auth import AdminApiKeyAuthenticator
@@ -196,6 +197,7 @@ def create_app(
         )
 
     application.include_router(health_router)
+    application.include_router(demo_profiles_router)
     application.include_router(sessions_router)
     application.include_router(admin_audit_router)
     return application

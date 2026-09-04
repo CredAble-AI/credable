@@ -11,6 +11,7 @@ from app.schemas.session import (
     CustomerSession,
     CustomerSessionState,
     DemoProfileCatalogData,
+    DemoProfileCatalogResponse,
     DemoProfileDefinition,
 )
 
@@ -40,6 +41,10 @@ class DemoProfileCatalog:
     @property
     def profile_ids(self) -> tuple[str, ...]:
         return tuple(self._profiles_by_id)
+
+    @property
+    def profiles(self) -> tuple[DemoProfileDefinition, ...]:
+        return tuple(self._profiles_by_id.values())
 
     def get(self, demo_profile_id: str) -> DemoProfileDefinition | None:
         return self._profiles_by_id.get(demo_profile_id)
@@ -107,6 +112,12 @@ class CustomerSessionService:
         if state is None:
             raise CustomerSessionNotFoundError(session_id)
         return state
+
+    def list_demo_profiles(self) -> DemoProfileCatalogResponse:
+        return DemoProfileCatalogResponse(
+            data_version=self.catalog.data_version,
+            profiles=[definition.to_profile() for definition in self.catalog.profiles],
+        )
 
     def readiness(self) -> dict[str, bool]:
         return {

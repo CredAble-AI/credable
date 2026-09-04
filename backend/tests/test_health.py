@@ -82,6 +82,7 @@ def test_openapi_exposes_health_routes(client: TestClient) -> None:
     assert "/health" in paths
     assert "/ready" in paths
     assert all(not path.startswith("/v1/cases") for path in paths)
+    assert "/v1/demo-profiles" in paths
     assert "/v1/sessions/demo" in paths
     assert "/v1/sessions/{session_id}" in paths
     assert "/v1/sessions/{session_id}/consents" in paths

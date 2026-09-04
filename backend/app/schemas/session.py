@@ -54,6 +54,12 @@ class DemoProfileCatalogData(ApiModel):
     profiles: list[DemoProfileDefinition] = Field(min_length=1)
 
 
+class DemoProfileCatalogResponse(ApiModel):
+    data_version: str = Field(min_length=1)
+    profiles: list[DemoProfile] = Field(min_length=1)
+    demo_only: Literal[True] = True
+
+
 class DemoSessionCreateRequest(ApiModel):
     demo_profile_id: str = Field(min_length=1)
 
