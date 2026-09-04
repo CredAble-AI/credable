@@ -7,6 +7,7 @@ from app.adapters.assessment_adapter import UnconfiguredDemoAssessmentAdapter
 from app.adapters.data_source_adapter import EmptyDemoDataSourceAdapter
 from app.adapters.product_catalog_adapter import UnconfiguredProductCatalogAdapter
 from app.adapters.product_condition_adapter import UnconfiguredProductConditionAdapter
+from app.core.admin_auth import AdminApiKeyAuthenticator
 from app.core.config import settings
 from app.main import create_app
 from app.repositories.assessment_repository import SqliteAssessmentRepository
@@ -150,6 +151,7 @@ def client(
             assessment_service=assessment_service,
             product_catalog_service=product_catalog_service,
             product_condition_service=product_condition_service,
+            admin_authenticator=AdminApiKeyAuthenticator("test-admin-api-key"),
         )
     ) as test_client:
         yield test_client

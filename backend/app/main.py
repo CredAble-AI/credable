@@ -10,8 +10,10 @@ from app.adapters.assessment_adapter import DemoAssessmentAdapter
 from app.adapters.data_source_adapter import DemoDataSourceAdapter
 from app.adapters.product_catalog_adapter import DemoProductCatalogAdapter
 from app.adapters.product_condition_adapter import DemoProductConditionAdapter
+from app.api.admin_audit import router as admin_audit_router
 from app.api.health import router as health_router
 from app.api.sessions import router as sessions_router
+from app.core.admin_auth import AdminApiKeyAuthenticator
 from app.core.config import settings
 from app.core.errors import ApiDomainError
 from app.repositories.assessment_repository import SqliteAssessmentRepository
@@ -21,6 +23,7 @@ from app.repositories.product_catalog_repository import SqliteProductCatalogRepo
 from app.repositories.product_condition_repository import SqliteProductConditionRepository
 from app.repositories.session_repository import SqliteCustomerSessionRepository
 from app.schemas.error import ApiErrorDetail, ApiErrorResponse
+from app.services.admin_audit_service import AdminAuditService
 from app.services.assessment_service import AssessmentService
 from app.services.comparison_service import ProductComparisonService
 from app.services.consent_service import ConsentService, DemoConsentScopeCatalog
@@ -35,6 +38,11 @@ def build_session_service() -> CustomerSessionService:
         repository=SqliteCustomerSessionRepository(settings.database_path),
         catalog=DemoProfileCatalog(settings.demo_profiles_path),
     )
+
+
+def build_admin_authenticator() -> AdminApiKeyAuthenticator:
+    api_key = settings.admin_api_key.get_secret_value() if settings.admin_api_key else None
+    return AdminApiKeyAuthenticator(api_key)
 
 
 def build_consent_service(session_service: CustomerSessionService) -> ConsentService:
@@ -102,6 +110,7 @@ def create_app(
     assessment_service: AssessmentService | None = None,
     product_catalog_service: ProductCatalogService | None = None,
     product_condition_service: ProductConditionService | None = None,
+    admin_authenticator: AdminApiKeyAuthenticator | None = None,
 ) -> FastAPI:
     resolved_session_service = session_service or build_session_service()
     resolved_consent_service = consent_service or build_consent_service(resolved_session_service)
@@ -130,6 +139,8 @@ def create_app(
         catalog_service=resolved_product_catalog_service,
         condition_service=resolved_product_condition_service,
     )
+    resolved_admin_authenticator = admin_authenticator or build_admin_authenticator()
+    resolved_admin_audit_service = AdminAuditService(resolved_session_service)
 
     @asynccontextmanager
     async def lifespan(_: FastAPI) -> AsyncIterator[None]:
@@ -156,6 +167,8 @@ def create_app(
     application.state.product_catalog_service = resolved_product_catalog_service
     application.state.product_condition_service = resolved_product_condition_service
     application.state.product_comparison_service = resolved_product_comparison_service
+    application.state.admin_authenticator = resolved_admin_authenticator
+    application.state.admin_audit_service = resolved_admin_audit_service
 
     @application.middleware("http")
     async def attach_request_id(request: FastAPIRequest, call_next):
@@ -184,6 +197,7 @@ def create_app(
 
     application.include_router(health_router)
     application.include_router(sessions_router)
+    application.include_router(admin_audit_router)
     return application
 
 

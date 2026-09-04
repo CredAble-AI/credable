@@ -31,3 +31,10 @@ class SessionAuditEvent(ApiModel):
     data_version: str | None = None
     model_version: str | None = None
     policy_version: str | None = None
+
+
+class AdminAuditEventListResponse(ApiModel):
+    session_id: str
+    demo_only: bool
+    events: list[SessionAuditEvent]
+    next_cursor: str | None = None
