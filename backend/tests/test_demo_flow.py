@@ -1,6 +1,9 @@
 from fastapi.testclient import TestClient
 
-from app.adapters.assessment_adapter import DemoAssessmentAdapter
+from app.adapters.assessment_adapter import (
+    DemoAssessmentAdapter,
+    DemoSupplementalAssessmentAdapter,
+)
 from app.adapters.data_source_adapter import DemoDataSourceAdapter
 from app.adapters.product_catalog_adapter import DemoProductCatalogAdapter
 from app.adapters.product_condition_adapter import DemoProductConditionAdapter
@@ -8,10 +11,12 @@ from app.core.config import settings
 from app.repositories.session_repository import SqliteCustomerSessionRepository
 from app.schemas.audit import AuditStage
 from app.schemas.consent import ConsentSourceType
-from app.services.assessment_service import AssessmentService
+from app.services.assessment_service import AssessmentService, SupplementalAssessmentService
 from app.services.data_source_service import DataSourceService
 from app.services.product_catalog_service import ProductCatalogService
 from app.services.product_condition_service import ProductConditionService
+
+ADMIN_HEADERS = {"X-Admin-API-Key": "test-admin-api-key"}
 
 
 def configure_demo_adapters(
@@ -163,3 +168,131 @@ def test_startup_demo_flow_keeps_unavailable_values_empty(
     assert len(comparison["items"]) == 4
     assert all(item["personalizedConditions"] is None for item in comparison["items"])
     assert all(item["demoOnly"] is True for item in comparison["items"])
+
+
+def test_complete_demo_journey_connects_evidence_products_and_admin(
+    client: TestClient,
+    data_source_service: DataSourceService,
+    assessment_service: AssessmentService,
+    supplemental_assessment_service: SupplementalAssessmentService,
+    product_catalog_service: ProductCatalogService,
+    product_condition_service: ProductConditionService,
+) -> None:
+    configure_demo_adapters(
+        data_source_service,
+        assessment_service,
+        product_catalog_service,
+        product_condition_service,
+    )
+    supplemental_assessment_service.adapter = DemoSupplementalAssessmentAdapter(
+        settings.demo_supplemental_assessments_path
+    )
+    session_id = create_session(client, "small-business")
+    grant_sources(
+        client,
+        session_id,
+        (
+            ConsentSourceType.BANK_INTERNAL,
+            ConsentSourceType.CREDIT_INFORMATION,
+        ),
+    )
+
+    assert client.post(f"/v1/sessions/{session_id}/data-sources/refresh").status_code == 200
+    baseline_response = client.post(f"/v1/sessions/{session_id}/assessment/run")
+    boundary_response = client.post(f"/v1/sessions/{session_id}/assessment/boundary-check")
+    selection_response = client.post(f"/v1/sessions/{session_id}/evidence/next")
+
+    assert baseline_response.status_code == 200
+    assert baseline_response.json()["assessment"]["uncertainty"]["gradeSet"] == [
+        "DEMO_GRADE_B",
+        "DEMO_GRADE_C",
+    ]
+    assert boundary_response.status_code == 200
+    assert boundary_response.json()["boundaryCheck"]["decision"]["status"] == "AMBIGUOUS"
+    assert selection_response.status_code == 200
+    selection = selection_response.json()["selection"]
+    assert selection["iteration"] == 1
+    assert selection["selectedEvidence"]["evidenceType"] == (
+        "CUSTOMER_SUBMITTED_RECENT_REVENUE_SUMMARY"
+    )
+
+    submission_response = client.post(
+        f"/v1/sessions/{session_id}/evidence/submissions",
+        json={
+            "selectionId": selection["selectionId"],
+            "submissionMode": "DEMO_FIXTURE_REFERENCE",
+        },
+    )
+    assert submission_response.status_code == 200
+    submission = submission_response.json()["submission"]
+    quality_response = client.post(
+        f"/v1/sessions/{session_id}/evidence/submissions/{submission['submissionId']}/quality"
+    )
+    assert quality_response.status_code == 200
+    assert quality_response.json()["quality"]["status"] == "ACCEPTED"
+
+    supplemental_response = client.post(
+        f"/v1/sessions/{session_id}/assessment/supplemental/run",
+        json={"submissionId": submission["submissionId"]},
+    )
+    comparison_response = client.post(f"/v1/sessions/{session_id}/assessment/comparison")
+    resolution_response = client.post(f"/v1/sessions/{session_id}/assessment/resolution")
+
+    assert supplemental_response.status_code == 200
+    supplemental = supplemental_response.json()["supplementalAssessment"]
+    assert supplemental["acceptedEvidenceCount"] == 1
+    assert supplemental["uncertainty"]["gradeSet"] == ["DEMO_GRADE_B"]
+    assert comparison_response.status_code == 200
+    assert comparison_response.json()["comparison"]["uncertaintyChange"] == "NARROWED"
+    assert resolution_response.status_code == 200
+    resolution = resolution_response.json()["resolution"]
+    assert resolution["status"] == "RESOLVED"
+    assert resolution["stopEvidenceCollection"] is True
+    assert resolution["nextAction"] == "SHOW_UPDATED_RESULTS"
+
+    assert client.post(f"/v1/sessions/{session_id}/products/refresh").status_code == 200
+    conditions_response = client.post(f"/v1/sessions/{session_id}/product-conditions/query")
+    products_response = client.get(f"/v1/sessions/{session_id}/comparison")
+    assert conditions_response.status_code == 200
+    assert conditions_response.json()["query"]["status"] == "PARTIAL"
+    assert products_response.status_code == 200
+    assert len(products_response.json()["items"]) == 4
+
+    burden_response = client.get(
+        f"/v1/admin/sessions/{session_id}/evidence-burden",
+        headers=ADMIN_HEADERS,
+    )
+    audit_response = client.get(
+        f"/v1/admin/sessions/{session_id}/audit-events",
+        params={"limit": 100},
+        headers=ADMIN_HEADERS,
+    )
+    assert burden_response.status_code == 200
+    burden = burden_response.json()
+    assert burden["evidenceRequestCount"] == 1
+    assert burden["submissionCount"] == 1
+    assert burden["acceptedCount"] == 1
+    assert burden["supplementalAssessmentCount"] == 1
+    assert burden["latestResolutionStatus"] == "RESOLVED"
+    assert burden["collectionStopped"] is True
+    assert burden["policyThresholdApplied"] is False
+
+    assert audit_response.status_code == 200
+    stages = [event["stage"] for event in reversed(audit_response.json()["events"])]
+    assert stages == [
+        "SESSION_CREATED",
+        "CONSENT_GRANTED",
+        "CONSENT_GRANTED",
+        "DATA_SOURCE_REFRESHED",
+        "DATA_SOURCE_REFRESHED",
+        "ASSESSMENT_RUN",
+        "POLICY_BOUNDARY_CHECKED",
+        "EVIDENCE_SELECTED",
+        "EVIDENCE_SUBMITTED",
+        "EVIDENCE_QUALITY_CHECKED",
+        "SUPPLEMENTAL_ASSESSMENT_RUN",
+        "ASSESSMENT_COMPARED",
+        "EVIDENCE_COLLECTION_RESOLVED",
+        "PRODUCT_CATALOG_REFRESHED",
+        "PRODUCT_CONDITIONS_QUERIED",
+    ]
