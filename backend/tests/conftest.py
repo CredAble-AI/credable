@@ -13,6 +13,7 @@ from app.main import create_app
 from app.repositories.assessment_repository import SqliteAssessmentRepository
 from app.repositories.consent_repository import SqliteConsentRepository
 from app.repositories.data_source_repository import SqliteDataSourceRepository
+from app.repositories.evidence_selection_repository import SqliteEvidenceSelectionRepository
 from app.repositories.policy_boundary_repository import SqlitePolicyBoundaryRepository
 from app.repositories.product_catalog_repository import SqliteProductCatalogRepository
 from app.repositories.product_condition_repository import SqliteProductConditionRepository
@@ -20,6 +21,10 @@ from app.repositories.session_repository import SqliteCustomerSessionRepository
 from app.services.assessment_service import AssessmentService
 from app.services.consent_service import ConsentService, DemoConsentScopeCatalog
 from app.services.data_source_service import DataSourceService
+from app.services.evidence_selection_service import (
+    DemoEvidenceCandidateCatalog,
+    EvidenceSelectionService,
+)
 from app.services.policy_boundary_service import DemoPolicyBoundaryCatalog, PolicyBoundaryService
 from app.services.product_catalog_service import ProductCatalogService
 from app.services.product_condition_service import ProductConditionService
@@ -116,6 +121,27 @@ def policy_boundary_service(
 
 
 @pytest.fixture
+def evidence_selection_repository(tmp_path) -> SqliteEvidenceSelectionRepository:
+    return SqliteEvidenceSelectionRepository(tmp_path / "test.db")
+
+
+@pytest.fixture
+def evidence_selection_service(
+    evidence_selection_repository: SqliteEvidenceSelectionRepository,
+    session_service: CustomerSessionService,
+    policy_boundary_service: PolicyBoundaryService,
+    data_source_service: DataSourceService,
+) -> EvidenceSelectionService:
+    return EvidenceSelectionService(
+        repository=evidence_selection_repository,
+        session_service=session_service,
+        boundary_service=policy_boundary_service,
+        data_source_service=data_source_service,
+        catalog=DemoEvidenceCandidateCatalog(settings.demo_evidence_candidates_path),
+    )
+
+
+@pytest.fixture
 def product_catalog_repository(tmp_path) -> SqliteProductCatalogRepository:
     return SqliteProductCatalogRepository(tmp_path / "test.db")
 
@@ -162,6 +188,7 @@ def client(
     data_source_service: DataSourceService,
     assessment_service: AssessmentService,
     policy_boundary_service: PolicyBoundaryService,
+    evidence_selection_service: EvidenceSelectionService,
     product_catalog_service: ProductCatalogService,
     product_condition_service: ProductConditionService,
 ) -> Generator[TestClient]:
@@ -172,6 +199,7 @@ def client(
             data_source_service=data_source_service,
             assessment_service=assessment_service,
             policy_boundary_service=policy_boundary_service,
+            evidence_selection_service=evidence_selection_service,
             product_catalog_service=product_catalog_service,
             product_condition_service=product_condition_service,
             admin_authenticator=AdminApiKeyAuthenticator("test-admin-api-key"),

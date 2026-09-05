@@ -20,6 +20,7 @@ from app.core.errors import ApiDomainError
 from app.repositories.assessment_repository import SqliteAssessmentRepository
 from app.repositories.consent_repository import SqliteConsentRepository
 from app.repositories.data_source_repository import SqliteDataSourceRepository
+from app.repositories.evidence_selection_repository import SqliteEvidenceSelectionRepository
 from app.repositories.policy_boundary_repository import SqlitePolicyBoundaryRepository
 from app.repositories.product_catalog_repository import SqliteProductCatalogRepository
 from app.repositories.product_condition_repository import SqliteProductConditionRepository
@@ -30,6 +31,10 @@ from app.services.assessment_service import AssessmentService
 from app.services.comparison_service import ProductComparisonService
 from app.services.consent_service import ConsentService, DemoConsentScopeCatalog
 from app.services.data_source_service import DataSourceService
+from app.services.evidence_selection_service import (
+    DemoEvidenceCandidateCatalog,
+    EvidenceSelectionService,
+)
 from app.services.policy_boundary_service import DemoPolicyBoundaryCatalog, PolicyBoundaryService
 from app.services.product_catalog_service import ProductCatalogService
 from app.services.product_condition_service import ProductConditionService
@@ -102,6 +107,20 @@ def build_policy_boundary_service(
     )
 
 
+def build_evidence_selection_service(
+    session_service: CustomerSessionService,
+    policy_boundary_service: PolicyBoundaryService,
+    data_source_service: DataSourceService,
+) -> EvidenceSelectionService:
+    return EvidenceSelectionService(
+        repository=SqliteEvidenceSelectionRepository(settings.database_path),
+        session_service=session_service,
+        boundary_service=policy_boundary_service,
+        data_source_service=data_source_service,
+        catalog=DemoEvidenceCandidateCatalog(settings.demo_evidence_candidates_path),
+    )
+
+
 def build_product_condition_service(
     session_service: CustomerSessionService,
     product_catalog_service: ProductCatalogService,
@@ -124,6 +143,7 @@ def create_app(
     data_source_service: DataSourceService | None = None,
     assessment_service: AssessmentService | None = None,
     policy_boundary_service: PolicyBoundaryService | None = None,
+    evidence_selection_service: EvidenceSelectionService | None = None,
     product_catalog_service: ProductCatalogService | None = None,
     product_condition_service: ProductConditionService | None = None,
     admin_authenticator: AdminApiKeyAuthenticator | None = None,
@@ -141,6 +161,14 @@ def create_app(
     resolved_policy_boundary_service = policy_boundary_service or build_policy_boundary_service(
         resolved_session_service,
         resolved_assessment_service,
+    )
+    resolved_evidence_selection_service = (
+        evidence_selection_service
+        or build_evidence_selection_service(
+            resolved_session_service,
+            resolved_policy_boundary_service,
+            resolved_data_source_service,
+        )
     )
     resolved_product_catalog_service = product_catalog_service or build_product_catalog_service(
         resolved_session_service
@@ -169,6 +197,7 @@ def create_app(
         resolved_data_source_service.initialize()
         resolved_assessment_service.initialize()
         resolved_policy_boundary_service.initialize()
+        resolved_evidence_selection_service.initialize()
         resolved_product_catalog_service.initialize()
         resolved_product_condition_service.initialize()
         yield
@@ -186,6 +215,7 @@ def create_app(
     application.state.data_source_service = resolved_data_source_service
     application.state.assessment_service = resolved_assessment_service
     application.state.policy_boundary_service = resolved_policy_boundary_service
+    application.state.evidence_selection_service = resolved_evidence_selection_service
     application.state.product_catalog_service = resolved_product_catalog_service
     application.state.product_condition_service = resolved_product_condition_service
     application.state.product_comparison_service = resolved_product_comparison_service

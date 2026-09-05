@@ -5,6 +5,7 @@ from app.schemas.health import HealthResponse, ReadinessCheck, ReadinessResponse
 from app.services.assessment_service import AssessmentService
 from app.services.consent_service import ConsentService
 from app.services.data_source_service import DataSourceService
+from app.services.evidence_selection_service import EvidenceSelectionService
 from app.services.policy_boundary_service import PolicyBoundaryService
 from app.services.product_catalog_service import ProductCatalogService
 from app.services.product_condition_service import ProductConditionService
@@ -27,6 +28,9 @@ async def get_readiness(request: Request) -> ReadinessResponse:
     data_source_service: DataSourceService = request.app.state.data_source_service
     assessment_service: AssessmentService = request.app.state.assessment_service
     policy_boundary_service: PolicyBoundaryService = request.app.state.policy_boundary_service
+    evidence_selection_service: EvidenceSelectionService = (
+        request.app.state.evidence_selection_service
+    )
     product_catalog_service: ProductCatalogService = request.app.state.product_catalog_service
     product_condition_service: ProductConditionService = request.app.state.product_condition_service
     statuses = {
@@ -36,6 +40,7 @@ async def get_readiness(request: Request) -> ReadinessResponse:
         **data_source_service.readiness(),
         **assessment_service.readiness(),
         **policy_boundary_service.readiness(),
+        **evidence_selection_service.readiness(),
         **product_catalog_service.readiness(),
         **product_condition_service.readiness(),
     }
