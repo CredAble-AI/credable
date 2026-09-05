@@ -27,6 +27,12 @@ from app.repositories.policy_boundary_repository import SqlitePolicyBoundaryRepo
 from app.repositories.product_catalog_repository import SqliteProductCatalogRepository
 from app.repositories.product_condition_repository import SqliteProductConditionRepository
 from app.repositories.session_repository import SqliteCustomerSessionRepository
+from app.schemas.assessment import AssessmentSnapshotType
+from app.schemas.consent import ConsentSourceType
+from app.services.assessment_data_lineage_service import (
+    AssessmentDataLineageService,
+    SnapshotSource,
+)
 from app.services.assessment_service import (
     AssessmentComparisonService,
     AssessmentService,
@@ -167,6 +173,40 @@ def credit_exposure_service(
 
 
 @pytest.fixture
+def assessment_data_lineage_service(
+    bank_data_service: BankDataService,
+    credit_history_service: CreditHistoryService,
+    loan_history_service: LoanHistoryService,
+    credit_exposure_service: CreditExposureService,
+) -> AssessmentDataLineageService:
+    return AssessmentDataLineageService(
+        sources=(
+            SnapshotSource(
+                ConsentSourceType.BANK_INTERNAL,
+                AssessmentSnapshotType.BANK_ACCOUNT_DATA,
+                bank_data_service.repository,
+            ),
+            SnapshotSource(
+                ConsentSourceType.BANK_INTERNAL,
+                AssessmentSnapshotType.BANK_CREDIT_HISTORY,
+                credit_history_service.repository,
+            ),
+            SnapshotSource(
+                ConsentSourceType.BANK_INTERNAL,
+                AssessmentSnapshotType.BANK_LOAN_HISTORY,
+                loan_history_service.repository,
+            ),
+            SnapshotSource(
+                ConsentSourceType.CREDIT_INFORMATION,
+                AssessmentSnapshotType.EXTERNAL_CREDIT_EXPOSURE,
+                credit_exposure_service.repository,
+                "reported_at",
+            ),
+        )
+    )
+
+
+@pytest.fixture
 def data_source_repository(tmp_path) -> SqliteDataSourceRepository:
     return SqliteDataSourceRepository(tmp_path / "test.db")
 
@@ -205,12 +245,14 @@ def assessment_service(
     assessment_repository: SqliteAssessmentRepository,
     session_service: CustomerSessionService,
     data_source_service: DataSourceService,
+    assessment_data_lineage_service: AssessmentDataLineageService,
 ) -> AssessmentService:
     return AssessmentService(
         repository=assessment_repository,
         session_service=session_service,
         data_source_service=data_source_service,
         adapter=UnconfiguredDemoAssessmentAdapter(),
+        data_lineage_service=assessment_data_lineage_service,
     )
 
 
