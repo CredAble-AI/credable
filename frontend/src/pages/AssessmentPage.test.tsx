@@ -90,7 +90,7 @@ const ambiguous: PolicyBoundaryCheckResponse = {
 
 const renderPage = () => render(
   <MemoryRouter initialEntries={['/assessment']}>
-    <Routes><Route path="/assessment" element={<AssessmentPage />} /></Routes>
+    <Routes><Route path="/assessment" element={<AssessmentPage />} /><Route path="/evidence" element={<h1>Evidence 선택 화면</h1>} /></Routes>
   </MemoryRouter>,
 )
 
@@ -130,8 +130,7 @@ describe('AssessmentPage', () => {
     expect(screen.getByRole('heading', { name: '추가 확인 필요' })).toBeInTheDocument()
     expect(screen.getByText('DEMO_PATH_1')).toBeInTheDocument()
     expect(screen.getByText('DEMO_BOUNDARY_1_2')).toBeInTheDocument()
-    expect(screen.getByText('Evidence 화면 연결은 다음 기능에서 추가됩니다.')).toBeInTheDocument()
-    expect(screen.queryByRole('link', { name: /Evidence/ })).not.toBeInTheDocument()
+    expect(screen.getByRole('link', { name: '다음 Evidence 확인' })).toHaveAttribute('href', '/evidence')
   })
 
   it('blocks boundary checking when the server cannot complete the assessment', async () => {
