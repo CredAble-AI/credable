@@ -110,6 +110,25 @@ curl -X POST \
 `CONFORMAL_CALIBRATED`를 사용하지 않습니다. 이전 실행 이력에는 `uncertainty: null`이 적용돼
 기존 SQLite JSON 상태를 그대로 읽을 수 있습니다.
 
+## Demo 정책 경계 판정 API
+
+정책 경계 판정은 완료된 기준평가의 가능한 등급 집합을 버전이 고정된 Demo 정책표와
+대조합니다. 평가 범위 전체가 같은 경로에 속하면 `STABLE`, 둘 이상의 경로에 걸치면
+`AMBIGUOUS`, 정책이 구성되지 않아 안전하게 판단할 수 없으면 `POLICY_BLOCKED`를 반환합니다.
+
+```bash
+curl http://127.0.0.1:8000/v1/sessions/<sessionId>/assessment/boundary-check
+
+curl -X POST \
+  http://127.0.0.1:8000/v1/sessions/<sessionId>/assessment/boundary-check
+```
+
+현재 정책표의 `DEMO_PATH_*`와 `DEMO_BOUNDARY_*`는 흐름 검증용 합성 식별자이며 실제
+승인·거절·보류 기준을 뜻하지 않습니다. 수치 구간 또는 알 수 없는 등급처럼 정책표에 없는
+입력은 임의의 경로로 보내지 않고 `POLICY_BLOCKED`와 심사역 확인 필요 상태로 종료합니다.
+판정마다 평가·입력 Snapshot·보정·정책 버전과 요약 Audit을 저장하며 같은 버전의 입력은 같은
+판정 결과를 만듭니다.
+
 ## 자사 상품 카탈로그 API
 
 상품 카탈로그는 세션별 최신 상태 조회와 새로고침을 지원합니다. 기본 Demo Adapter는
@@ -192,10 +211,10 @@ uv run pytest
 ## 현재 범위
 
 현재 FastAPI 애플리케이션, liveness/readiness API, Demo 고객 세션, 데이터 출처별 동의와
-조회·검증 상태, 보완평가 실행 기반, 합성 자사 상품 카탈로그와 비교 API를 제공합니다. 합성
-데이터 출처 상태와 보완평가 상태, 소상공인용 개인화 상품 조건은 기존 Frontend Fixture와
-일치합니다. Legacy `/v1/cases/*` 흐름은 제거됐습니다. 실제 평가모델·은행 상품정책·은행 연동과
-Frontend의 Backend API 전환은 별도 작업으로 진행합니다.
+조회·검증 상태, 보완평가 실행 기반, Demo 정책 경계 판정, 합성 자사 상품 카탈로그와 비교
+API를 제공합니다. 합성 데이터 출처 상태와 보완평가 상태, 소상공인용 개인화 상품 조건은
+기존 Frontend Fixture와 일치합니다. Legacy `/v1/cases/*` 흐름은 제거됐습니다. 실제
+평가모델·은행 상품정책·은행 연동과 Frontend의 Backend API 전환은 별도 작업으로 진행합니다.
 
 기존 SQLite 파일에 남아 있을 수 있는 Legacy Case 테이블과 데이터는 보존·삭제 정책이 정해질
 때까지 애플리케이션이 자동으로 삭제하지 않습니다.
