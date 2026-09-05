@@ -2,7 +2,11 @@ from fastapi import APIRouter, Request
 
 from app.core.config import settings
 from app.schemas.health import HealthResponse, ReadinessCheck, ReadinessResponse
-from app.services.assessment_service import AssessmentService, SupplementalAssessmentService
+from app.services.assessment_service import (
+    AssessmentComparisonService,
+    AssessmentService,
+    SupplementalAssessmentService,
+)
 from app.services.consent_service import ConsentService
 from app.services.data_source_service import DataSourceService
 from app.services.evidence_quality_service import EvidenceQualityService
@@ -32,6 +36,9 @@ async def get_readiness(request: Request) -> ReadinessResponse:
     supplemental_assessment_service: SupplementalAssessmentService = (
         request.app.state.supplemental_assessment_service
     )
+    assessment_comparison_service: AssessmentComparisonService = (
+        request.app.state.assessment_comparison_service
+    )
     policy_boundary_service: PolicyBoundaryService = request.app.state.policy_boundary_service
     evidence_selection_service: EvidenceSelectionService = (
         request.app.state.evidence_selection_service
@@ -49,6 +56,7 @@ async def get_readiness(request: Request) -> ReadinessResponse:
         **data_source_service.readiness(),
         **assessment_service.readiness(),
         **supplemental_assessment_service.readiness(),
+        **assessment_comparison_service.readiness(),
         **policy_boundary_service.readiness(),
         **evidence_selection_service.readiness(),
         **evidence_submission_service.readiness(),

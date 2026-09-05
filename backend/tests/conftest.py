@@ -23,7 +23,11 @@ from app.repositories.policy_boundary_repository import SqlitePolicyBoundaryRepo
 from app.repositories.product_catalog_repository import SqliteProductCatalogRepository
 from app.repositories.product_condition_repository import SqliteProductConditionRepository
 from app.repositories.session_repository import SqliteCustomerSessionRepository
-from app.services.assessment_service import AssessmentService, SupplementalAssessmentService
+from app.services.assessment_service import (
+    AssessmentComparisonService,
+    AssessmentService,
+    SupplementalAssessmentService,
+)
 from app.services.consent_service import ConsentService, DemoConsentScopeCatalog
 from app.services.data_source_service import DataSourceService
 from app.services.evidence_quality_service import (
@@ -213,6 +217,17 @@ def supplemental_assessment_service(
 
 
 @pytest.fixture
+def assessment_comparison_service(
+    assessment_repository: SqliteAssessmentRepository,
+    session_service: CustomerSessionService,
+) -> AssessmentComparisonService:
+    return AssessmentComparisonService(
+        repository=assessment_repository,
+        session_service=session_service,
+    )
+
+
+@pytest.fixture
 def product_catalog_repository(tmp_path) -> SqliteProductCatalogRepository:
     return SqliteProductCatalogRepository(tmp_path / "test.db")
 
@@ -263,6 +278,7 @@ def client(
     evidence_submission_service: EvidenceSubmissionService,
     evidence_quality_service: EvidenceQualityService,
     supplemental_assessment_service: SupplementalAssessmentService,
+    assessment_comparison_service: AssessmentComparisonService,
     product_catalog_service: ProductCatalogService,
     product_condition_service: ProductConditionService,
 ) -> Generator[TestClient]:
@@ -277,6 +293,7 @@ def client(
             evidence_submission_service=evidence_submission_service,
             evidence_quality_service=evidence_quality_service,
             supplemental_assessment_service=supplemental_assessment_service,
+            assessment_comparison_service=assessment_comparison_service,
             product_catalog_service=product_catalog_service,
             product_condition_service=product_condition_service,
             admin_authenticator=AdminApiKeyAuthenticator("test-admin-api-key"),

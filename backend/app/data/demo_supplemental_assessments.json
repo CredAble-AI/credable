@@ -15,7 +15,7 @@
             "DEMO_GRADE_B"
           ],
           "calibrationMode": "RULE_TABLE",
-          "calibrationVersion": "demo-supplemental-uncertainty-rule-table-v1",
+          "calibrationVersion": "demo-uncertainty-rule-table-v1",
           "demoOnly": true
         }
       }

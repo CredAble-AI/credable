@@ -32,7 +32,11 @@ from app.repositories.product_condition_repository import SqliteProductCondition
 from app.repositories.session_repository import SqliteCustomerSessionRepository
 from app.schemas.error import ApiErrorDetail, ApiErrorResponse
 from app.services.admin_audit_service import AdminAuditService
-from app.services.assessment_service import AssessmentService, SupplementalAssessmentService
+from app.services.assessment_service import (
+    AssessmentComparisonService,
+    AssessmentService,
+    SupplementalAssessmentService,
+)
 from app.services.comparison_service import ProductComparisonService
 from app.services.consent_service import ConsentService, DemoConsentScopeCatalog
 from app.services.data_source_service import DataSourceService
@@ -177,6 +181,16 @@ def build_supplemental_assessment_service(
     )
 
 
+def build_assessment_comparison_service(
+    session_service: CustomerSessionService,
+    assessment_service: AssessmentService,
+) -> AssessmentComparisonService:
+    return AssessmentComparisonService(
+        repository=assessment_service.repository,
+        session_service=session_service,
+    )
+
+
 def build_product_condition_service(
     session_service: CustomerSessionService,
     product_catalog_service: ProductCatalogService,
@@ -203,6 +217,7 @@ def create_app(
     evidence_submission_service: EvidenceSubmissionService | None = None,
     evidence_quality_service: EvidenceQualityService | None = None,
     supplemental_assessment_service: SupplementalAssessmentService | None = None,
+    assessment_comparison_service: AssessmentComparisonService | None = None,
     product_catalog_service: ProductCatalogService | None = None,
     product_condition_service: ProductConditionService | None = None,
     admin_authenticator: AdminApiKeyAuthenticator | None = None,
@@ -251,6 +266,13 @@ def create_app(
             resolved_evidence_quality_service,
         )
     )
+    resolved_assessment_comparison_service = (
+        assessment_comparison_service
+        or build_assessment_comparison_service(
+            resolved_session_service,
+            resolved_assessment_service,
+        )
+    )
     resolved_product_catalog_service = product_catalog_service or build_product_catalog_service(
         resolved_session_service
     )
@@ -282,6 +304,7 @@ def create_app(
         resolved_evidence_submission_service.initialize()
         resolved_evidence_quality_service.initialize()
         resolved_supplemental_assessment_service.initialize()
+        resolved_assessment_comparison_service.initialize()
         resolved_product_catalog_service.initialize()
         resolved_product_condition_service.initialize()
         yield
@@ -303,6 +326,7 @@ def create_app(
     application.state.evidence_submission_service = resolved_evidence_submission_service
     application.state.evidence_quality_service = resolved_evidence_quality_service
     application.state.supplemental_assessment_service = resolved_supplemental_assessment_service
+    application.state.assessment_comparison_service = resolved_assessment_comparison_service
     application.state.product_catalog_service = resolved_product_catalog_service
     application.state.product_condition_service = resolved_product_condition_service
     application.state.product_comparison_service = resolved_product_comparison_service

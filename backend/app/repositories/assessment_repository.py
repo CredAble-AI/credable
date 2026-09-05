@@ -3,6 +3,7 @@ from abc import ABC, abstractmethod
 from pathlib import Path
 
 from app.schemas.assessment import (
+    AssessmentComparisonState,
     AssessmentInputSnapshot,
     AssessmentState,
     SupplementalAssessmentInputSnapshot,
@@ -19,6 +20,14 @@ class AssessmentRepository(ABC):
     @abstractmethod
     def get_latest(self, session_id: str) -> AssessmentState | None:
         """Return the latest assessment execution for a session."""
+
+    @abstractmethod
+    def get_for_session(
+        self,
+        session_id: str,
+        assessment_id: str,
+    ) -> AssessmentState | None:
+        """Return an assessment only when it belongs to the session."""
 
     @abstractmethod
     def save_execution(
@@ -80,6 +89,36 @@ class AssessmentRepository(ABC):
         """Report whether supplemental assessment storage can be queried."""
 
     @abstractmethod
+    def get_latest_comparison(self, session_id: str) -> AssessmentComparisonState | None:
+        """Return the latest assessment comparison for a session."""
+
+    @abstractmethod
+    def get_comparison_by_supplemental_id(
+        self,
+        supplemental_assessment_id: str,
+    ) -> AssessmentComparisonState | None:
+        """Return an existing comparison for a supplemental assessment."""
+
+    @abstractmethod
+    def save_comparison(
+        self,
+        *,
+        session_id: str,
+        state: AssessmentComparisonState,
+        input_snapshot_hash: str,
+        audit_event: SessionAuditEvent,
+    ) -> AssessmentComparisonState:
+        """Persist a comparison and its Audit atomically."""
+
+    @abstractmethod
+    def count_comparisons(self, session_id: str) -> int:
+        """Return the number of assessment comparisons for a session."""
+
+    @abstractmethod
+    def is_comparison_ready(self) -> bool:
+        """Report whether assessment comparison storage can be queried."""
+
+    @abstractmethod
     def is_ready(self) -> bool:
         """Report whether the repository can be queried."""
 
@@ -134,6 +173,25 @@ class SqliteAssessmentRepository(AssessmentRepository):
 
                 CREATE INDEX IF NOT EXISTS idx_supplemental_assessments_latest
                 ON supplemental_assessments(session_id, execution_order DESC);
+
+                CREATE TABLE IF NOT EXISTS assessment_comparisons (
+                    comparison_order INTEGER PRIMARY KEY AUTOINCREMENT,
+                    comparison_id TEXT NOT NULL UNIQUE,
+                    supplemental_assessment_id TEXT NOT NULL UNIQUE,
+                    baseline_assessment_id TEXT NOT NULL,
+                    session_id TEXT NOT NULL,
+                    state_json TEXT NOT NULL,
+                    input_snapshot_hash TEXT NOT NULL,
+                    compared_at TEXT NOT NULL,
+                    FOREIGN KEY (session_id) REFERENCES customer_sessions(session_id),
+                    FOREIGN KEY (supplemental_assessment_id)
+                        REFERENCES supplemental_assessments(supplemental_assessment_id),
+                    FOREIGN KEY (baseline_assessment_id)
+                        REFERENCES customer_assessments(assessment_id)
+                );
+
+                CREATE INDEX IF NOT EXISTS idx_assessment_comparisons_latest
+                ON assessment_comparisons(session_id, comparison_order DESC);
                 """
             )
 
@@ -148,6 +206,22 @@ class SqliteAssessmentRepository(AssessmentRepository):
                 LIMIT 1
                 """,
                 (session_id,),
+            ).fetchone()
+        return AssessmentState.model_validate_json(row["state_json"]) if row else None
+
+    def get_for_session(
+        self,
+        session_id: str,
+        assessment_id: str,
+    ) -> AssessmentState | None:
+        with self._connect() as connection:
+            row = connection.execute(
+                """
+                SELECT state_json
+                FROM customer_assessments
+                WHERE session_id = ? AND assessment_id = ?
+                """,
+                (session_id, assessment_id),
             ).fetchone()
         return AssessmentState.model_validate_json(row["state_json"]) if row else None
 
@@ -363,6 +437,102 @@ class SqliteAssessmentRepository(AssessmentRepository):
         try:
             with self._connect() as connection:
                 connection.execute("SELECT 1 FROM supplemental_assessments LIMIT 1").fetchone()
+        except sqlite3.Error:
+            return False
+        return True
+
+    def get_latest_comparison(self, session_id: str) -> AssessmentComparisonState | None:
+        with self._connect() as connection:
+            row = connection.execute(
+                """
+                SELECT state_json
+                FROM assessment_comparisons
+                WHERE session_id = ?
+                ORDER BY comparison_order DESC
+                LIMIT 1
+                """,
+                (session_id,),
+            ).fetchone()
+        return AssessmentComparisonState.model_validate_json(row["state_json"]) if row else None
+
+    def get_comparison_by_supplemental_id(
+        self,
+        supplemental_assessment_id: str,
+    ) -> AssessmentComparisonState | None:
+        with self._connect() as connection:
+            row = connection.execute(
+                """
+                SELECT state_json
+                FROM assessment_comparisons
+                WHERE supplemental_assessment_id = ?
+                """,
+                (supplemental_assessment_id,),
+            ).fetchone()
+        return AssessmentComparisonState.model_validate_json(row["state_json"]) if row else None
+
+    def save_comparison(
+        self,
+        *,
+        session_id: str,
+        state: AssessmentComparisonState,
+        input_snapshot_hash: str,
+        audit_event: SessionAuditEvent,
+    ) -> AssessmentComparisonState:
+        with self._connect() as connection:
+            connection.execute(
+                """
+                INSERT INTO assessment_comparisons(
+                    comparison_id,
+                    supplemental_assessment_id,
+                    baseline_assessment_id,
+                    session_id,
+                    state_json,
+                    input_snapshot_hash,
+                    compared_at
+                )
+                VALUES (?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    state.comparison_id,
+                    state.supplemental_assessment_id,
+                    state.baseline_assessment_id,
+                    session_id,
+                    state.model_dump_json(by_alias=True),
+                    input_snapshot_hash,
+                    state.compared_at.isoformat(),
+                ),
+            )
+            connection.execute(
+                """
+                INSERT INTO customer_session_audit_events(
+                    event_id,
+                    session_id,
+                    timestamp,
+                    event_json
+                )
+                VALUES (?, ?, ?, ?)
+                """,
+                (
+                    audit_event.event_id,
+                    session_id,
+                    audit_event.timestamp.isoformat(),
+                    audit_event.model_dump_json(by_alias=True),
+                ),
+            )
+        return state
+
+    def count_comparisons(self, session_id: str) -> int:
+        with self._connect() as connection:
+            row = connection.execute(
+                "SELECT COUNT(*) AS count FROM assessment_comparisons WHERE session_id = ?",
+                (session_id,),
+            ).fetchone()
+        return int(row["count"])
+
+    def is_comparison_ready(self) -> bool:
+        try:
+            with self._connect() as connection:
+                connection.execute("SELECT 1 FROM assessment_comparisons LIMIT 1").fetchone()
         except sqlite3.Error:
             return False
         return True

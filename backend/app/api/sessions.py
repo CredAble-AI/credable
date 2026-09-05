@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Request, status
 
 from app.schemas.assessment import (
+    AssessmentComparisonResponse,
     AssessmentResponse,
     SupplementalAssessmentResponse,
     SupplementalAssessmentRunRequest,
@@ -23,7 +24,11 @@ from app.schemas.session import (
     DemoSessionCreateRequest,
     DemoSessionCreateResponse,
 )
-from app.services.assessment_service import AssessmentService, SupplementalAssessmentService
+from app.services.assessment_service import (
+    AssessmentComparisonService,
+    AssessmentService,
+    SupplementalAssessmentService,
+)
 from app.services.comparison_service import ProductComparisonService
 from app.services.consent_service import ConsentService
 from app.services.data_source_service import DataSourceService
@@ -56,6 +61,10 @@ def get_assessment_service(request: Request) -> AssessmentService:
 
 def get_supplemental_assessment_service(request: Request) -> SupplementalAssessmentService:
     return request.app.state.supplemental_assessment_service
+
+
+def get_assessment_comparison_service(request: Request) -> AssessmentComparisonService:
+    return request.app.state.assessment_comparison_service
 
 
 def get_policy_boundary_service(request: Request) -> PolicyBoundaryService:
@@ -243,6 +252,36 @@ async def run_supplemental_assessment(
     return get_supplemental_assessment_service(request).run(
         session_id,
         payload.submission_id,
+        request.state.request_id,
+    )
+
+
+@router.get(
+    "/{session_id}/assessment/comparison",
+    response_model=AssessmentComparisonResponse,
+    responses={404: {"model": ApiErrorResponse}},
+)
+async def get_assessment_comparison(
+    session_id: str,
+    request: Request,
+) -> AssessmentComparisonResponse:
+    return get_assessment_comparison_service(request).get_latest(session_id)
+
+
+@router.post(
+    "/{session_id}/assessment/comparison",
+    response_model=AssessmentComparisonResponse,
+    responses={
+        404: {"model": ApiErrorResponse},
+        409: {"model": ApiErrorResponse},
+    },
+)
+async def compare_assessments(
+    session_id: str,
+    request: Request,
+) -> AssessmentComparisonResponse:
+    return get_assessment_comparison_service(request).compare(
+        session_id,
         request.state.request_id,
     )
 

@@ -1,6 +1,7 @@
 import json
 from pathlib import Path
 
+import pytest
 from fastapi.testclient import TestClient
 
 from app.adapters.assessment_adapter import (
@@ -11,9 +12,14 @@ from app.adapters.data_source_adapter import DemoDataSourceAdapter
 from app.core.config import settings
 from app.repositories.assessment_repository import SqliteAssessmentRepository
 from app.repositories.session_repository import SqliteCustomerSessionRepository
+from app.schemas.assessment import AssessmentUncertainty, CalibrationMode
 from app.schemas.audit import AuditStage
 from app.schemas.consent import ConsentSourceType
-from app.services.assessment_service import AssessmentService, SupplementalAssessmentService
+from app.services.assessment_service import (
+    AssessmentService,
+    SupplementalAssessmentService,
+    compare_uncertainties,
+)
 from app.services.data_source_service import DataSourceService
 from app.services.evidence_quality_service import (
     DemoEvidenceQualityCatalog,
@@ -148,7 +154,7 @@ def test_supplemental_assessment_uses_only_accepted_evidence(
         "upperBound": None,
         "gradeSet": ["DEMO_GRADE_B"],
         "calibrationMode": "RULE_TABLE",
-        "calibrationVersion": "demo-supplemental-uncertainty-rule-table-v1",
+        "calibrationVersion": "demo-uncertainty-rule-table-v1",
         "demoOnly": True,
     }
     assert state["demoOnly"] is True
@@ -183,7 +189,7 @@ def test_supplemental_assessment_uses_only_accepted_evidence(
         "qualityCheckId": quality["qualityCheckId"],
         "evidenceType": "CUSTOMER_SUBMITTED_RECENT_REVENUE_SUMMARY",
         "calibrationMode": "RULE_TABLE",
-        "calibrationVersion": "demo-supplemental-uncertainty-rule-table-v1",
+        "calibrationVersion": "demo-uncertainty-rule-table-v1",
         "demoOnly": True,
     }
 
@@ -295,3 +301,173 @@ def test_new_baseline_invalidates_stale_evidence_lineage(
 
     assert response.status_code == 409
     assert response.json()["error"]["code"] == "SUPPLEMENTAL_ASSESSMENT_LINEAGE_NOT_READY"
+
+
+def test_assessment_comparison_is_empty_before_creation(client: TestClient) -> None:
+    session_id = create_session(client)
+
+    response = client.get(f"/v1/sessions/{session_id}/assessment/comparison")
+
+    assert response.status_code == 200
+    assert response.json() == {"sessionId": session_id, "comparison": None}
+
+
+def test_assessment_comparison_requires_supplemental_assessment(
+    client: TestClient,
+) -> None:
+    session_id = create_session(client)
+
+    response = client.post(f"/v1/sessions/{session_id}/assessment/comparison")
+
+    assert response.status_code == 409
+    assert response.json()["error"]["code"] == "SUPPLEMENTAL_ASSESSMENT_NOT_READY"
+
+
+def test_assessment_comparison_preserves_neutral_before_after_result(
+    client: TestClient,
+    data_source_service: DataSourceService,
+    assessment_service: AssessmentService,
+    supplemental_assessment_service: SupplementalAssessmentService,
+    assessment_repository: SqliteAssessmentRepository,
+    session_repository: SqliteCustomerSessionRepository,
+) -> None:
+    session_id = create_session(client)
+    baseline, submission = prepare_submission(
+        client,
+        session_id,
+        data_source_service,
+        assessment_service,
+    )
+    quality = check_quality(client, session_id, submission["submissionId"])
+    supplemental_assessment_service.adapter = DemoSupplementalAssessmentAdapter(
+        settings.demo_supplemental_assessments_path
+    )
+    supplemental_response = client.post(
+        f"/v1/sessions/{session_id}/assessment/supplemental/run",
+        json=run_payload(submission["submissionId"]),
+    )
+    supplemental = supplemental_response.json()["supplementalAssessment"]
+
+    first = client.post(f"/v1/sessions/{session_id}/assessment/comparison")
+    second = client.post(f"/v1/sessions/{session_id}/assessment/comparison")
+    latest = client.get(f"/v1/sessions/{session_id}/assessment/comparison")
+
+    assert first.status_code == 200
+    comparison = first.json()["comparison"]
+    assert comparison["comparisonId"].startswith("acp_")
+    assert comparison["baselineAssessmentId"] == baseline["assessmentId"]
+    assert comparison["supplementalAssessmentId"] == supplemental["supplementalAssessmentId"]
+    assert comparison["qualityCheckId"] == quality["qualityCheckId"]
+    assert comparison["basis"] == "GRADE_SET"
+    assert comparison["uncertaintyChange"] == "NARROWED"
+    assert comparison["beforeUncertainty"]["gradeSet"] == [
+        "DEMO_GRADE_B",
+        "DEMO_GRADE_C",
+    ]
+    assert comparison["afterUncertainty"]["gradeSet"] == ["DEMO_GRADE_B"]
+    assert comparison["rationaleCodes"] == ["GRADE_SET_PROPER_SUBSET"]
+    assert comparison["baselineModelVersion"] == "demo-small-business-assessment-v1"
+    assert (
+        comparison["supplementalModelVersion"] == "demo-small-business-supplemental-assessment-v1"
+    )
+    assert comparison["comparedAt"].endswith("Z")
+    assert comparison["demoOnly"] is True
+    assert "improved" not in first.text.lower()
+    assert "approved" not in first.text.lower()
+    assert second.json() == first.json()
+    assert latest.json() == first.json()
+    assert assessment_repository.count_comparisons(session_id) == 1
+
+    event = session_repository.list_audit_events(session_id)[-1]
+    assert event.stage == AuditStage.ASSESSMENT_COMPARED
+    assert event.request_id == first.headers["X-Request-ID"]
+    assert event.input_version == supplemental["supplementalAssessmentId"]
+    assert len(event.input_snapshot_hash) == 64
+    assert event.data_version == supplemental["inputSnapshotId"]
+    assert event.model_version == supplemental["modelVersion"]
+    assert event.output_summary == {
+        "comparisonBasis": "GRADE_SET",
+        "uncertaintyChange": "NARROWED",
+        "baselineAssessmentId": baseline["assessmentId"],
+        "supplementalAssessmentId": supplemental["supplementalAssessmentId"],
+        "demoOnly": True,
+    }
+
+
+def grade_uncertainty(
+    *grades: str,
+    mode: CalibrationMode = CalibrationMode.RULE_TABLE,
+) -> AssessmentUncertainty:
+    return AssessmentUncertainty(
+        grade_set=list(grades),
+        calibration_mode=mode,
+        calibration_version="test-calibration-v1",
+    )
+
+
+@pytest.mark.parametrize(
+    ("before", "after", "expected_basis", "expected_change"),
+    [
+        (
+            grade_uncertainty("A", "B"),
+            grade_uncertainty("A", "B"),
+            "GRADE_SET",
+            "UNCHANGED",
+        ),
+        (
+            grade_uncertainty("A"),
+            grade_uncertainty("A", "B"),
+            "GRADE_SET",
+            "EXPANDED",
+        ),
+        (
+            grade_uncertainty("A", "B"),
+            grade_uncertainty("B", "C"),
+            "GRADE_SET",
+            "SHIFTED",
+        ),
+        (
+            grade_uncertainty("A"),
+            grade_uncertainty("A", mode=CalibrationMode.CONFORMAL_CALIBRATED),
+            "NOT_COMPARABLE",
+            "NOT_COMPARABLE",
+        ),
+        (
+            grade_uncertainty("A"),
+            AssessmentUncertainty(
+                grade_set=["A"],
+                calibration_mode=CalibrationMode.RULE_TABLE,
+                calibration_version="test-calibration-v2",
+            ),
+            "NOT_COMPARABLE",
+            "NOT_COMPARABLE",
+        ),
+        (
+            AssessmentUncertainty(
+                lower_bound=0.1,
+                upper_bound=0.9,
+                calibration_mode=CalibrationMode.RULE_TABLE,
+                calibration_version="test-calibration-v1",
+            ),
+            AssessmentUncertainty(
+                lower_bound=0.2,
+                upper_bound=0.7,
+                calibration_mode=CalibrationMode.RULE_TABLE,
+                calibration_version="test-calibration-v1",
+            ),
+            "NUMERIC_INTERVAL",
+            "NARROWED",
+        ),
+    ],
+)
+def test_uncertainty_comparison_uses_structural_relationship_only(
+    before: AssessmentUncertainty,
+    after: AssessmentUncertainty,
+    expected_basis: str,
+    expected_change: str,
+) -> None:
+    basis, change, rationale_codes = compare_uncertainties(before, after)
+
+    assert basis.value == expected_basis
+    assert change.value == expected_change
+    assert len(rationale_codes) == 1
