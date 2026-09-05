@@ -109,14 +109,14 @@ class DemoSupplementalAssessmentAdapter(SupplementalAssessmentAdapter):
     def __init__(self, catalog_path: Path) -> None:
         self.catalog_path = catalog_path
         self._catalog: DemoSupplementalAssessmentCatalogData | None = None
-        self._results: dict[tuple[str, str], AdapterAssessmentResult] = {}
+        self._results: dict[tuple[str, tuple[str, ...]], AdapterAssessmentResult] = {}
 
     def run(self, snapshot: SupplementalAssessmentInputSnapshot) -> AdapterAssessmentResult:
         self._initialize()
         return self._results.get(
             (
                 snapshot.demo_profile_id,
-                snapshot.accepted_evidence.evidence_type,
+                tuple(sorted(item.evidence_type for item in snapshot.accepted_evidence_set)),
             ),
             AdapterAssessmentResult(
                 status=AssessmentStatus.MODEL_NOT_CONFIGURED,
@@ -139,5 +139,6 @@ class DemoSupplementalAssessmentAdapter(SupplementalAssessmentAdapter):
         )
         self._catalog = catalog
         self._results = {
-            (item.demo_profile_id, item.evidence_type): item.result for item in catalog.assessments
+            (item.demo_profile_id, item.evidence_type_key()): item.result
+            for item in catalog.assessments
         }

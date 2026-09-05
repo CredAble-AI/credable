@@ -304,19 +304,12 @@ class SupplementalAssessmentService:
                 "기준평가 입력 Snapshot을 확인할 수 없습니다.",
             )
 
-        accepted_evidence = AcceptedEvidenceSnapshot(
-            quality_check_id=quality.quality_check_id,
-            submission_id=submission.submission_id,
-            selection_id=selection.selection_id,
+        accepted_evidence_set = self._accepted_evidence_set(
+            session_id=session_id,
             boundary_check_id=boundary.boundary_check_id,
-            evidence_type=submission.evidence_type,
-            source_type=submission.source_type,
-            observed_at=submission.observed_at,
-            checked_at=quality.checked_at,
-            submission_snapshot_hash=submission.submission_snapshot_hash,
-            evidence_data_version=submission.data_version,
-            quality_policy_version=quality.quality_policy_version,
+            current_submission_id=submission.submission_id,
         )
+        accepted_evidence = accepted_evidence_set[-1]
         snapshot = SupplementalAssessmentInputSnapshot(
             session_id=session_id,
             demo_profile_id=session.demo_profile.demo_profile_id,
@@ -325,6 +318,7 @@ class SupplementalAssessmentService:
             baseline_uncertainty=baseline.uncertainty,
             data_sources=baseline_snapshot.data_sources,
             accepted_evidence=accepted_evidence,
+            accepted_evidence_set=accepted_evidence_set,
         )
         snapshot_json = json.dumps(
             snapshot.model_dump(mode="json", by_alias=True),
@@ -355,12 +349,14 @@ class SupplementalAssessmentService:
             model_version=result.model_version,
             reason_code=result.reason_code,
             uncertainty=result.uncertainty,
+            accepted_evidence_count=len(accepted_evidence_set),
         )
-        output_summary: dict[str, str | bool] = {
+        output_summary: dict[str, str | bool | int] = {
             "supplementalAssessmentStatus": state.status.value,
             "baselineAssessmentId": baseline.assessment_id,
             "qualityCheckId": quality.quality_check_id,
             "evidenceType": submission.evidence_type,
+            "acceptedEvidenceCount": state.accepted_evidence_count,
             "demoOnly": state.demo_only,
         }
         if state.uncertainty is not None:
@@ -394,6 +390,68 @@ class SupplementalAssessmentService:
             session_id=session_id,
             supplemental_assessment=saved,
         )
+
+    def _accepted_evidence_set(
+        self,
+        *,
+        session_id: str,
+        boundary_check_id: str,
+        current_submission_id: str,
+    ) -> list[AcceptedEvidenceSnapshot]:
+        qualities = {
+            item.submission_id: item
+            for item in self.quality_repository.list_for_session(session_id)
+        }
+        accepted: list[AcceptedEvidenceSnapshot] = []
+        for submission in self.submission_repository.list_for_session(session_id):
+            quality = qualities.get(submission.submission_id)
+            if quality is None or (
+                quality.status != EvidenceQualityStatus.ACCEPTED
+                or not quality.eligible_for_reassessment
+            ):
+                continue
+            selection = self.selection_repository.get_for_session(
+                session_id,
+                submission.selection_id,
+            )
+            if (
+                quality.evidence_type != submission.evidence_type
+                or quality.submission_snapshot_hash != submission.submission_snapshot_hash
+                or quality.data_version != submission.data_version
+                or selection is None
+                or selection.status != EvidenceSelectionStatus.SELECTED
+                or selection.selected_evidence is None
+                or selection.selected_evidence.evidence_type != submission.evidence_type
+                or selection.selected_evidence.source_type != submission.source_type
+            ):
+                self._conflict(
+                    "ACCEPTED_EVIDENCE_LINEAGE_INVALID",
+                    "누적 Evidence의 제출·품질·선택 이력이 일치하지 않습니다.",
+                )
+            if selection.boundary_check_id != boundary_check_id:
+                continue
+            accepted.append(
+                AcceptedEvidenceSnapshot(
+                    quality_check_id=quality.quality_check_id,
+                    submission_id=submission.submission_id,
+                    selection_id=selection.selection_id,
+                    boundary_check_id=selection.boundary_check_id,
+                    resolution_id=selection.resolution_id,
+                    evidence_type=submission.evidence_type,
+                    source_type=submission.source_type,
+                    observed_at=submission.observed_at,
+                    checked_at=quality.checked_at,
+                    submission_snapshot_hash=submission.submission_snapshot_hash,
+                    evidence_data_version=submission.data_version,
+                    quality_policy_version=quality.quality_policy_version,
+                )
+            )
+        if not accepted or accepted[-1].submission_id != current_submission_id:
+            self._conflict(
+                "ACCEPTED_EVIDENCE_SET_NOT_READY",
+                "현재 제출을 포함한 누적 Evidence 집합을 확인할 수 없습니다.",
+            )
+        return accepted
 
     def readiness(self) -> dict[str, bool]:
         return {

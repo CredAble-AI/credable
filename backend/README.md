@@ -227,13 +227,22 @@ curl -X POST \
 
 보완평가 입력 Snapshot에는 당시 기준평가의 고정된 데이터 출처 상태와 불확실성,
 경계 판정·선택·제출·품질 검증 ID, Evidence Snapshot Hash와 버전을 결합합니다.
+반복 수집에서는 같은 기준평가와 경계에 연결되고 품질 검증을 통과한 Evidence를 제출
+순서대로 `acceptedEvidenceSet`에 누적합니다. `acceptedEvidence`는 이번 실행을 촉발한 최신
+항목으로 유지하며, 2차 이후 항목에는 요청 근거인 `resolutionId`도 보존합니다. 응답의
+`acceptedEvidenceCount`로 실제 반영 건수를 확인할 수 있습니다.
+
 원본 Evidence는 평가 저장소나 Audit에 추가로 복제하지 않습니다. 같은 품질 검증 결과로
-재호출하면 기존 보완평가를 반환합니다.
+재호출하면 기존 보완평가를 반환합니다. 기존 단일 Evidence Snapshot은 조회 시 한 건짜리
+누적 집합으로 복원되므로 과거 이력과 호환됩니다.
 
 현재 Demo Fixture는 소상공인 기준평가의 가능 등급 집합 `DEMO_GRADE_B`, `DEMO_GRADE_C`를
 추가 Evidence 반영 후 `DEMO_GRADE_B`로 축소하는 합성 결과만 제공합니다. 실제 등급 개선,
 승인 가능성 또는 모델 성능을 의미하지 않으며, 실제 재평가 모델과 성과라벨 검증은 별도
-작업입니다.
+작업입니다. Demo Adapter는 단일 `evidenceType`과 누적 `evidenceTypes` 조합을 구분해 고정된
+Fixture 결과만 조회하며, 여러 Evidence를 수치적으로 결합하는 규칙을 임의로 생성하지
+않습니다. 기본 외부 정산 Evidence는 품질 Fixture에서 거절되므로 두 건 누적 성공 시나리오는
+테스트 전용 합성 Fixture로만 검증합니다.
 
 ## Demo 평가 전후 비교 API
 

@@ -13,7 +13,11 @@ from app.core.config import settings
 from app.repositories.assessment_repository import SqliteAssessmentRepository
 from app.repositories.policy_boundary_repository import SqlitePolicyBoundaryRepository
 from app.repositories.session_repository import SqliteCustomerSessionRepository
-from app.schemas.assessment import AssessmentUncertainty, CalibrationMode
+from app.schemas.assessment import (
+    AssessmentUncertainty,
+    CalibrationMode,
+    SupplementalAssessmentInputSnapshot,
+)
 from app.schemas.audit import AuditStage
 from app.schemas.consent import ConsentSourceType
 from app.services.assessment_service import (
@@ -77,6 +81,85 @@ def check_quality(client: TestClient, session_id: str, submission_id: str) -> di
 
 def run_payload(submission_id: str) -> dict[str, str]:
     return {"submissionId": submission_id}
+
+
+def write_cumulative_assessment_catalog(path: Path) -> None:
+    def result(grades: list[str], model_version: str) -> dict:
+        return {
+            "status": "COMPLETED",
+            "modelVersion": model_version,
+            "uncertainty": {
+                "gradeSet": grades,
+                "calibrationMode": "RULE_TABLE",
+                "calibrationVersion": "demo-uncertainty-rule-table-v1",
+                "demoOnly": True,
+            },
+        }
+
+    path.write_text(
+        json.dumps(
+            {
+                "dataVersion": "test-cumulative-supplemental-v1",
+                "assessments": [
+                    {
+                        "demoProfileId": "small-business",
+                        "evidenceType": "CUSTOMER_SUBMITTED_RECENT_REVENUE_SUMMARY",
+                        "result": result(
+                            ["DEMO_GRADE_B", "DEMO_GRADE_C"],
+                            "test-single-evidence-model-v1",
+                        ),
+                    },
+                    {
+                        "demoProfileId": "small-business",
+                        "evidenceTypes": [
+                            "CUSTOMER_SUBMITTED_RECENT_REVENUE_SUMMARY",
+                            "EXTERNAL_CONNECTED_SETTLEMENT_SUMMARY",
+                        ],
+                        "result": result(
+                            ["DEMO_GRADE_B"],
+                            "test-cumulative-evidence-model-v1",
+                        ),
+                    },
+                ],
+                "demoOnly": True,
+            }
+        ),
+        encoding="utf-8",
+    )
+
+
+def write_accepted_quality_catalog(path: Path, evidence_type: str) -> None:
+    dimensions = [
+        "PROVENANCE",
+        "FRESHNESS",
+        "AUTHENTICITY",
+        "COMPLETENESS",
+        "CONSISTENCY",
+        "MANIPULATION_RISK",
+    ]
+    path.write_text(
+        json.dumps(
+            {
+                "dataVersion": "test-accepted-quality-v1",
+                "qualityPolicyVersion": "test-accepted-quality-policy-v1",
+                "results": [
+                    {
+                        "evidenceType": evidence_type,
+                        "checks": [
+                            {
+                                "dimension": dimension,
+                                "status": "PASSED",
+                                "rationaleCode": f"TEST_{dimension}_PASSED",
+                            }
+                            for dimension in dimensions
+                        ],
+                    }
+                ],
+                "demoOnly": True,
+            }
+        ),
+        encoding="utf-8",
+    )
 
 
 def test_supplemental_assessment_is_empty_before_first_run(client: TestClient) -> None:
@@ -149,6 +232,7 @@ def test_supplemental_assessment_uses_only_accepted_evidence(
     assert state["inputSnapshotId"].startswith("sas_")
     assert state["modelVersion"] == "demo-small-business-supplemental-assessment-v1"
     assert state["reasonCode"] is None
+    assert state["acceptedEvidenceCount"] == 1
     assert state["uncertainty"] == {
         "pointEstimate": None,
         "lowerBound": None,
@@ -171,10 +255,16 @@ def test_supplemental_assessment_uses_only_accepted_evidence(
     assert snapshot.baseline_uncertainty.grade_set == ["DEMO_GRADE_B", "DEMO_GRADE_C"]
     assert snapshot.accepted_evidence.quality_check_id == quality["qualityCheckId"]
     assert snapshot.accepted_evidence.submission_id == submission["submissionId"]
+    assert snapshot.accepted_evidence_set == [snapshot.accepted_evidence]
     assert (
         snapshot.accepted_evidence.submission_snapshot_hash == submission["submissionSnapshotHash"]
     )
     assert len(snapshot.data_sources) == 4
+
+    legacy_snapshot = snapshot.model_dump(mode="json", by_alias=True)
+    legacy_snapshot.pop("acceptedEvidenceSet")
+    restored = SupplementalAssessmentInputSnapshot.model_validate(legacy_snapshot)
+    assert restored.accepted_evidence_set == [restored.accepted_evidence]
 
     event = session_repository.list_audit_events(session_id)[-1]
     assert event.stage == AuditStage.SUPPLEMENTAL_ASSESSMENT_RUN
@@ -189,10 +279,116 @@ def test_supplemental_assessment_uses_only_accepted_evidence(
         "baselineAssessmentId": baseline["assessmentId"],
         "qualityCheckId": quality["qualityCheckId"],
         "evidenceType": "CUSTOMER_SUBMITTED_RECENT_REVENUE_SUMMARY",
+        "acceptedEvidenceCount": 1,
         "calibrationMode": "RULE_TABLE",
         "calibrationVersion": "demo-uncertainty-rule-table-v1",
         "demoOnly": True,
     }
+
+
+def test_repeated_assessment_uses_all_accepted_evidence_cumulatively(
+    client: TestClient,
+    data_source_service: DataSourceService,
+    assessment_service: AssessmentService,
+    supplemental_assessment_service: SupplementalAssessmentService,
+    evidence_quality_service: EvidenceQualityService,
+    assessment_repository: SqliteAssessmentRepository,
+    session_repository: SqliteCustomerSessionRepository,
+    tmp_path: Path,
+) -> None:
+    session_id = create_session(client)
+    _, first_submission = prepare_submission(
+        client,
+        session_id,
+        data_source_service,
+        assessment_service,
+    )
+    first_quality = check_quality(client, session_id, first_submission["submissionId"])
+    supplemental_catalog_path = tmp_path / "cumulative-supplemental.json"
+    write_cumulative_assessment_catalog(supplemental_catalog_path)
+    supplemental_assessment_service.adapter = DemoSupplementalAssessmentAdapter(
+        supplemental_catalog_path
+    )
+
+    first_assessment_response = client.post(
+        f"/v1/sessions/{session_id}/assessment/supplemental/run",
+        json=run_payload(first_submission["submissionId"]),
+    )
+    assert first_assessment_response.status_code == 200
+    assert first_assessment_response.json()["supplementalAssessment"]["acceptedEvidenceCount"] == 1
+    assert client.post(f"/v1/sessions/{session_id}/assessment/comparison").status_code == 200
+    first_resolution_response = client.post(f"/v1/sessions/{session_id}/assessment/resolution")
+    assert first_resolution_response.status_code == 200
+    assert first_resolution_response.json()["resolution"]["status"] == ("MORE_EVIDENCE_REQUIRED")
+
+    second_selection_response = client.post(f"/v1/sessions/{session_id}/evidence/next")
+    assert second_selection_response.status_code == 200
+    second_selection = second_selection_response.json()["selection"]
+    assert second_selection["iteration"] == 2
+    assert second_selection["selectedEvidence"]["evidenceType"] == (
+        "EXTERNAL_CONNECTED_SETTLEMENT_SUMMARY"
+    )
+    second_submission_response = client.post(
+        f"/v1/sessions/{session_id}/evidence/submissions",
+        json={
+            "selectionId": second_selection["selectionId"],
+            "submissionMode": "DEMO_FIXTURE_REFERENCE",
+        },
+    )
+    assert second_submission_response.status_code == 200
+    second_submission = second_submission_response.json()["submission"]
+
+    quality_catalog_path = tmp_path / "accepted-external-quality.json"
+    write_accepted_quality_catalog(
+        quality_catalog_path,
+        second_submission["evidenceType"],
+    )
+    evidence_quality_service.catalog = DemoEvidenceQualityCatalog(quality_catalog_path)
+    second_quality = check_quality(client, session_id, second_submission["submissionId"])
+    assert second_quality["status"] == "ACCEPTED"
+
+    second_assessment_response = client.post(
+        f"/v1/sessions/{session_id}/assessment/supplemental/run",
+        json=run_payload(second_submission["submissionId"]),
+    )
+
+    assert second_assessment_response.status_code == 200
+    second_assessment = second_assessment_response.json()["supplementalAssessment"]
+    assert second_assessment["acceptedEvidenceCount"] == 2
+    assert second_assessment["modelVersion"] == "test-cumulative-evidence-model-v1"
+    assert second_assessment["uncertainty"]["gradeSet"] == ["DEMO_GRADE_B"]
+    snapshot = assessment_repository.get_supplemental_snapshot(
+        second_assessment["supplementalAssessmentId"]
+    )
+    assert snapshot is not None
+    assert snapshot.accepted_evidence == snapshot.accepted_evidence_set[-1]
+    assert [item.quality_check_id for item in snapshot.accepted_evidence_set] == [
+        first_quality["qualityCheckId"],
+        second_quality["qualityCheckId"],
+    ]
+    assert [item.evidence_type for item in snapshot.accepted_evidence_set] == [
+        "CUSTOMER_SUBMITTED_RECENT_REVENUE_SUMMARY",
+        "EXTERNAL_CONNECTED_SETTLEMENT_SUMMARY",
+    ]
+    assert [item.resolution_id for item in snapshot.accepted_evidence_set] == [
+        None,
+        second_selection["resolutionId"],
+    ]
+    assert all(
+        item.boundary_check_id == second_selection["boundaryCheckId"]
+        for item in snapshot.accepted_evidence_set
+    )
+    assert "sourceReference" not in second_assessment_response.text
+
+    event = session_repository.list_audit_events(session_id)[-1]
+    assert event.stage == AuditStage.SUPPLEMENTAL_ASSESSMENT_RUN
+    assert event.output_summary["acceptedEvidenceCount"] == 2
+
+    comparison_response = client.post(f"/v1/sessions/{session_id}/assessment/comparison")
+    assert comparison_response.status_code == 200
+    final_resolution_response = client.post(f"/v1/sessions/{session_id}/assessment/resolution")
+    assert final_resolution_response.status_code == 200
+    assert final_resolution_response.json()["resolution"]["status"] == "RESOLVED"
 
 
 def test_same_quality_check_does_not_create_duplicate_reassessment(
