@@ -21,6 +21,7 @@ from app.core.admin_auth import AdminApiKeyAuthenticator
 from app.core.config import settings
 from app.core.errors import ApiDomainError
 from app.repositories.assessment_repository import SqliteAssessmentRepository
+from app.repositories.bank_data_repository import SqliteBankDataRepository
 from app.repositories.consent_repository import SqliteConsentRepository
 from app.repositories.data_source_repository import SqliteDataSourceRepository
 from app.repositories.evidence_quality_repository import SqliteEvidenceQualityRepository
@@ -37,6 +38,7 @@ from app.services.assessment_service import (
     AssessmentService,
     SupplementalAssessmentService,
 )
+from app.services.bank_data_service import BankDataService, DemoBankDataCatalogService
 from app.services.comparison_service import ProductComparisonService
 from app.services.consent_service import ConsentService, DemoConsentScopeCatalog
 from app.services.data_source_service import DataSourceService
@@ -83,15 +85,25 @@ def build_consent_service(session_service: CustomerSessionService) -> ConsentSer
     )
 
 
+def build_bank_data_service(session_service: CustomerSessionService) -> BankDataService:
+    return BankDataService(
+        repository=SqliteBankDataRepository(settings.database_path),
+        session_service=session_service,
+        catalog=DemoBankDataCatalogService(settings.demo_bank_data_path),
+    )
+
+
 def build_data_source_service(
     consent_service: ConsentService,
     session_service: CustomerSessionService,
+    bank_data_service: BankDataService,
 ) -> DataSourceService:
     return DataSourceService(
         repository=SqliteDataSourceRepository(settings.database_path),
         consent_service=consent_service,
         session_service=session_service,
         adapter=DemoDataSourceAdapter(settings.demo_data_sources_path),
+        bank_data_service=bank_data_service,
     )
 
 
@@ -231,6 +243,7 @@ def build_product_condition_service(
 
 def create_app(
     session_service: CustomerSessionService | None = None,
+    bank_data_service: BankDataService | None = None,
     consent_service: ConsentService | None = None,
     data_source_service: DataSourceService | None = None,
     assessment_service: AssessmentService | None = None,
@@ -246,10 +259,14 @@ def create_app(
     admin_authenticator: AdminApiKeyAuthenticator | None = None,
 ) -> FastAPI:
     resolved_session_service = session_service or build_session_service()
+    resolved_bank_data_service = bank_data_service or build_bank_data_service(
+        resolved_session_service
+    )
     resolved_consent_service = consent_service or build_consent_service(resolved_session_service)
     resolved_data_source_service = data_source_service or build_data_source_service(
         resolved_consent_service,
         resolved_session_service,
+        resolved_bank_data_service,
     )
     resolved_assessment_service = assessment_service or build_assessment_service(
         resolved_session_service,
@@ -336,6 +353,7 @@ def create_app(
     @asynccontextmanager
     async def lifespan(_: FastAPI) -> AsyncIterator[None]:
         resolved_session_service.initialize()
+        resolved_bank_data_service.initialize()
         resolved_consent_service.initialize()
         resolved_data_source_service.initialize()
         resolved_assessment_service.initialize()
@@ -359,6 +377,7 @@ def create_app(
         lifespan=lifespan,
     )
     application.state.session_service = resolved_session_service
+    application.state.bank_data_service = resolved_bank_data_service
     application.state.consent_service = resolved_consent_service
     application.state.data_source_service = resolved_data_source_service
     application.state.assessment_service = resolved_assessment_service
