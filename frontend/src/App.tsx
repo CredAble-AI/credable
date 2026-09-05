@@ -12,7 +12,7 @@ import ProductComparisonPage from './pages/ProductComparisonPage'
 import ProductDetailPage from './pages/ProductDetailPage'
 
 const principles = [
-  { number: '01', title: '은행이 제공하는 보완 평가', body: '은행이 보유하거나 고객 동의를 받아 확인한 데이터를 바탕으로 진행합니다.' },
+  { number: '01', title: '은행이 제공하는 기준평가', body: '은행이 보유하거나 고객 동의를 받아 확인한 데이터를 바탕으로 진행합니다.' },
   { number: '02', title: '명확한 데이터 이용 범위', body: '필수와 선택 항목을 구분하고 고객이 동의한 범위만 연결합니다.' },
   { number: '03', title: '같은 기준의 조건 비교', body: 'Backend가 확정한 자사 대출상품별 확인 가능한 조건을 같은 기준으로 보여줍니다.' },
 ]
@@ -95,7 +95,7 @@ function LandingPage() {
       <Header />
       <main>
         <section className="hero" id="intro"><div className="container hero__grid">
-          <div className="hero__content"><p className="eyebrow">Bank-powered complementary credit assessment</p><h1>사업자 데이터를 모아<br /><span>대출 조건을 비교합니다</span></h1><p className="hero__description">CredAble은 사업자금 대출을 탐색하는 등록 개인사업자와 법인사업자를 대상으로, 은행이 보유하거나 고객 동의를 받아 확인한 데이터를 바탕으로 보완 평가를 수행합니다.</p><div className="hero__actions"><Link className="button button--primary" to="/start">평가·상품조건 조회 시작</Link><a className="button button--secondary" href="#principles">서비스 알아보기</a></div><p className="demo-note"><span aria-hidden="true">ⓘ</span> Demo Only · 조회 결과는 실제 승인이나 최종 대출 조건을 의미하지 않습니다.</p></div>
+          <div className="hero__content"><p className="eyebrow">Bank-powered baseline assessment</p><h1>사업자 데이터를 모아<br /><span>대출 조건을 비교합니다</span></h1><p className="hero__description">CredAble은 사업자금 대출을 탐색하는 등록 개인사업자와 법인사업자를 대상으로, 은행이 보유하거나 고객 동의를 받아 확인한 데이터를 바탕으로 기준평가를 수행합니다.</p><div className="hero__actions"><Link className="button button--primary" to="/start">평가·상품조건 조회 시작</Link><a className="button button--secondary" href="#principles">서비스 알아보기</a></div><p className="demo-note"><span aria-hidden="true">ⓘ</span> Demo Only · 조회 결과는 실제 승인이나 최종 대출 조건을 의미하지 않습니다.</p></div>
           <BrandScene />
         </div></section>
         <section className="principles" id="principles" aria-labelledby="principles-title"><div className="container"><p className="section-label">OUR PRINCIPLES</p><h2 id="principles-title">데이터의 범위는 투명하게,<br />조건은 같은 기준으로</h2><div className="principle-grid">{principles.map((item) => <article className="principle-card" key={item.number}><span>{item.number}</span><h3>{item.title}</h3><p>{item.body}</p></article>)}</div></div></section>
