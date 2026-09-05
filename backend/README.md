@@ -248,6 +248,32 @@ curl -X POST \
 의미하지 않습니다. 점수 변화, 정책 경로 변경과 최종 금융 판단은 이 API에서 생성하지
 않습니다.
 
+## Demo Evidence 수집 종료·이관 API
+
+보완평가의 불확실성을 기존 Demo 정책 경계표로 다시 판정해 Evidence 수집을
+종료할지, 계속할지, 심사역에게 이관할지를 결정합니다. 신규 수치 임계값을 추가하지
+않고 기존 버전 정책만 사용합니다.
+
+```bash
+curl \
+  http://127.0.0.1:8000/v1/sessions/<sessionId>/assessment/resolution
+
+curl -X POST \
+  http://127.0.0.1:8000/v1/sessions/<sessionId>/assessment/resolution
+```
+
+- 한 개 정책 경로로 안정: `RESOLVED`, Evidence 수집 종료, 갱신 결과 표시
+- 여전히 두 개 이상 경로에 걸침: `MORE_EVIDENCE_REQUIRED`, 다음 Evidence 수집 필요
+- 비교 불가 또는 정책 미설정: `HUMAN_REVIEW`, 자동 수집 중단 후 심사역 이관
+
+결과에는 비교·보완평가 ID, 다음 행동, 수집 중단·심사역 필요 여부, 가능한
+Demo 경로와 정책·보정 버전을 보존합니다. 신용 승인·거절을 판단하지 않으며 같은
+비교 결과의 중복 판정과 Audit을 만들지 않습니다.
+
+`REQUEST_NEXT_EVIDENCE`는 다음 행동 상태만 표시합니다. 보완평가 후 다음 후보를 선택하는
+반복 API와 최대 요청 횟수는 아직 구현하지 않았으며, 최대 횟수는 은행 운영정책 확정이
+필요합니다.
+
 ## 자사 상품 카탈로그 API
 
 상품 카탈로그는 세션별 최신 상태 조회와 새로고침을 지원합니다. 기본 Demo Adapter는
@@ -330,7 +356,7 @@ uv run pytest
 ## 현재 범위
 
 현재 FastAPI 애플리케이션, liveness/readiness API, Demo 고객 세션, 데이터 출처별 동의와
-조회·검증 상태, 기준평가, Demo 정책 경계 판정·최소 증빙 선택·제출·품질 검증·보완평가·전후 비교,
+조회·검증 상태, 기준평가, Demo 정책 경계 판정·최소 증빙 선택·제출·품질 검증·보완평가·전후 비교·수집 종료 판단,
 합성 자사 상품 카탈로그와 비교 API를 제공합니다. 합성 데이터 출처 상태와 평가
 상태, 소상공인용 개인화 상품 조건은 기존 Frontend Fixture와 일치합니다. Legacy
 `/v1/cases/*` 흐름은 제거됐습니다. 실제 평가모델·은행 상품정책·Evidence 품질 검증·은행
