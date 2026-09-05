@@ -268,6 +268,7 @@ class SupplementalAssessmentService:
         submission_id: str,
         request_id: str,
     ) -> SupplementalAssessmentResponse:
+        feature_cutoff_at = datetime.now(UTC)
         session = self.session_service.get_session(session_id).session
         submission = self.submission_repository.get_for_session(session_id, submission_id)
         if submission is None:
@@ -343,14 +344,19 @@ class SupplementalAssessmentService:
             session_id=session_id,
             boundary_check_id=boundary.boundary_check_id,
             current_submission_id=submission.submission_id,
+            feature_cutoff_at=feature_cutoff_at,
         )
         accepted_evidence = accepted_evidence_set[-1]
+        excluded_evidence_count = sum(
+            item.point_in_time_valid is False for item in accepted_evidence_set
+        )
         snapshot = SupplementalAssessmentInputSnapshot(
             session_id=session_id,
             demo_profile_id=session.demo_profile.demo_profile_id,
             baseline_assessment_id=baseline.assessment_id,
             baseline_input_snapshot_id=baseline.input_snapshot_id,
             baseline_uncertainty=baseline.uncertainty,
+            feature_cutoff_at=feature_cutoff_at,
             data_sources=baseline_snapshot.data_sources,
             source_snapshots=baseline_snapshot.source_snapshots,
             feature_snapshot=baseline_snapshot.feature_snapshot,
@@ -366,13 +372,19 @@ class SupplementalAssessmentService:
         snapshot_hash = hashlib.sha256(snapshot_json.encode()).hexdigest()
         snapshot_id = f"sas_{snapshot_hash}"
 
-        try:
-            result = self.adapter.run(snapshot)
-        except Exception:
+        if excluded_evidence_count:
             result = AdapterAssessmentResult(
-                status=AssessmentStatus.FAILED,
-                reason_code="SUPPLEMENTAL_ASSESSMENT_ADAPTER_ERROR",
+                status=AssessmentStatus.INSUFFICIENT_DATA,
+                reason_code="EVIDENCE_AFTER_FEATURE_CUTOFF",
             )
+        else:
+            try:
+                result = self.adapter.run(snapshot)
+            except Exception:
+                result = AdapterAssessmentResult(
+                    status=AssessmentStatus.FAILED,
+                    reason_code="SUPPLEMENTAL_ASSESSMENT_ADAPTER_ERROR",
+                )
 
         calculated_at = datetime.now(UTC)
         state = SupplementalAssessmentState(
@@ -394,6 +406,8 @@ class SupplementalAssessmentService:
             "qualityCheckId": quality.quality_check_id,
             "evidenceType": submission.evidence_type,
             "acceptedEvidenceCount": state.accepted_evidence_count,
+            "featureCutoffApplied": True,
+            "pointInTimeExcludedEvidenceCount": excluded_evidence_count,
             "demoOnly": state.demo_only,
         }
         if state.uncertainty is not None:
@@ -434,6 +448,7 @@ class SupplementalAssessmentService:
         session_id: str,
         boundary_check_id: str,
         current_submission_id: str,
+        feature_cutoff_at: datetime,
     ) -> list[AcceptedEvidenceSnapshot]:
         qualities = {
             item.submission_id: item
@@ -477,7 +492,13 @@ class SupplementalAssessmentService:
                     evidence_type=submission.evidence_type,
                     source_type=submission.source_type,
                     observed_at=submission.observed_at,
+                    submitted_at=submission.submitted_at,
                     checked_at=quality.checked_at,
+                    point_in_time_valid=(
+                        submission.observed_at <= feature_cutoff_at
+                        and submission.submitted_at <= feature_cutoff_at
+                        and quality.checked_at <= feature_cutoff_at
+                    ),
                     submission_snapshot_hash=submission.submission_snapshot_hash,
                     evidence_data_version=submission.data_version,
                     quality_policy_version=quality.quality_policy_version,

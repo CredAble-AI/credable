@@ -235,7 +235,9 @@ class AcceptedEvidenceSnapshot(ApiModel):
     evidence_type: str = Field(min_length=1)
     source_type: ConsentSourceType
     observed_at: datetime
+    submitted_at: datetime | None = None
     checked_at: datetime
+    point_in_time_valid: bool | None = None
     submission_snapshot_hash: str = Field(pattern=r"^[0-9a-f]{64}$")
     evidence_data_version: str = Field(min_length=1)
     quality_policy_version: str = Field(min_length=1)
@@ -245,6 +247,13 @@ class AcceptedEvidenceSnapshot(ApiModel):
     def validate_evidence_timestamps(self) -> "AcceptedEvidenceSnapshot":
         if self.observed_at.tzinfo is None or self.checked_at.tzinfo is None:
             raise ValueError("accepted Evidence timestamps must include a timezone")
+        if self.submitted_at is not None:
+            if self.submitted_at.tzinfo is None:
+                raise ValueError("submittedAt must include a timezone")
+            if self.observed_at > self.submitted_at:
+                raise ValueError("observedAt cannot be later than submittedAt")
+            if self.submitted_at > self.checked_at:
+                raise ValueError("submittedAt cannot be later than checkedAt")
         return self
 
 
@@ -254,6 +263,7 @@ class SupplementalAssessmentInputSnapshot(ApiModel):
     baseline_assessment_id: str = Field(min_length=1)
     baseline_input_snapshot_id: str = Field(min_length=1)
     baseline_uncertainty: AssessmentUncertainty
+    feature_cutoff_at: datetime | None = None
     data_sources: list[DataSourceState]
     source_snapshots: list[AssessmentDataSnapshotReference] = Field(default_factory=list)
     feature_snapshot: AssessmentFeatureSnapshotReference | None = None
@@ -277,6 +287,8 @@ class SupplementalAssessmentInputSnapshot(ApiModel):
 
     @model_validator(mode="after")
     def validate_accepted_evidence_set(self) -> "SupplementalAssessmentInputSnapshot":
+        if self.feature_cutoff_at is not None and self.feature_cutoff_at.tzinfo is None:
+            raise ValueError("featureCutoffAt must include a timezone")
         if not self.accepted_evidence_set:
             raise ValueError("acceptedEvidenceSet cannot be empty")
         if self.accepted_evidence_set[-1] != self.accepted_evidence:
@@ -290,6 +302,15 @@ class SupplementalAssessmentInputSnapshot(ApiModel):
             raise ValueError("acceptedEvidenceSet qualityCheckId values must be unique")
         if len(evidence_types) != len(set(evidence_types)):
             raise ValueError("acceptedEvidenceSet evidenceType values must be unique")
+        if self.feature_cutoff_at is not None:
+            for item in self.accepted_evidence_set:
+                expected_validity = (
+                    item.observed_at <= self.feature_cutoff_at
+                    and item.checked_at <= self.feature_cutoff_at
+                    and (item.submitted_at is None or item.submitted_at <= self.feature_cutoff_at)
+                )
+                if item.point_in_time_valid != expected_validity:
+                    raise ValueError("Evidence pointInTimeValid must match featureCutoffAt")
         return self
 
 

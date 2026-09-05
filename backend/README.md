@@ -350,7 +350,12 @@ curl -X POST \
 반복 수집에서는 같은 기준평가와 경계에 연결되고 품질 검증을 통과한 Evidence를 제출
 순서대로 `acceptedEvidenceSet`에 누적합니다. `acceptedEvidence`는 이번 실행을 촉발한 최신
 항목으로 유지하며, 2차 이후 항목에는 요청 근거인 `resolutionId`도 보존합니다. 응답의
-`acceptedEvidenceCount`로 실제 반영 건수를 확인할 수 있습니다.
+`acceptedEvidenceCount`로 누적된 품질 통과 Evidence 건수를 확인할 수 있습니다.
+
+보완평가도 실행 시작 시각을 별도 `featureCutoffAt`으로 고정합니다. Evidence의 관측·제출·품질
+검증 시각 중 하나라도 기준시점 이후이면 `pointInTimeValid=false`로 기록하고 평가 Adapter를
+호출하지 않습니다. 실행 결과는 `INSUFFICIENT_DATA/EVIDENCE_AFTER_FEATURE_CUTOFF`로 보존하며,
+차단된 Evidence 수를 Audit 요약에 남깁니다. 품질 통과 여부가 시점 유효성을 대신하지 않습니다.
 
 원본 Evidence는 평가 저장소나 Audit에 추가로 복제하지 않습니다. 같은 품질 검증 결과로
 재호출하면 기존 보완평가를 반환합니다. 기존 단일 Evidence Snapshot은 조회 시 한 건짜리
