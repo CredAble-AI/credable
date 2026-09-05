@@ -33,7 +33,7 @@ const fixture = (request: ProductRequest): ProductComparisonResult => {
   if (request.profileType === 'startup') return {
     sessionId: request.sessionId, products: [], status: 'CATALOG_UNAVAILABLE',
     sortableFields: [], nullPlacement: 'LAST', initialOrder: 'CATALOG_SOURCE',
-    canViewProducts: false, cannotProceedReason: '보완 평가 단계에서 상품 조건 조회를 진행할 수 없는 상태로 확인되었습니다.',
+    canViewProducts: false, cannotProceedReason: '기준평가 단계에서 상품 조건 조회를 진행할 수 없는 상태로 확인되었습니다.',
     resultAt: '2026-09-04T11:20:00+09:00', catalogSnapshotId: null, demoOnly: true,
   }
   const alpha = item('demo-working-capital', '사업 운영자금 플러스', '음식업 개인사업자를 위한 합성 운전자금 상품', '50000000', rate('4.20', '8.90'), term(12, 60), ['원리금균등분할상환', '만기일시상환'],
