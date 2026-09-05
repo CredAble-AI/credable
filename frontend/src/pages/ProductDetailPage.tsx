@@ -1,13 +1,11 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { liveAssessmentProvider } from '../api/assessmentClient'
-import { liveDataConnectionProvider } from '../api/dataConnectionClient'
 import { liveProductProvider, normalizeProductError } from '../api/productClient'
 import Header from '../components/Header'
 import { isMockMode, selectProvider } from '../config/providerMode'
 import { useCustomerSession } from '../hooks/useCustomerSession'
 import { mockAssessmentProvider } from '../mocks/assessmentProvider'
-import { mockDataConnectionProvider } from '../mocks/dataConnectionProvider'
 import { mockProductProvider } from '../mocks/productProvider'
 import type { ApiError } from '../types/api'
 import type { AnnualRateRange, MoneyAmount, ProductConditionStatus, ProductView, TermRangeMonths } from '../types/product'
@@ -15,7 +13,6 @@ import './ProductDetailPage.css'
 
 const provider = selectProvider(mockProductProvider, liveProductProvider)
 const assessmentProvider = selectProvider(mockAssessmentProvider, liveAssessmentProvider)
-const dataConnectionProvider = selectProvider(mockDataConnectionProvider, liveDataConnectionProvider)
 const statusCopy: Record<ProductConditionStatus, { label: string; icon: string; message: string }> = {
   PERSONALIZED_AVAILABLE: { label: '개인화 조건 조회 완료', icon: '✓', message: '현재 연결된 데이터와 은행 정책을 바탕으로 조회한 조건입니다. 최종 한도와 금리는 은행 심사 후 확정됩니다.' },
   PUBLIC_ONLY: { label: '공개 조건만 확인됨', icon: 'i', message: '은행이 공개한 일반 상품 조건입니다. 고객별 조회 결과가 아닙니다.' },
@@ -53,16 +50,13 @@ function ProductDetailPage() {
   const { session, loading: sessionLoading } = useCustomerSession()
   const [product, setProduct] = useState<ProductView | null>(null); const [error, setError] = useState<ApiError | null>(null); const [loading, setLoading] = useState(true)
   const controllerRef = useRef<AbortController | null>(null); const sequenceRef = useRef(0); const busyRef = useRef(false)
-  const requiredComplete = session ? Object.values(session.consents.required).every(Boolean) : false
-  useEffect(() => { if (sessionLoading) return; if (!session) navigate('/start', { replace: true }); else if (!requiredComplete) navigate('/consent', { replace: true }) }, [navigate, requiredComplete, session, sessionLoading])
+  useEffect(() => { if (!sessionLoading && !session) navigate('/start', { replace: true }) }, [navigate, session, sessionLoading])
   const load = useCallback(async (refresh = false) => {
-    if (!session || !requiredComplete || busyRef.current) return
+    if (!session || busyRef.current) return
     busyRef.current = true; controllerRef.current?.abort(); const controller = new AbortController(); controllerRef.current = controller; const sequence = ++sequenceRef.current
     setLoading(true); setError(null)
     try {
       const request = { sessionId: session.sessionId, profileType: session.selectedProfileType }
-      const connection = await dataConnectionProvider.list({ ...request, consents: session.consents }, controller.signal)
-      if (connection.canProceed !== true) { navigate('/data-connection', { replace: true }); return }
       const assessment = await assessmentProvider.get(request, controller.signal)
       if (assessment.assessment.status === 'NOT_RUN') { navigate('/assessment', { replace: true }); return }
       const result = await (refresh ? provider.refresh(request, controller.signal) : provider.get(request, controller.signal))
@@ -71,9 +65,9 @@ function ProductDetailPage() {
       if (sequence === sequenceRef.current) setProduct(result.products.find((item) => item.product.productId === productId) ?? null)
     } catch (caught) { if (!controller.signal.aborted && sequence === sequenceRef.current) setError(normalizeProductError(caught)) }
     finally { if (sequence === sequenceRef.current) setLoading(false); busyRef.current = false }
-  }, [navigate, productId, requiredComplete, session])
-  useEffect(() => { if (session && requiredComplete) queueMicrotask(() => void load()); return () => { sequenceRef.current += 1; controllerRef.current?.abort() } }, [load, requiredComplete, session])
-  if (sessionLoading || !session || !requiredComplete) return null
+  }, [navigate, productId, session])
+  useEffect(() => { if (session) queueMicrotask(() => void load()); return () => { sequenceRef.current += 1; controllerRef.current?.abort() } }, [load, session])
+  if (sessionLoading || !session) return null
   return <div className="workspace-shell customer-flow"><Header /><main className="product-detail-page"><div className="container product-detail-page__inner"><nav className="detail-steps" aria-label="진행 단계"><span>시작</span><span>동의</span><span>데이터 연결</span><span>보완 평가</span><strong>상품 비교</strong><em aria-current="page">상품 상세</em></nav><div className="detail-live" role="status" aria-live="polite">{loading ? '선택한 상품의 현재 조건을 확인하고 있습니다.' : error ? '상품 상세를 확인하지 못했습니다.' : product ? '상품 상세 조건을 확인했습니다.' : '현재 세션에서 상품을 찾을 수 없습니다.'}</div>{error && <section className="detail-error" role="alert"><div><strong>{error.message}</strong><small>오류 코드: {error.code}{error.requestId ? ` · Request ID: ${error.requestId}` : ''}</small></div>{error.retryable && <button type="button" onClick={() => void load()}>다시 확인</button>}</section>}{loading && !product && <div className="detail-skeleton" aria-hidden="true"><span /><span /></div>}{!loading && !error && !product && <section className="detail-empty"><h1>상품을 찾을 수 없습니다</h1><p>현재 세션에 포함되지 않은 상품이거나 잘못된 상품 ID입니다.</p><Link className="button button--primary" to="/products">상품 비교로 돌아가기</Link></section>}{product && <DetailContent item={product} onRetry={() => void load(true)} busy={loading} />}</div></main></div>
 }
 export default ProductDetailPage
