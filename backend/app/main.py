@@ -40,6 +40,7 @@ from app.services.assessment_service import (
 from app.services.comparison_service import ProductComparisonService
 from app.services.consent_service import ConsentService, DemoConsentScopeCatalog
 from app.services.data_source_service import DataSourceService
+from app.services.evidence_burden_service import AdminEvidenceBurdenService
 from app.services.evidence_quality_service import (
     DemoEvidenceQualityCatalog,
     EvidenceQualityService,
@@ -323,6 +324,14 @@ def create_app(
     )
     resolved_admin_authenticator = admin_authenticator or build_admin_authenticator()
     resolved_admin_audit_service = AdminAuditService(resolved_session_service)
+    resolved_admin_evidence_burden_service = AdminEvidenceBurdenService(
+        session_service=resolved_session_service,
+        selection_repository=resolved_evidence_selection_service.repository,
+        submission_repository=resolved_evidence_submission_service.repository,
+        quality_repository=resolved_evidence_quality_service.repository,
+        assessment_repository=resolved_assessment_service.repository,
+        resolution_repository=resolved_policy_boundary_service.repository,
+    )
 
     @asynccontextmanager
     async def lifespan(_: FastAPI) -> AsyncIterator[None]:
@@ -365,6 +374,7 @@ def create_app(
     application.state.product_comparison_service = resolved_product_comparison_service
     application.state.admin_authenticator = resolved_admin_authenticator
     application.state.admin_audit_service = resolved_admin_audit_service
+    application.state.admin_evidence_burden_service = resolved_admin_evidence_burden_service
 
     @application.middleware("http")
     async def attach_request_id(request: FastAPIRequest, call_next):

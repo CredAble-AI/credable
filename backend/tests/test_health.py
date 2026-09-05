@@ -144,6 +144,7 @@ def test_openapi_exposes_health_routes(client: TestClient) -> None:
     assert "/v1/sessions/{session_id}/assessment/supplemental/run" in paths
     assert "/v1/sessions/{session_id}/assessment/comparison" in paths
     assert "/v1/sessions/{session_id}/assessment/resolution" in paths
+    assert "/v1/admin/sessions/{session_id}/evidence-burden" in paths
     assert "/v1/sessions/{session_id}/assessment/boundary-check" in paths
     assert "/v1/sessions/{session_id}/evidence/next" in paths
     assert "/v1/sessions/{session_id}/evidence/submissions" in paths
