@@ -13,8 +13,10 @@ describe('App routing', () => {
   it('renders the customer journey entry point', () => {
     renderRoute('/')
 
-    expect(screen.getByRole('heading', { level: 1, name: /사업자 데이터를 모아.*대출 조건을 비교합니다/ })).toBeInTheDocument()
-    expect(screen.getByRole('link', { name: '평가·상품조건 조회 시작' })).toHaveAttribute('href', '/start')
+    expect(screen.getByRole('heading', { level: 1, name: /더 묻지 않고.*최소 증빙만 확인합니다/ })).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Demo 평가 시작' })).toHaveAttribute('href', '/start')
+    expect(screen.getByRole('heading', { level: 3, name: '필요한 증빙만 요청' })).toBeInTheDocument()
+    expect(screen.getByText(/불확실성이나 이상 징후가 남으면 심사역 검토가 필요함을 안내합니다/)).toBeInTheDocument()
   })
 
   it('renders the recovery links for an unknown route', () => {
