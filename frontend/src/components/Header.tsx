@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom'
+import EnvironmentIndicator from './EnvironmentIndicator'
 
 function Header() {
   return (
@@ -8,6 +9,7 @@ function Header() {
           <img src="/brand/credable-mark-3d.png" width="36" height="36" alt="" />
           <span>Cred<strong>Able</strong></span>
         </Link>
+        <EnvironmentIndicator />
         <nav aria-label="주요 메뉴">
           <a href="/#principles">서비스 소개</a>
           <a href="/#process">작동 방식</a>
