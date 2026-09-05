@@ -80,7 +80,9 @@ def test_new_inquiry_has_assessment_without_requiring_application_history(
         assert connection.execute("SELECT COUNT(*) FROM loan_decisions").fetchone()[0] == 0
         assert connection.execute("SELECT COUNT(*) FROM bank_credit_assessments").fetchone()[0] == 1
         assert (
-            connection.execute("SELECT COUNT(*) FROM credit_history_session_snapshots").fetchone()[0]
+            connection.execute("SELECT COUNT(*) FROM credit_history_session_snapshots").fetchone()[
+                0
+            ]
             == 1
         )
 

@@ -107,7 +107,10 @@ class BankCreditAssessment(ApiModel):
             raise ValueError("featureCutoffAt cannot be later than assessedAt")
         if self.assessment_type == CreditAssessmentType.APPLICATION and self.application_id is None:
             raise ValueError("APPLICATION assessment requires applicationId")
-        if self.assessment_type != CreditAssessmentType.APPLICATION and self.application_id is not None:
+        if (
+            self.assessment_type != CreditAssessmentType.APPLICATION
+            and self.application_id is not None
+        ):
             raise ValueError("non-application assessment cannot include applicationId")
         if any(not code.strip() for code in self.reason_codes):
             raise ValueError("reasonCodes cannot contain blank values")
@@ -161,10 +164,14 @@ class DemoCreditHistoryProfile(ApiModel):
             decisions_by_application.setdefault(decision.application_id, []).append(decision)
 
         for application in self.applications:
-            if application.status in {
-                LoanApplicationStatus.APPROVED,
-                LoanApplicationStatus.DECLINED,
-            } and application.application_id not in decisions_by_application:
+            if (
+                application.status
+                in {
+                    LoanApplicationStatus.APPROVED,
+                    LoanApplicationStatus.DECLINED,
+                }
+                and application.application_id not in decisions_by_application
+            ):
                 raise ValueError("approved or declined application requires a decision")
 
         for application_id, decisions in decisions_by_application.items():
