@@ -94,7 +94,7 @@ function LandingPage() {
   return (
     <div className="site-shell">
       <Header />
-      <main>
+      <main id="main-content" tabIndex={-1}>
         <section className="hero" id="intro"><div className="container hero__grid">
           <div className="hero__content"><p className="eyebrow">Uncertainty-based second look</p><h1>더 묻지 않고<br /><span>최소 증빙만 확인합니다</span></h1><p className="hero__description">CredAble은 사업자금 대출을 탐색하는 등록 개인사업자와 법인사업자를 대상으로, 기존 평가의 불확실성이 남은 경우에만 최소 증빙을 요청하고 검증된 정보로 재확인을 돕습니다.</p><div className="hero__actions"><Link className="button button--primary" to="/start">Demo 평가 시작</Link><a className="button button--secondary" href="#principles">서비스 원칙 보기</a></div><p className="demo-note"><span aria-hidden="true">ⓘ</span> Demo Only · 조회 결과는 실제 승인·부결이나 최종 대출 조건을 의미하지 않습니다.</p></div>
           <BrandScene />

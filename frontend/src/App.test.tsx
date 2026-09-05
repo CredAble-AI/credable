@@ -17,6 +17,9 @@ describe('App routing', () => {
     expect(screen.getByRole('link', { name: 'Demo 평가 시작' })).toHaveAttribute('href', '/start')
     expect(screen.getByRole('heading', { level: 3, name: '필요한 증빙만 요청' })).toBeInTheDocument()
     expect(screen.getByText(/불확실성이나 이상 징후가 남으면 심사역 검토가 필요함을 안내합니다/)).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: '본문 바로가기' })).toHaveAttribute('href', '#main-content')
+    expect(document.querySelector('main')).toHaveAttribute('id', 'main-content')
+    expect(document.querySelector('main')).toHaveAttribute('tabindex', '-1')
   })
 
   it('renders the recovery links for an unknown route', () => {

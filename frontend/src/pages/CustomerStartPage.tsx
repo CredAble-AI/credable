@@ -59,7 +59,7 @@ function CustomerStartPage() {
   return (
     <div className="workspace-shell customer-flow">
       <Header />
-      <main className="customer-page">
+      <main id="main-content" tabIndex={-1} className="customer-page">
         <div className="container customer-page__inner">
           <div className="flow-heading">
             <p className="flow-kicker">NEW CUSTOMER SESSION</p>

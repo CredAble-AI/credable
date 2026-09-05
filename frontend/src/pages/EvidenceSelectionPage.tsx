@@ -96,7 +96,7 @@ function EvidenceSelectionPage() {
   const copy = selection ? statusCopy[selection.status] : null
   const availability = selectedEvidence ? availabilityCopy[selectedEvidence.availability] : null
 
-  return <div className="workspace-shell customer-flow"><Header /><main className="assessment-page evidence-page"><div className="container assessment-page__inner">
+  return <div className="workspace-shell customer-flow"><Header /><main id="main-content" tabIndex={-1} className="assessment-page evidence-page"><div className="container assessment-page__inner">
     <nav className="assessment-steps" aria-label="진행 단계"><span>시작</span><span>동의</span><span>데이터 연결</span><span>기준평가</span><strong aria-current="step">Evidence 선택</strong><span>품질 확인</span></nav>
     <header className="assessment-heading"><div>{isMockMode && <span className="assessment-badge">Mock result · Demo Only</span>}<p className="flow-kicker">MINIMUM EVIDENCE</p><h1>다음으로 확인할 자료 한 건을 보여드립니다</h1><p>서버가 현재 정책 경계를 확인하기 위해 선택한 한 건만 표시합니다. 프론트엔드는 후보를 다시 계산하거나 순위를 만들지 않습니다.</p></div><aside><span>현재 Demo 사례</span><strong>{session.demoProfile.displayName}</strong><small>{session.demoProfile.description}</small></aside></header>
 

@@ -151,7 +151,7 @@ function DataConnectionPage() {
   return (
     <div className="workspace-shell customer-flow">
       <Header />
-      <main className="connection-page">
+      <main id="main-content" tabIndex={-1} className="connection-page">
         <div className="container connection-page__inner">
           <nav className="flow-steps" aria-label="진행 단계">
             <span>시작</span><span>동의</span><strong aria-current="step">데이터 연결</strong><span>기준평가</span><span>상품 비교</span>

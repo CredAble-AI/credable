@@ -102,7 +102,7 @@ function ProductComparisonPage() {
   }, [direction, result, sortField])
   const changeField = (field: SortSelection) => { setSortField(field); setDirection(field === 'CATALOG_ORDER' ? 'NONE' : 'ASC') }
   if (sessionLoading || !session) return null
-  return <div className="workspace-shell customer-flow"><Header /><main className="products-page"><div className="container products-page__inner">
+  return <div className="workspace-shell customer-flow"><Header /><main id="main-content" tabIndex={-1} className="products-page"><div className="container products-page__inner">
     <nav className="product-steps" aria-label="진행 단계"><span>시작</span><span>동의</span><span>데이터 연결</span><span>기준평가</span><strong aria-current="step">상품 비교</strong></nav>
     <header className="products-heading"><div>{isMockMode && <span className="products-badge">Mock mode · Demo Only</span>}<p className="flow-kicker">OWN-BANK PRODUCT COMPARISON</p><h1>자사 대출상품 조건을 비교합니다</h1><p>현재 확인 가능한 상품 조건을 같은 기준으로 보여드립니다. 특정 상품을 권하거나 자동으로 선택하지 않으며, 정렬 기준과 상품은 고객이 직접 선택합니다.</p></div><aside><span>현재 Demo 프로필</span><strong>{session.demoProfile.displayName}</strong><small>합성 상품·조건이며 실제 승인 결과가 아닙니다.</small></aside></header>
     <div className="products-live" role="status" aria-live="polite">{loading ? '자사 상품 조건을 확인하고 있습니다.' : error ? '상품 조건을 확인하지 못했습니다.' : result?.canViewProducts ? `${products.length}개 상품 조건을 확인했습니다.` : '상품 비교를 진행할 수 없는 상태입니다.'}</div>
