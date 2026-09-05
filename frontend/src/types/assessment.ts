@@ -1,15 +1,26 @@
 import type { DemoProfileType } from './customerSession'
 
-// Mirrors the current backend assessment response. Presentation fields live in AssessmentResult.
 export type AssessmentStatus = 'NOT_RUN' | 'MODEL_NOT_CONFIGURED' | 'COMPLETED' | 'INSUFFICIENT_DATA' | 'UNSUPPORTED_CUSTOMER_TYPE' | 'FAILED'
+export type CalibrationMode = 'RULE_TABLE' | 'CONFORMAL_CALIBRATED'
+
+export interface AssessmentUncertainty {
+  pointEstimate: number | null
+  lowerBound: number | null
+  upperBound: number | null
+  gradeSet: string[]
+  calibrationMode: CalibrationMode
+  calibrationVersion: string
+  demoOnly: true
+}
 
 export interface AssessmentState {
-  assessmentId?: string | null
+  assessmentId: string | null
   status: AssessmentStatus
-  calculatedAt?: string | null
-  inputSnapshotId?: string | null
-  modelVersion?: string | null
-  reasonCode?: string | null
+  calculatedAt: string | null
+  inputSnapshotId: string | null
+  modelVersion: string | null
+  reasonCode: string | null
+  uncertainty: AssessmentUncertainty | null
   demoOnly: true
 }
 
@@ -21,13 +32,4 @@ export interface AssessmentResponse {
 export interface AssessmentRequest {
   sessionId: string
   profileType: DemoProfileType
-}
-
-export interface AssessmentResult extends AssessmentResponse {
-  summary?: string
-  dataSummary: string[]
-  excludedData: string[]
-  canProceed: boolean | null
-  proceedReason?: string
-  resultMode: 'LIVE' | 'MOCK'
 }

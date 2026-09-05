@@ -32,7 +32,7 @@ function ApplicationHandoffPage() {
     try {
       const request = { sessionId: session.sessionId, profileType: session.selectedProfileType }
       const assessment = await assessmentProvider.get(request, controller.signal)
-      if (assessment.canProceed !== true) { navigate('/assessment', { replace: true }); return }
+      if (assessment.assessment.status !== 'COMPLETED') { navigate('/assessment', { replace: true }); return }
       const result = await productProvider.get(request, controller.signal)
       if (result.sessionId !== session.sessionId) throw { code: 'PRODUCT_SESSION_MISMATCH', message: '현재 세션의 상품 결과를 확인할 수 없습니다.', retryable: false } satisfies ApiError
       if (sequence === sequenceRef.current) setProduct(result.products.find((item) => item.product.productId === productId) ?? null)
