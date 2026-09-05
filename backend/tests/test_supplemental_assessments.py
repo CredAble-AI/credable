@@ -1,4 +1,5 @@
 import json
+from datetime import UTC, datetime
 from pathlib import Path
 
 import pytest
@@ -256,6 +257,9 @@ def test_supplemental_assessment_uses_only_accepted_evidence(
     assert snapshot.accepted_evidence.quality_check_id == quality["qualityCheckId"]
     assert snapshot.accepted_evidence.submission_id == submission["submissionId"]
     assert snapshot.accepted_evidence_set == [snapshot.accepted_evidence]
+    assert snapshot.feature_cutoff_at is not None
+    assert snapshot.accepted_evidence.submitted_at is not None
+    assert snapshot.accepted_evidence.point_in_time_valid is True
     assert (
         snapshot.accepted_evidence.submission_snapshot_hash == submission["submissionSnapshotHash"]
     )
@@ -267,12 +271,22 @@ def test_supplemental_assessment_uses_only_accepted_evidence(
     legacy_snapshot.pop("acceptedEvidenceSet")
     legacy_snapshot.pop("sourceSnapshots")
     legacy_snapshot.pop("featureSnapshot")
+    legacy_snapshot.pop("featureCutoffAt")
+    legacy_snapshot["acceptedEvidence"].pop("submittedAt")
+    legacy_snapshot["acceptedEvidence"].pop("pointInTimeValid")
     restored = SupplementalAssessmentInputSnapshot.model_validate(legacy_snapshot)
     assert restored.accepted_evidence_set == [restored.accepted_evidence]
     assert restored.source_snapshots == []
     assert restored.feature_snapshot is None
+    assert restored.feature_cutoff_at is None
+    assert restored.accepted_evidence.submitted_at is None
+    assert restored.accepted_evidence.point_in_time_valid is None
 
-    event = session_repository.list_audit_events(session_id)[-1]
+    event = next(
+        item
+        for item in session_repository.list_audit_events(session_id)
+        if item.stage == AuditStage.SUPPLEMENTAL_ASSESSMENT_RUN
+    )
     assert event.stage == AuditStage.SUPPLEMENTAL_ASSESSMENT_RUN
     assert event.request_id == response.headers["X-Request-ID"]
     assert event.input_version == quality["qualityCheckId"]
@@ -286,10 +300,70 @@ def test_supplemental_assessment_uses_only_accepted_evidence(
         "qualityCheckId": quality["qualityCheckId"],
         "evidenceType": "CUSTOMER_SUBMITTED_RECENT_REVENUE_SUMMARY",
         "acceptedEvidenceCount": 1,
+        "featureCutoffApplied": True,
+        "pointInTimeExcludedEvidenceCount": 0,
         "calibrationMode": "RULE_TABLE",
         "calibrationVersion": "demo-uncertainty-rule-table-v1",
         "demoOnly": True,
     }
+
+
+def test_supplemental_assessment_blocks_evidence_after_feature_cutoff(
+    client: TestClient,
+    monkeypatch: pytest.MonkeyPatch,
+    data_source_service: DataSourceService,
+    assessment_service: AssessmentService,
+    supplemental_assessment_service: SupplementalAssessmentService,
+    assessment_repository: SqliteAssessmentRepository,
+    session_repository: SqliteCustomerSessionRepository,
+) -> None:
+    session_id = create_session(client)
+    _, submission = prepare_submission(
+        client,
+        session_id,
+        data_source_service,
+        assessment_service,
+    )
+    quality = check_quality(client, session_id, submission["submissionId"])
+    supplemental_assessment_service.adapter = DemoSupplementalAssessmentAdapter(
+        settings.demo_supplemental_assessments_path
+    )
+
+    class FrozenDateTime:
+        @classmethod
+        def now(cls, timezone):
+            return datetime(2026, 9, 1, tzinfo=timezone)
+
+    monkeypatch.setattr("app.services.assessment_service.datetime", FrozenDateTime)
+
+    response = client.post(
+        f"/v1/sessions/{session_id}/assessment/supplemental/run",
+        json=run_payload(submission["submissionId"]),
+    )
+
+    assert response.status_code == 200
+    state = response.json()["supplementalAssessment"]
+    assert state["status"] == "INSUFFICIENT_DATA"
+    assert state["reasonCode"] == "EVIDENCE_AFTER_FEATURE_CUTOFF"
+    assert state["modelVersion"] is None
+    assert state["uncertainty"] is None
+    snapshot = assessment_repository.get_supplemental_snapshot(state["supplementalAssessmentId"])
+    assert snapshot is not None
+    assert snapshot.feature_cutoff_at == datetime(2026, 9, 1, tzinfo=UTC)
+    assert snapshot.accepted_evidence.observed_at <= snapshot.feature_cutoff_at
+    assert snapshot.accepted_evidence.submitted_at > snapshot.feature_cutoff_at
+    assert snapshot.accepted_evidence.checked_at > snapshot.feature_cutoff_at
+    assert snapshot.accepted_evidence.point_in_time_valid is False
+    event = next(
+        item
+        for item in session_repository.list_audit_events(session_id)
+        if item.stage == AuditStage.SUPPLEMENTAL_ASSESSMENT_RUN
+    )
+    assert event.stage == AuditStage.SUPPLEMENTAL_ASSESSMENT_RUN
+    assert event.output_summary["pointInTimeExcludedEvidenceCount"] == 1
+    assert event.output_summary["featureCutoffApplied"] is True
+    assert event.output_summary["supplementalAssessmentStatus"] == "INSUFFICIENT_DATA"
+    assert event.output_summary["qualityCheckId"] == quality["qualityCheckId"]
 
 
 def test_repeated_assessment_uses_all_accepted_evidence_cumulatively(
