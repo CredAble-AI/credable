@@ -5,6 +5,7 @@ from app.schemas.comparison import ProductComparisonResponse
 from app.schemas.consent import ConsentListResponse, ConsentState
 from app.schemas.data_source import DataSourceListResponse
 from app.schemas.error import ApiErrorResponse
+from app.schemas.evidence_quality import EvidenceQualityResponse
 from app.schemas.evidence_selection import EvidenceSelectionResponse
 from app.schemas.evidence_submission import (
     EvidenceSubmissionCreateRequest,
@@ -22,6 +23,7 @@ from app.services.assessment_service import AssessmentService
 from app.services.comparison_service import ProductComparisonService
 from app.services.consent_service import ConsentService
 from app.services.data_source_service import DataSourceService
+from app.services.evidence_quality_service import EvidenceQualityService
 from app.services.evidence_selection_service import EvidenceSelectionService
 from app.services.evidence_submission_service import EvidenceSubmissionService
 from app.services.policy_boundary_service import PolicyBoundaryService
@@ -58,6 +60,10 @@ def get_evidence_selection_service(request: Request) -> EvidenceSelectionService
 
 def get_evidence_submission_service(request: Request) -> EvidenceSubmissionService:
     return request.app.state.evidence_submission_service
+
+
+def get_evidence_quality_service(request: Request) -> EvidenceQualityService:
+    return request.app.state.evidence_quality_service
 
 
 def get_product_catalog_service(request: Request) -> ProductCatalogService:
@@ -289,6 +295,36 @@ async def create_evidence_submission(
     return get_evidence_submission_service(request).submit_demo(
         session_id,
         payload,
+        request.state.request_id,
+    )
+
+
+@router.get(
+    "/{session_id}/evidence/submissions/{submission_id}/quality",
+    response_model=EvidenceQualityResponse,
+    responses={404: {"model": ApiErrorResponse}},
+)
+async def get_evidence_quality(
+    session_id: str,
+    submission_id: str,
+    request: Request,
+) -> EvidenceQualityResponse:
+    return get_evidence_quality_service(request).get(session_id, submission_id)
+
+
+@router.post(
+    "/{session_id}/evidence/submissions/{submission_id}/quality",
+    response_model=EvidenceQualityResponse,
+    responses={404: {"model": ApiErrorResponse}},
+)
+async def check_evidence_quality(
+    session_id: str,
+    submission_id: str,
+    request: Request,
+) -> EvidenceQualityResponse:
+    return get_evidence_quality_service(request).check(
+        session_id,
+        submission_id,
         request.state.request_id,
     )
 

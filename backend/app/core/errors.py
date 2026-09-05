@@ -75,3 +75,11 @@ class ConsentNotGrantedError(ResourceConflictError):
             code="CONSENT_NOT_GRANTED",
             message=f"승인되지 않은 동의는 철회할 수 없습니다: {source_type}",
         )
+
+
+class EvidenceSubmissionNotFoundError(ResourceNotFoundError):
+    def __init__(self, submission_id: str) -> None:
+        super().__init__(
+            code="EVIDENCE_SUBMISSION_NOT_FOUND",
+            message=f"Evidence 제출 상태를 찾을 수 없습니다: {submission_id}",
+        )

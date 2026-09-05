@@ -13,6 +13,7 @@ from app.main import create_app
 from app.repositories.assessment_repository import SqliteAssessmentRepository
 from app.repositories.consent_repository import SqliteConsentRepository
 from app.repositories.data_source_repository import SqliteDataSourceRepository
+from app.repositories.evidence_quality_repository import SqliteEvidenceQualityRepository
 from app.repositories.evidence_selection_repository import SqliteEvidenceSelectionRepository
 from app.repositories.evidence_submission_repository import SqliteEvidenceSubmissionRepository
 from app.repositories.policy_boundary_repository import SqlitePolicyBoundaryRepository
@@ -22,6 +23,10 @@ from app.repositories.session_repository import SqliteCustomerSessionRepository
 from app.services.assessment_service import AssessmentService
 from app.services.consent_service import ConsentService, DemoConsentScopeCatalog
 from app.services.data_source_service import DataSourceService
+from app.services.evidence_quality_service import (
+    DemoEvidenceQualityCatalog,
+    EvidenceQualityService,
+)
 from app.services.evidence_selection_service import (
     DemoEvidenceCandidateCatalog,
     EvidenceSelectionService,
@@ -166,6 +171,25 @@ def evidence_submission_service(
 
 
 @pytest.fixture
+def evidence_quality_repository(tmp_path) -> SqliteEvidenceQualityRepository:
+    return SqliteEvidenceQualityRepository(tmp_path / "test.db")
+
+
+@pytest.fixture
+def evidence_quality_service(
+    evidence_quality_repository: SqliteEvidenceQualityRepository,
+    evidence_submission_repository: SqliteEvidenceSubmissionRepository,
+    session_service: CustomerSessionService,
+) -> EvidenceQualityService:
+    return EvidenceQualityService(
+        repository=evidence_quality_repository,
+        submission_repository=evidence_submission_repository,
+        session_service=session_service,
+        catalog=DemoEvidenceQualityCatalog(settings.demo_evidence_quality_path),
+    )
+
+
+@pytest.fixture
 def product_catalog_repository(tmp_path) -> SqliteProductCatalogRepository:
     return SqliteProductCatalogRepository(tmp_path / "test.db")
 
@@ -214,6 +238,7 @@ def client(
     policy_boundary_service: PolicyBoundaryService,
     evidence_selection_service: EvidenceSelectionService,
     evidence_submission_service: EvidenceSubmissionService,
+    evidence_quality_service: EvidenceQualityService,
     product_catalog_service: ProductCatalogService,
     product_condition_service: ProductConditionService,
 ) -> Generator[TestClient]:
@@ -226,6 +251,7 @@ def client(
             policy_boundary_service=policy_boundary_service,
             evidence_selection_service=evidence_selection_service,
             evidence_submission_service=evidence_submission_service,
+            evidence_quality_service=evidence_quality_service,
             product_catalog_service=product_catalog_service,
             product_condition_service=product_condition_service,
             admin_authenticator=AdminApiKeyAuthenticator("test-admin-api-key"),
