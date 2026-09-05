@@ -1,0 +1,18 @@
+{
+  "dataVersion": "demo-evidence-submissions-v1",
+  "submissions": [
+    {
+      "evidenceType": "CUSTOMER_SUBMITTED_RECENT_REVENUE_SUMMARY",
+      "observedAt": "2026-08-31T00:00:00Z",
+      "sourceReference": "demo-fixture://recent-revenue-summary/small-business-v1",
+      "dataVersion": "demo-recent-revenue-summary-v1"
+    },
+    {
+      "evidenceType": "EXTERNAL_CONNECTED_SETTLEMENT_SUMMARY",
+      "observedAt": "2026-08-31T00:00:00Z",
+      "sourceReference": "demo-fixture://settlement-summary/small-business-v1",
+      "dataVersion": "demo-settlement-summary-v1"
+    }
+  ],
+  "demoOnly": true
+}

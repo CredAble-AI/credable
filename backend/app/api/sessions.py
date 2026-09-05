@@ -6,6 +6,10 @@ from app.schemas.consent import ConsentListResponse, ConsentState
 from app.schemas.data_source import DataSourceListResponse
 from app.schemas.error import ApiErrorResponse
 from app.schemas.evidence_selection import EvidenceSelectionResponse
+from app.schemas.evidence_submission import (
+    EvidenceSubmissionCreateRequest,
+    EvidenceSubmissionResponse,
+)
 from app.schemas.policy_boundary import PolicyBoundaryCheckResponse
 from app.schemas.product import ProductCatalogResponse
 from app.schemas.product_condition import ProductConditionQueryResponse
@@ -19,6 +23,7 @@ from app.services.comparison_service import ProductComparisonService
 from app.services.consent_service import ConsentService
 from app.services.data_source_service import DataSourceService
 from app.services.evidence_selection_service import EvidenceSelectionService
+from app.services.evidence_submission_service import EvidenceSubmissionService
 from app.services.policy_boundary_service import PolicyBoundaryService
 from app.services.product_catalog_service import ProductCatalogService
 from app.services.product_condition_service import ProductConditionService
@@ -49,6 +54,10 @@ def get_policy_boundary_service(request: Request) -> PolicyBoundaryService:
 
 def get_evidence_selection_service(request: Request) -> EvidenceSelectionService:
     return request.app.state.evidence_selection_service
+
+
+def get_evidence_submission_service(request: Request) -> EvidenceSubmissionService:
+    return request.app.state.evidence_submission_service
 
 
 def get_product_catalog_service(request: Request) -> ProductCatalogService:
@@ -248,6 +257,38 @@ async def select_next_evidence(
 ) -> EvidenceSelectionResponse:
     return get_evidence_selection_service(request).select_next(
         session_id,
+        request.state.request_id,
+    )
+
+
+@router.get(
+    "/{session_id}/evidence/submissions/latest",
+    response_model=EvidenceSubmissionResponse,
+    responses={404: {"model": ApiErrorResponse}},
+)
+async def get_latest_evidence_submission(
+    session_id: str,
+    request: Request,
+) -> EvidenceSubmissionResponse:
+    return get_evidence_submission_service(request).get_latest(session_id)
+
+
+@router.post(
+    "/{session_id}/evidence/submissions",
+    response_model=EvidenceSubmissionResponse,
+    responses={
+        404: {"model": ApiErrorResponse},
+        409: {"model": ApiErrorResponse},
+    },
+)
+async def create_evidence_submission(
+    session_id: str,
+    payload: EvidenceSubmissionCreateRequest,
+    request: Request,
+) -> EvidenceSubmissionResponse:
+    return get_evidence_submission_service(request).submit_demo(
+        session_id,
+        payload,
         request.state.request_id,
     )
 
