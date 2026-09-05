@@ -7,6 +7,7 @@ from uuid import uuid4
 from app.core.errors import CustomerSessionNotFoundError, DemoProfileNotFoundError
 from app.repositories.session_repository import CustomerSessionRepository
 from app.schemas.audit import AuditActor, AuditStage, SessionAuditEvent
+from app.schemas.customer import BusinessLegalForm
 from app.schemas.session import (
     CustomerSession,
     CustomerSessionState,
@@ -21,6 +22,7 @@ class DemoProfileCatalog:
         self.catalog_path = catalog_path
         self._catalog: DemoProfileCatalogData | None = None
         self._profiles_by_id: dict[str, DemoProfileDefinition] = {}
+        self._profiles_by_borrower_type: dict[BusinessLegalForm, DemoProfileDefinition] = {}
 
     def initialize(self) -> None:
         catalog = DemoProfileCatalogData.model_validate_json(
@@ -29,8 +31,12 @@ class DemoProfileCatalog:
         profiles_by_id = {item.demo_profile_id: item for item in catalog.profiles}
         if len(profiles_by_id) != len(catalog.profiles):
             raise ValueError("demoProfileId values must be unique")
+        profiles_by_borrower_type = {item.business_borrower_type: item for item in catalog.profiles}
+        if len(profiles_by_borrower_type) != len(catalog.profiles):
+            raise ValueError("businessBorrowerType values must be unique")
         self._catalog = catalog
         self._profiles_by_id = profiles_by_id
+        self._profiles_by_borrower_type = profiles_by_borrower_type
 
     @property
     def data_version(self) -> str:
@@ -46,11 +52,25 @@ class DemoProfileCatalog:
     def profiles(self) -> tuple[DemoProfileDefinition, ...]:
         return tuple(self._profiles_by_id.values())
 
+    @property
+    def business_borrower_types(self) -> tuple[BusinessLegalForm, ...]:
+        return tuple(self._profiles_by_borrower_type)
+
     def get(self, demo_profile_id: str) -> DemoProfileDefinition | None:
         return self._profiles_by_id.get(demo_profile_id)
 
+    def get_by_business_borrower_type(
+        self,
+        business_borrower_type: BusinessLegalForm,
+    ) -> DemoProfileDefinition | None:
+        return self._profiles_by_borrower_type.get(business_borrower_type)
+
     def is_ready(self) -> bool:
-        return self._catalog is not None and bool(self._profiles_by_id)
+        return (
+            self._catalog is not None
+            and bool(self._profiles_by_id)
+            and bool(self._profiles_by_borrower_type)
+        )
 
 
 class CustomerSessionService:
@@ -68,12 +88,20 @@ class CustomerSessionService:
 
     def create_demo_session(
         self,
-        demo_profile_id: str,
+        demo_profile_id: str | None,
+        business_borrower_type: BusinessLegalForm | None,
         request_id: str,
     ) -> CustomerSessionState:
-        definition = self.catalog.get(demo_profile_id)
+        definition = None
+        if demo_profile_id is not None:
+            definition = self.catalog.get(demo_profile_id)
+        elif business_borrower_type is not None:
+            definition = self.catalog.get_by_business_borrower_type(business_borrower_type)
         if definition is None:
-            raise DemoProfileNotFoundError(demo_profile_id)
+            selector = demo_profile_id or (
+                business_borrower_type.value if business_borrower_type is not None else "missing"
+            )
+            raise DemoProfileNotFoundError(selector)
 
         created_at = datetime.now(UTC)
         session = CustomerSession(
@@ -93,6 +121,7 @@ class CustomerSessionService:
         )
         output_summary: dict[str, str | bool | int | float] = {
             "demoProfileId": definition.demo_profile_id,
+            "businessBorrowerType": definition.business_borrower_type.value,
             "borrowerId": definition.customer_subject.borrower.borrower_id,
             "demoOnly": session.demo_only,
         }

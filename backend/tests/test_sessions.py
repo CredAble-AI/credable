@@ -31,8 +31,9 @@ def test_create_and_restore_small_business_demo_session(
     }
     assert created["session"]["demoProfile"] == {
         "demoProfileId": "small-business",
-        "displayName": "소상공인 Demo",
-        "description": "소상공인 고객 흐름을 확인하기 위한 합성 Demo Profile",
+        "businessBorrowerType": "SOLE_PROPRIETOR",
+        "displayName": "개인사업자",
+        "description": "개업 초기 소상공인을 예시로 한 개인사업자 합성 Demo 사례",
     }
     assert created["session"]["customerSubject"] == {
         "borrower": {
@@ -64,13 +65,17 @@ def test_create_and_restore_small_business_demo_session(
         "demoOnly": True,
     }
     assert created["session"]["status"] == "CREATED"
-    assert created["session"]["dataVersion"] == "demo-profiles-v2"
+    assert created["session"]["dataVersion"] == "demo-profiles-v3"
     assert created["session"]["demoOnly"] is True
     assert created["session"]["createdAt"].endswith("Z")
 
     legacy_session = created["session"].copy()
     legacy_session.pop("customerSubject")
-    assert CustomerSession.model_validate(legacy_session).customer_subject is None
+    legacy_session["demoProfile"] = legacy_session["demoProfile"].copy()
+    legacy_session["demoProfile"].pop("businessBorrowerType")
+    restored_legacy_session = CustomerSession.model_validate(legacy_session)
+    assert restored_legacy_session.customer_subject is None
+    assert restored_legacy_session.demo_profile.business_borrower_type is None
 
     session_id = created["sessionId"]
     get_response = client.get(f"/v1/sessions/{session_id}")
@@ -114,9 +119,10 @@ def test_same_demo_profile_creates_a_fresh_session_each_time(
     assert len(first_events) == 1
     assert len(second_events) == 1
     assert first_events[0].stage == AuditStage.SESSION_CREATED
-    assert first_events[0].input_version == "demo-profiles-v2"
+    assert first_events[0].input_version == "demo-profiles-v3"
     assert first_events[0].output_summary == {
         "demoProfileId": "startup",
+        "businessBorrowerType": "CORPORATION",
         "borrowerId": "bor_demo_002",
         "primaryBusinessId": "biz_demo_002",
         "demoOnly": True,
@@ -133,6 +139,56 @@ def test_catalog_contains_only_approved_demo_profiles(
     session_service.initialize()
 
     assert session_service.catalog.profile_ids == ("small-business", "startup")
+    assert tuple(value.value for value in session_service.catalog.business_borrower_types) == (
+        "SOLE_PROPRIETOR",
+        "CORPORATION",
+    )
+
+
+def test_create_demo_session_by_business_borrower_type(client: TestClient) -> None:
+    sole_proprietor = client.post(
+        "/v1/sessions/demo",
+        json={"businessBorrowerType": "SOLE_PROPRIETOR"},
+    )
+    corporation = client.post(
+        "/v1/sessions/demo",
+        json={"businessBorrowerType": "CORPORATION"},
+    )
+
+    assert sole_proprietor.status_code == 201
+    assert corporation.status_code == 201
+    assert (
+        sole_proprietor.json()["session"]["demoProfile"]["businessBorrowerType"]
+        == "SOLE_PROPRIETOR"
+    )
+    assert (
+        sole_proprietor.json()["session"]["customerSubject"]["primaryBusiness"]["legalForm"]
+        == "SOLE_PROPRIETOR"
+    )
+    assert corporation.json()["session"]["demoProfile"]["businessBorrowerType"] == "CORPORATION"
+    assert (
+        corporation.json()["session"]["customerSubject"]["primaryBusiness"]["legalForm"]
+        == "CORPORATION"
+    )
+
+
+def test_demo_session_requires_exactly_one_selector(client: TestClient) -> None:
+    missing = client.post("/v1/sessions/demo", json={})
+    duplicate = client.post(
+        "/v1/sessions/demo",
+        json={
+            "demoProfileId": "small-business",
+            "businessBorrowerType": "SOLE_PROPRIETOR",
+        },
+    )
+    personal_loan = client.post(
+        "/v1/sessions/demo",
+        json={"businessBorrowerType": "INDIVIDUAL"},
+    )
+
+    assert missing.status_code == 422
+    assert duplicate.status_code == 422
+    assert personal_loan.status_code == 422
 
 
 def test_unknown_demo_profile_uses_standard_error_contract(

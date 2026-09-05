@@ -111,6 +111,7 @@ async def create_demo_session(
 ) -> DemoSessionCreateResponse:
     state = get_session_service(request).create_demo_session(
         payload.demo_profile_id,
+        payload.business_borrower_type,
         request.state.request_id,
     )
     return DemoSessionCreateResponse(
