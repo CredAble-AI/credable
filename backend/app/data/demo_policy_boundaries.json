@@ -1,0 +1,22 @@
+{
+  "dataVersion": "demo-policy-boundaries-v1",
+  "policyVersion": "demo-policy-boundary-v1",
+  "gradeRoutes": [
+    {
+      "grade": "DEMO_GRADE_B",
+      "route": "DEMO_PATH_1"
+    },
+    {
+      "grade": "DEMO_GRADE_C",
+      "route": "DEMO_PATH_2"
+    }
+  ],
+  "boundaries": [
+    {
+      "leftRoute": "DEMO_PATH_1",
+      "rightRoute": "DEMO_PATH_2",
+      "boundaryCode": "DEMO_BOUNDARY_1_2"
+    }
+  ],
+  "demoOnly": true
+}

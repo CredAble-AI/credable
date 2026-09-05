@@ -20,6 +20,7 @@ from app.core.errors import ApiDomainError
 from app.repositories.assessment_repository import SqliteAssessmentRepository
 from app.repositories.consent_repository import SqliteConsentRepository
 from app.repositories.data_source_repository import SqliteDataSourceRepository
+from app.repositories.policy_boundary_repository import SqlitePolicyBoundaryRepository
 from app.repositories.product_catalog_repository import SqliteProductCatalogRepository
 from app.repositories.product_condition_repository import SqliteProductConditionRepository
 from app.repositories.session_repository import SqliteCustomerSessionRepository
@@ -29,6 +30,7 @@ from app.services.assessment_service import AssessmentService
 from app.services.comparison_service import ProductComparisonService
 from app.services.consent_service import ConsentService, DemoConsentScopeCatalog
 from app.services.data_source_service import DataSourceService
+from app.services.policy_boundary_service import DemoPolicyBoundaryCatalog, PolicyBoundaryService
 from app.services.product_catalog_service import ProductCatalogService
 from app.services.product_condition_service import ProductConditionService
 from app.services.session_service import CustomerSessionService, DemoProfileCatalog
@@ -88,6 +90,18 @@ def build_product_catalog_service(
     )
 
 
+def build_policy_boundary_service(
+    session_service: CustomerSessionService,
+    assessment_service: AssessmentService,
+) -> PolicyBoundaryService:
+    return PolicyBoundaryService(
+        repository=SqlitePolicyBoundaryRepository(settings.database_path),
+        session_service=session_service,
+        assessment_service=assessment_service,
+        catalog=DemoPolicyBoundaryCatalog(settings.demo_policy_boundaries_path),
+    )
+
+
 def build_product_condition_service(
     session_service: CustomerSessionService,
     product_catalog_service: ProductCatalogService,
@@ -109,6 +123,7 @@ def create_app(
     consent_service: ConsentService | None = None,
     data_source_service: DataSourceService | None = None,
     assessment_service: AssessmentService | None = None,
+    policy_boundary_service: PolicyBoundaryService | None = None,
     product_catalog_service: ProductCatalogService | None = None,
     product_condition_service: ProductConditionService | None = None,
     admin_authenticator: AdminApiKeyAuthenticator | None = None,
@@ -122,6 +137,10 @@ def create_app(
     resolved_assessment_service = assessment_service or build_assessment_service(
         resolved_session_service,
         resolved_data_source_service,
+    )
+    resolved_policy_boundary_service = policy_boundary_service or build_policy_boundary_service(
+        resolved_session_service,
+        resolved_assessment_service,
     )
     resolved_product_catalog_service = product_catalog_service or build_product_catalog_service(
         resolved_session_service
@@ -149,6 +168,7 @@ def create_app(
         resolved_consent_service.initialize()
         resolved_data_source_service.initialize()
         resolved_assessment_service.initialize()
+        resolved_policy_boundary_service.initialize()
         resolved_product_catalog_service.initialize()
         resolved_product_condition_service.initialize()
         yield
@@ -165,6 +185,7 @@ def create_app(
     application.state.consent_service = resolved_consent_service
     application.state.data_source_service = resolved_data_source_service
     application.state.assessment_service = resolved_assessment_service
+    application.state.policy_boundary_service = resolved_policy_boundary_service
     application.state.product_catalog_service = resolved_product_catalog_service
     application.state.product_condition_service = resolved_product_condition_service
     application.state.product_comparison_service = resolved_product_comparison_service
