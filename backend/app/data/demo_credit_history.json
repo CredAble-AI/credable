@@ -1,0 +1,86 @@
+{
+  "dataVersion": "synthetic-bank-data-v1",
+  "profiles": [
+    {
+      "demoProfileId": "small-business",
+      "borrowerId": "bor_demo_001",
+      "primaryBusinessId": "biz_demo_001",
+      "observedAt": "2026-08-31T23:59:59+09:00",
+      "applications": [
+        {
+          "applicationId": "app_demo_001",
+          "borrowerId": "bor_demo_001",
+          "primaryBusinessId": "biz_demo_001",
+          "productId": "demo-working-capital",
+          "submittedAt": "2026-08-20T09:00:00+09:00",
+          "requestedAmount": "30000000",
+          "currency": "KRW",
+          "requestedTermMonths": 12,
+          "status": "DECLINED",
+          "resolvedAt": "2026-08-21T14:30:00+09:00"
+        }
+      ],
+      "decisions": [
+        {
+          "decisionId": "dec_demo_001",
+          "applicationId": "app_demo_001",
+          "outcome": "DECLINED",
+          "decidedAt": "2026-08-21T14:30:00+09:00",
+          "reasonCodes": [
+            "DEMO_INFORMATION_GAP",
+            "DEMO_RECENT_PERFORMANCE_NOT_REFLECTED"
+          ],
+          "policyVersion": "demo-bank-credit-policy-v1"
+        }
+      ],
+      "creditAssessments": [
+        {
+          "creditAssessmentId": "bca_demo_001",
+          "borrowerId": "bor_demo_001",
+          "primaryBusinessId": "biz_demo_001",
+          "applicationId": "app_demo_001",
+          "assessmentType": "APPLICATION",
+          "assessedAt": "2026-08-21T14:20:00+09:00",
+          "featureCutoffAt": "2026-08-20T23:59:59+09:00",
+          "gradeCode": "DEMO_GRADE_C",
+          "gradeScaleVersion": "demo-bank-grade-scale-v1",
+          "reasonCodes": [
+            "DEMO_INFORMATION_GAP",
+            "DEMO_RECENT_PERFORMANCE_NOT_REFLECTED"
+          ],
+          "modelVersion": "demo-bank-champion-v1",
+          "featureSetVersion": "demo-bank-feature-set-v1",
+          "policyVersion": "demo-bank-credit-policy-v1"
+        }
+      ]
+    },
+    {
+      "demoProfileId": "startup",
+      "borrowerId": "bor_demo_002",
+      "primaryBusinessId": "biz_demo_002",
+      "observedAt": "2026-08-31T23:59:59+09:00",
+      "applications": [],
+      "decisions": [],
+      "creditAssessments": [
+        {
+          "creditAssessmentId": "bca_demo_002",
+          "borrowerId": "bor_demo_002",
+          "primaryBusinessId": "biz_demo_002",
+          "applicationId": null,
+          "assessmentType": "PERIODIC",
+          "assessedAt": "2026-08-25T10:00:00+09:00",
+          "featureCutoffAt": "2026-08-24T23:59:59+09:00",
+          "gradeCode": "DEMO_GRADE_C",
+          "gradeScaleVersion": "demo-bank-grade-scale-v1",
+          "reasonCodes": [
+            "DEMO_FINANCIAL_HISTORY_THIN"
+          ],
+          "modelVersion": "demo-bank-champion-v1",
+          "featureSetVersion": "demo-bank-feature-set-v1",
+          "policyVersion": "demo-bank-credit-policy-v1"
+        }
+      ]
+    }
+  ],
+  "demoOnly": true
+}
