@@ -12,7 +12,7 @@ from app.services.data_source_service import DataSourceService
 from app.services.evidence_quality_service import EvidenceQualityService
 from app.services.evidence_selection_service import EvidenceSelectionService
 from app.services.evidence_submission_service import EvidenceSubmissionService
-from app.services.policy_boundary_service import PolicyBoundaryService
+from app.services.policy_boundary_service import EvidenceResolutionService, PolicyBoundaryService
 from app.services.product_catalog_service import ProductCatalogService
 from app.services.product_condition_service import ProductConditionService
 from app.services.session_service import CustomerSessionService
@@ -40,6 +40,9 @@ async def get_readiness(request: Request) -> ReadinessResponse:
         request.app.state.assessment_comparison_service
     )
     policy_boundary_service: PolicyBoundaryService = request.app.state.policy_boundary_service
+    evidence_resolution_service: EvidenceResolutionService = (
+        request.app.state.evidence_resolution_service
+    )
     evidence_selection_service: EvidenceSelectionService = (
         request.app.state.evidence_selection_service
     )
@@ -58,6 +61,7 @@ async def get_readiness(request: Request) -> ReadinessResponse:
         **supplemental_assessment_service.readiness(),
         **assessment_comparison_service.readiness(),
         **policy_boundary_service.readiness(),
+        **evidence_resolution_service.readiness(),
         **evidence_selection_service.readiness(),
         **evidence_submission_service.readiness(),
         **evidence_quality_service.readiness(),

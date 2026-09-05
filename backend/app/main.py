@@ -52,7 +52,11 @@ from app.services.evidence_submission_service import (
     DemoEvidenceSubmissionCatalog,
     EvidenceSubmissionService,
 )
-from app.services.policy_boundary_service import DemoPolicyBoundaryCatalog, PolicyBoundaryService
+from app.services.policy_boundary_service import (
+    DemoPolicyBoundaryCatalog,
+    EvidenceResolutionService,
+    PolicyBoundaryService,
+)
 from app.services.product_catalog_service import ProductCatalogService
 from app.services.product_condition_service import ProductConditionService
 from app.services.session_service import CustomerSessionService, DemoProfileCatalog
@@ -191,6 +195,19 @@ def build_assessment_comparison_service(
     )
 
 
+def build_evidence_resolution_service(
+    session_service: CustomerSessionService,
+    assessment_service: AssessmentService,
+    policy_boundary_service: PolicyBoundaryService,
+) -> EvidenceResolutionService:
+    return EvidenceResolutionService(
+        repository=policy_boundary_service.repository,
+        assessment_repository=assessment_service.repository,
+        session_service=session_service,
+        catalog=policy_boundary_service.catalog,
+    )
+
+
 def build_product_condition_service(
     session_service: CustomerSessionService,
     product_catalog_service: ProductCatalogService,
@@ -218,6 +235,7 @@ def create_app(
     evidence_quality_service: EvidenceQualityService | None = None,
     supplemental_assessment_service: SupplementalAssessmentService | None = None,
     assessment_comparison_service: AssessmentComparisonService | None = None,
+    evidence_resolution_service: EvidenceResolutionService | None = None,
     product_catalog_service: ProductCatalogService | None = None,
     product_condition_service: ProductConditionService | None = None,
     admin_authenticator: AdminApiKeyAuthenticator | None = None,
@@ -273,6 +291,14 @@ def create_app(
             resolved_assessment_service,
         )
     )
+    resolved_evidence_resolution_service = (
+        evidence_resolution_service
+        or build_evidence_resolution_service(
+            resolved_session_service,
+            resolved_assessment_service,
+            resolved_policy_boundary_service,
+        )
+    )
     resolved_product_catalog_service = product_catalog_service or build_product_catalog_service(
         resolved_session_service
     )
@@ -305,6 +331,7 @@ def create_app(
         resolved_evidence_quality_service.initialize()
         resolved_supplemental_assessment_service.initialize()
         resolved_assessment_comparison_service.initialize()
+        resolved_evidence_resolution_service.initialize()
         resolved_product_catalog_service.initialize()
         resolved_product_condition_service.initialize()
         yield
@@ -327,6 +354,7 @@ def create_app(
     application.state.evidence_quality_service = resolved_evidence_quality_service
     application.state.supplemental_assessment_service = resolved_supplemental_assessment_service
     application.state.assessment_comparison_service = resolved_assessment_comparison_service
+    application.state.evidence_resolution_service = resolved_evidence_resolution_service
     application.state.product_catalog_service = resolved_product_catalog_service
     application.state.product_condition_service = resolved_product_condition_service
     application.state.product_comparison_service = resolved_product_comparison_service

@@ -11,6 +11,7 @@ from app.adapters.assessment_adapter import (
 from app.adapters.data_source_adapter import DemoDataSourceAdapter
 from app.core.config import settings
 from app.repositories.assessment_repository import SqliteAssessmentRepository
+from app.repositories.policy_boundary_repository import SqlitePolicyBoundaryRepository
 from app.repositories.session_repository import SqliteCustomerSessionRepository
 from app.schemas.assessment import AssessmentUncertainty, CalibrationMode
 from app.schemas.audit import AuditStage
@@ -471,3 +472,211 @@ def test_uncertainty_comparison_uses_structural_relationship_only(
     assert basis.value == expected_basis
     assert change.value == expected_change
     assert len(rationale_codes) == 1
+
+
+def prepare_comparison(
+    client: TestClient,
+    data_source_service: DataSourceService,
+    assessment_service: AssessmentService,
+    supplemental_assessment_service: SupplementalAssessmentService,
+    supplemental_catalog_path: Path = settings.demo_supplemental_assessments_path,
+) -> tuple[str, dict, dict]:
+    session_id = create_session(client)
+    _, submission = prepare_submission(
+        client,
+        session_id,
+        data_source_service,
+        assessment_service,
+    )
+    check_quality(client, session_id, submission["submissionId"])
+    supplemental_assessment_service.adapter = DemoSupplementalAssessmentAdapter(
+        supplemental_catalog_path
+    )
+    supplemental_response = client.post(
+        f"/v1/sessions/{session_id}/assessment/supplemental/run",
+        json=run_payload(submission["submissionId"]),
+    )
+    assert supplemental_response.status_code == 200
+    comparison_response = client.post(f"/v1/sessions/{session_id}/assessment/comparison")
+    assert comparison_response.status_code == 200
+    return (
+        session_id,
+        supplemental_response.json()["supplementalAssessment"],
+        comparison_response.json()["comparison"],
+    )
+
+
+def write_supplemental_catalog(
+    path: Path,
+    *,
+    grades: list[str],
+    calibration_version: str = "demo-uncertainty-rule-table-v1",
+) -> None:
+    path.write_text(
+        json.dumps(
+            {
+                "dataVersion": "test-supplemental-assessments-v1",
+                "assessments": [
+                    {
+                        "demoProfileId": "small-business",
+                        "evidenceType": "CUSTOMER_SUBMITTED_RECENT_REVENUE_SUMMARY",
+                        "result": {
+                            "status": "COMPLETED",
+                            "modelVersion": "test-supplemental-model-v1",
+                            "uncertainty": {
+                                "gradeSet": grades,
+                                "calibrationMode": "RULE_TABLE",
+                                "calibrationVersion": calibration_version,
+                                "demoOnly": True,
+                            },
+                        },
+                    }
+                ],
+                "demoOnly": True,
+            }
+        ),
+        encoding="utf-8",
+    )
+
+
+def test_evidence_resolution_is_empty_before_creation(client: TestClient) -> None:
+    session_id = create_session(client)
+
+    response = client.get(f"/v1/sessions/{session_id}/assessment/resolution")
+
+    assert response.status_code == 200
+    assert response.json() == {"sessionId": session_id, "resolution": None}
+
+
+def test_evidence_resolution_requires_assessment_comparison(client: TestClient) -> None:
+    session_id = create_session(client)
+
+    response = client.post(f"/v1/sessions/{session_id}/assessment/resolution")
+
+    assert response.status_code == 409
+    assert response.json()["error"]["code"] == "ASSESSMENT_COMPARISON_NOT_READY"
+
+
+def test_stable_supplemental_boundary_stops_evidence_collection(
+    client: TestClient,
+    data_source_service: DataSourceService,
+    assessment_service: AssessmentService,
+    supplemental_assessment_service: SupplementalAssessmentService,
+    policy_boundary_repository: SqlitePolicyBoundaryRepository,
+    session_repository: SqliteCustomerSessionRepository,
+) -> None:
+    session_id, supplemental, comparison = prepare_comparison(
+        client,
+        data_source_service,
+        assessment_service,
+        supplemental_assessment_service,
+    )
+
+    first = client.post(f"/v1/sessions/{session_id}/assessment/resolution")
+    second = client.post(f"/v1/sessions/{session_id}/assessment/resolution")
+    latest = client.get(f"/v1/sessions/{session_id}/assessment/resolution")
+
+    assert first.status_code == 200
+    resolution = first.json()["resolution"]
+    assert resolution["resolutionId"].startswith("res_")
+    assert resolution["comparisonId"] == comparison["comparisonId"]
+    assert resolution["supplementalAssessmentId"] == supplemental["supplementalAssessmentId"]
+    assert resolution["status"] == "RESOLVED"
+    assert resolution["nextAction"] == "SHOW_UPDATED_RESULTS"
+    assert resolution["stopEvidenceCollection"] is True
+    assert resolution["underwriterRequired"] is False
+    assert resolution["reasonCode"] == "PATH_STABLE"
+    assert resolution["possibleRoutes"] == ["DEMO_PATH_1"]
+    assert resolution["crossedBoundaryCodes"] == []
+    assert resolution["calibrationVersion"] == "demo-uncertainty-rule-table-v1"
+    assert resolution["boundaryPolicyVersion"] == "demo-policy-boundary-v1"
+    assert resolution["resolvedAt"].endswith("Z")
+    assert resolution["demoOnly"] is True
+    assert second.json() == first.json()
+    assert latest.json() == first.json()
+    assert policy_boundary_repository.count_resolutions(session_id) == 1
+
+    event = session_repository.list_audit_events(session_id)[-1]
+    assert event.stage == AuditStage.EVIDENCE_COLLECTION_RESOLVED
+    assert event.request_id == first.headers["X-Request-ID"]
+    assert event.input_version == comparison["comparisonId"]
+    assert len(event.input_snapshot_hash) == 64
+    assert event.data_version == supplemental["inputSnapshotId"]
+    assert event.model_version == supplemental["modelVersion"]
+    assert event.policy_version == "demo-policy-boundary-v1"
+    assert event.output_summary == {
+        "resolutionStatus": "RESOLVED",
+        "nextAction": "SHOW_UPDATED_RESULTS",
+        "stopEvidenceCollection": True,
+        "underwriterRequired": False,
+        "reasonCode": "PATH_STABLE",
+        "demoOnly": True,
+    }
+
+
+def test_ambiguous_supplemental_boundary_requests_more_evidence(
+    client: TestClient,
+    data_source_service: DataSourceService,
+    assessment_service: AssessmentService,
+    supplemental_assessment_service: SupplementalAssessmentService,
+    tmp_path: Path,
+) -> None:
+    catalog_path = tmp_path / "ambiguous_supplemental.json"
+    write_supplemental_catalog(
+        catalog_path,
+        grades=["DEMO_GRADE_B", "DEMO_GRADE_C"],
+    )
+    session_id, _, _ = prepare_comparison(
+        client,
+        data_source_service,
+        assessment_service,
+        supplemental_assessment_service,
+        catalog_path,
+    )
+
+    response = client.post(f"/v1/sessions/{session_id}/assessment/resolution")
+
+    assert response.status_code == 200
+    resolution = response.json()["resolution"]
+    assert resolution["status"] == "MORE_EVIDENCE_REQUIRED"
+    assert resolution["nextAction"] == "REQUEST_NEXT_EVIDENCE"
+    assert resolution["stopEvidenceCollection"] is False
+    assert resolution["underwriterRequired"] is False
+    assert resolution["reasonCode"] == "POLICY_BOUNDARY_STILL_AMBIGUOUS"
+    assert resolution["possibleRoutes"] == ["DEMO_PATH_1", "DEMO_PATH_2"]
+    assert resolution["crossedBoundaryCodes"] == ["DEMO_BOUNDARY_1_2"]
+
+
+def test_non_comparable_assessments_are_routed_to_underwriter(
+    client: TestClient,
+    data_source_service: DataSourceService,
+    assessment_service: AssessmentService,
+    supplemental_assessment_service: SupplementalAssessmentService,
+    tmp_path: Path,
+) -> None:
+    catalog_path = tmp_path / "non_comparable_supplemental.json"
+    write_supplemental_catalog(
+        catalog_path,
+        grades=["DEMO_GRADE_B"],
+        calibration_version="different-calibration-v1",
+    )
+    session_id, _, comparison = prepare_comparison(
+        client,
+        data_source_service,
+        assessment_service,
+        supplemental_assessment_service,
+        catalog_path,
+    )
+    assert comparison["uncertaintyChange"] == "NOT_COMPARABLE"
+
+    response = client.post(f"/v1/sessions/{session_id}/assessment/resolution")
+
+    assert response.status_code == 200
+    resolution = response.json()["resolution"]
+    assert resolution["status"] == "HUMAN_REVIEW"
+    assert resolution["nextAction"] == "UNDERWRITER_REVIEW"
+    assert resolution["stopEvidenceCollection"] is True
+    assert resolution["underwriterRequired"] is True
+    assert resolution["reasonCode"] == "UNCERTAINTY_COMPARISON_NOT_RELIABLE"
+    assert resolution["possibleRoutes"] == []
+    assert resolution["crossedBoundaryCodes"] == []
