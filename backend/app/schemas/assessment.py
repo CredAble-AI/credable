@@ -23,6 +23,29 @@ class CalibrationMode(StrEnum):
     CONFORMAL_CALIBRATED = "CONFORMAL_CALIBRATED"
 
 
+class AssessmentSnapshotType(StrEnum):
+    BANK_ACCOUNT_DATA = "BANK_ACCOUNT_DATA"
+    BANK_CREDIT_HISTORY = "BANK_CREDIT_HISTORY"
+    BANK_LOAN_HISTORY = "BANK_LOAN_HISTORY"
+    EXTERNAL_CREDIT_EXPOSURE = "EXTERNAL_CREDIT_EXPOSURE"
+
+
+class AssessmentDataSnapshotReference(ApiModel):
+    source_type: ConsentSourceType
+    snapshot_type: AssessmentSnapshotType
+    observed_at: datetime
+    loaded_at: datetime
+    data_version: str = Field(min_length=1)
+    snapshot_hash: str = Field(pattern=r"^[0-9a-f]{64}$")
+    demo_only: Literal[True] = True
+
+    @model_validator(mode="after")
+    def validate_timestamps(self) -> "AssessmentDataSnapshotReference":
+        if self.observed_at.tzinfo is None or self.loaded_at.tzinfo is None:
+            raise ValueError("assessment data snapshot timestamps must include a timezone")
+        return self
+
+
 class AssessmentUncertainty(ApiModel):
     point_estimate: float | None = None
     lower_bound: float | None = None
@@ -58,7 +81,15 @@ class AssessmentInputSnapshot(ApiModel):
     session_id: str = Field(min_length=1)
     demo_profile_id: str = Field(min_length=1)
     data_sources: list[DataSourceState]
+    source_snapshots: list[AssessmentDataSnapshotReference] = Field(default_factory=list)
     demo_only: Literal[True] = True
+
+    @model_validator(mode="after")
+    def validate_source_snapshots(self) -> "AssessmentInputSnapshot":
+        snapshot_types = [item.snapshot_type for item in self.source_snapshots]
+        if len(snapshot_types) != len(set(snapshot_types)):
+            raise ValueError("sourceSnapshots snapshotType values must be unique")
+        return self
 
 
 class AdapterAssessmentResult(ApiModel):
@@ -183,6 +214,7 @@ class SupplementalAssessmentInputSnapshot(ApiModel):
     baseline_input_snapshot_id: str = Field(min_length=1)
     baseline_uncertainty: AssessmentUncertainty
     data_sources: list[DataSourceState]
+    source_snapshots: list[AssessmentDataSnapshotReference] = Field(default_factory=list)
     accepted_evidence: AcceptedEvidenceSnapshot
     accepted_evidence_set: list[AcceptedEvidenceSnapshot] = Field(default_factory=list)
     demo_only: Literal[True] = True
