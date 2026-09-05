@@ -14,6 +14,7 @@ from app.repositories.assessment_repository import SqliteAssessmentRepository
 from app.repositories.consent_repository import SqliteConsentRepository
 from app.repositories.data_source_repository import SqliteDataSourceRepository
 from app.repositories.evidence_selection_repository import SqliteEvidenceSelectionRepository
+from app.repositories.evidence_submission_repository import SqliteEvidenceSubmissionRepository
 from app.repositories.policy_boundary_repository import SqlitePolicyBoundaryRepository
 from app.repositories.product_catalog_repository import SqliteProductCatalogRepository
 from app.repositories.product_condition_repository import SqliteProductConditionRepository
@@ -24,6 +25,10 @@ from app.services.data_source_service import DataSourceService
 from app.services.evidence_selection_service import (
     DemoEvidenceCandidateCatalog,
     EvidenceSelectionService,
+)
+from app.services.evidence_submission_service import (
+    DemoEvidenceSubmissionCatalog,
+    EvidenceSubmissionService,
 )
 from app.services.policy_boundary_service import DemoPolicyBoundaryCatalog, PolicyBoundaryService
 from app.services.product_catalog_service import ProductCatalogService
@@ -142,6 +147,25 @@ def evidence_selection_service(
 
 
 @pytest.fixture
+def evidence_submission_repository(tmp_path) -> SqliteEvidenceSubmissionRepository:
+    return SqliteEvidenceSubmissionRepository(tmp_path / "test.db")
+
+
+@pytest.fixture
+def evidence_submission_service(
+    evidence_submission_repository: SqliteEvidenceSubmissionRepository,
+    session_service: CustomerSessionService,
+    evidence_selection_service: EvidenceSelectionService,
+) -> EvidenceSubmissionService:
+    return EvidenceSubmissionService(
+        repository=evidence_submission_repository,
+        session_service=session_service,
+        selection_service=evidence_selection_service,
+        catalog=DemoEvidenceSubmissionCatalog(settings.demo_evidence_submissions_path),
+    )
+
+
+@pytest.fixture
 def product_catalog_repository(tmp_path) -> SqliteProductCatalogRepository:
     return SqliteProductCatalogRepository(tmp_path / "test.db")
 
@@ -189,6 +213,7 @@ def client(
     assessment_service: AssessmentService,
     policy_boundary_service: PolicyBoundaryService,
     evidence_selection_service: EvidenceSelectionService,
+    evidence_submission_service: EvidenceSubmissionService,
     product_catalog_service: ProductCatalogService,
     product_condition_service: ProductConditionService,
 ) -> Generator[TestClient]:
@@ -200,6 +225,7 @@ def client(
             assessment_service=assessment_service,
             policy_boundary_service=policy_boundary_service,
             evidence_selection_service=evidence_selection_service,
+            evidence_submission_service=evidence_submission_service,
             product_catalog_service=product_catalog_service,
             product_condition_service=product_condition_service,
             admin_authenticator=AdminApiKeyAuthenticator("test-admin-api-key"),
