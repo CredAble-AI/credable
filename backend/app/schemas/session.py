@@ -5,6 +5,7 @@ from typing import Literal
 from pydantic import Field, model_validator
 
 from app.schemas.base import ApiModel
+from app.schemas.customer import CustomerSubject
 
 
 class CustomerSessionStatus(StrEnum):
@@ -20,6 +21,7 @@ class DemoProfile(ApiModel):
 class CustomerSession(ApiModel):
     session_id: str = Field(min_length=1)
     demo_profile: DemoProfile
+    customer_subject: CustomerSubject | None = None
     status: CustomerSessionStatus = CustomerSessionStatus.CREATED
     created_at: datetime
     data_version: str = Field(min_length=1)
@@ -40,6 +42,7 @@ class DemoProfileDefinition(ApiModel):
     demo_profile_id: str = Field(min_length=1)
     display_name: str = Field(min_length=1)
     description: str = Field(min_length=1)
+    customer_subject: CustomerSubject
 
     def to_profile(self) -> DemoProfile:
         return DemoProfile(

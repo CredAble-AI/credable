@@ -4,6 +4,12 @@ from datetime import datetime
 from pathlib import Path
 
 from app.schemas.audit import SessionAuditEvent
+from app.schemas.customer import (
+    Borrower,
+    BorrowerBusinessRole,
+    Business,
+    CustomerSubject,
+)
 from app.schemas.session import CustomerSessionState
 
 
@@ -15,6 +21,10 @@ class CustomerSessionRepository(ABC):
     @abstractmethod
     def get_session(self, session_id: str) -> CustomerSessionState | None:
         """Return a customer session by its stable identifier."""
+
+    @abstractmethod
+    def get_customer_subject(self, session_id: str) -> CustomerSubject | None:
+        """Return the bank-sourced customer and primary business linked to a session."""
 
     @abstractmethod
     def create_session(
@@ -78,6 +88,56 @@ class SqliteCustomerSessionRepository(CustomerSessionRepository):
 
                 CREATE INDEX IF NOT EXISTS idx_customer_session_audit_timestamp
                 ON customer_session_audit_events(session_id, timestamp);
+
+                CREATE TABLE IF NOT EXISTS borrowers (
+                    borrower_id TEXT PRIMARY KEY,
+                    borrower_type TEXT NOT NULL,
+                    display_name TEXT NOT NULL,
+                    created_at TEXT NOT NULL,
+                    updated_at TEXT NOT NULL
+                );
+
+                CREATE TABLE IF NOT EXISTS businesses (
+                    business_id TEXT PRIMARY KEY,
+                    legal_form TEXT NOT NULL,
+                    display_name TEXT NOT NULL,
+                    industry_code TEXT NOT NULL,
+                    industry_code_system TEXT NOT NULL,
+                    industry_name TEXT NOT NULL,
+                    business_started_on TEXT NOT NULL,
+                    status TEXT NOT NULL,
+                    created_at TEXT NOT NULL,
+                    updated_at TEXT NOT NULL
+                );
+
+                CREATE TABLE IF NOT EXISTS borrower_business_roles (
+                    borrower_id TEXT NOT NULL,
+                    business_id TEXT NOT NULL,
+                    role_type TEXT NOT NULL,
+                    is_primary INTEGER NOT NULL,
+                    effective_from TEXT NOT NULL,
+                    effective_to TEXT,
+                    PRIMARY KEY (borrower_id, business_id),
+                    FOREIGN KEY (borrower_id) REFERENCES borrowers(borrower_id),
+                    FOREIGN KEY (business_id) REFERENCES businesses(business_id)
+                );
+
+                CREATE TABLE IF NOT EXISTS customer_session_subjects (
+                    session_id TEXT PRIMARY KEY,
+                    borrower_id TEXT NOT NULL,
+                    primary_business_id TEXT,
+                    source_type TEXT NOT NULL,
+                    as_of_date TEXT NOT NULL,
+                    data_version TEXT NOT NULL,
+                    demo_only INTEGER NOT NULL,
+                    linked_at TEXT NOT NULL,
+                    FOREIGN KEY (session_id) REFERENCES customer_sessions(session_id),
+                    FOREIGN KEY (borrower_id) REFERENCES borrowers(borrower_id),
+                    FOREIGN KEY (primary_business_id) REFERENCES businesses(business_id)
+                );
+
+                CREATE INDEX IF NOT EXISTS idx_customer_session_subject_borrower
+                ON customer_session_subjects(borrower_id);
                 """
             )
 
@@ -89,6 +149,79 @@ class SqliteCustomerSessionRepository(CustomerSessionRepository):
             ).fetchone()
         return CustomerSessionState.model_validate_json(row["state_json"]) if row else None
 
+    def get_customer_subject(self, session_id: str) -> CustomerSubject | None:
+        with self._connect() as connection:
+            row = connection.execute(
+                """
+                SELECT
+                    b.borrower_id,
+                    b.borrower_type,
+                    b.display_name AS borrower_display_name,
+                    cs.source_type,
+                    cs.as_of_date,
+                    cs.data_version,
+                    cs.demo_only,
+                    biz.business_id,
+                    biz.legal_form,
+                    biz.display_name AS business_display_name,
+                    biz.industry_code,
+                    biz.industry_code_system,
+                    biz.industry_name,
+                    biz.business_started_on,
+                    biz.status,
+                    r.role_type,
+                    r.is_primary,
+                    r.effective_from,
+                    r.effective_to
+                FROM customer_session_subjects cs
+                JOIN borrowers b ON b.borrower_id = cs.borrower_id
+                LEFT JOIN businesses biz ON biz.business_id = cs.primary_business_id
+                LEFT JOIN borrower_business_roles r
+                    ON r.borrower_id = cs.borrower_id
+                    AND r.business_id = cs.primary_business_id
+                WHERE cs.session_id = ?
+                """,
+                (session_id,),
+            ).fetchone()
+        if row is None:
+            return None
+
+        business = None
+        role = None
+        if row["business_id"] is not None:
+            business = Business(
+                business_id=row["business_id"],
+                legal_form=row["legal_form"],
+                display_name=row["business_display_name"],
+                industry_code=row["industry_code"],
+                industry_code_system=row["industry_code_system"],
+                industry_name=row["industry_name"],
+                business_started_on=row["business_started_on"],
+                status=row["status"],
+            )
+            role = BorrowerBusinessRole(
+                borrower_id=row["borrower_id"],
+                business_id=row["business_id"],
+                role_type=row["role_type"],
+                is_primary=bool(row["is_primary"]),
+                effective_from=row["effective_from"],
+                effective_to=row["effective_to"],
+            )
+
+        return CustomerSubject(
+            borrower=Borrower(
+                borrower_id=row["borrower_id"],
+                borrower_type=row["borrower_type"],
+                display_name=row["borrower_display_name"],
+            ),
+            primary_business=business,
+            business_role=role,
+            source_type=row["source_type"],
+            as_of_date=row["as_of_date"],
+            data_version=row["data_version"],
+            demo_only=bool(row["demo_only"]),
+        )
+
     def create_session(
         self,
         *,
@@ -99,8 +232,86 @@ class SqliteCustomerSessionRepository(CustomerSessionRepository):
         event_json = audit_event.model_dump_json(by_alias=True)
         timestamp = audit_event.timestamp.isoformat()
         session = state.session
+        subject = session.customer_subject
+        if subject is None:
+            raise ValueError("new customer sessions require customerSubject")
 
         with self._connect() as connection:
+            connection.execute(
+                """
+                INSERT INTO borrowers(
+                    borrower_id, borrower_type, display_name, created_at, updated_at
+                )
+                VALUES (?, ?, ?, ?, ?)
+                ON CONFLICT(borrower_id) DO UPDATE SET
+                    borrower_type = excluded.borrower_type,
+                    display_name = excluded.display_name,
+                    updated_at = excluded.updated_at
+                """,
+                (
+                    subject.borrower.borrower_id,
+                    subject.borrower.borrower_type.value,
+                    subject.borrower.display_name,
+                    timestamp,
+                    timestamp,
+                ),
+            )
+            if subject.primary_business is not None and subject.business_role is not None:
+                business = subject.primary_business
+                role = subject.business_role
+                connection.execute(
+                    """
+                    INSERT INTO businesses(
+                        business_id, legal_form, display_name, industry_code,
+                        industry_code_system, industry_name, business_started_on,
+                        status, created_at, updated_at
+                    )
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    ON CONFLICT(business_id) DO UPDATE SET
+                        legal_form = excluded.legal_form,
+                        display_name = excluded.display_name,
+                        industry_code = excluded.industry_code,
+                        industry_code_system = excluded.industry_code_system,
+                        industry_name = excluded.industry_name,
+                        business_started_on = excluded.business_started_on,
+                        status = excluded.status,
+                        updated_at = excluded.updated_at
+                    """,
+                    (
+                        business.business_id,
+                        business.legal_form.value,
+                        business.display_name,
+                        business.industry_code,
+                        business.industry_code_system,
+                        business.industry_name,
+                        business.business_started_on.isoformat(),
+                        business.status.value,
+                        timestamp,
+                        timestamp,
+                    ),
+                )
+                connection.execute(
+                    """
+                    INSERT INTO borrower_business_roles(
+                        borrower_id, business_id, role_type, is_primary,
+                        effective_from, effective_to
+                    )
+                    VALUES (?, ?, ?, ?, ?, ?)
+                    ON CONFLICT(borrower_id, business_id) DO UPDATE SET
+                        role_type = excluded.role_type,
+                        is_primary = excluded.is_primary,
+                        effective_from = excluded.effective_from,
+                        effective_to = excluded.effective_to
+                    """,
+                    (
+                        role.borrower_id,
+                        role.business_id,
+                        role.role_type.value,
+                        int(role.is_primary),
+                        role.effective_from.isoformat(),
+                        role.effective_to.isoformat() if role.effective_to else None,
+                    ),
+                )
             connection.execute(
                 """
                 INSERT INTO customer_sessions(
@@ -117,6 +328,29 @@ class SqliteCustomerSessionRepository(CustomerSessionRepository):
                     session.demo_profile.demo_profile_id,
                     state_json,
                     timestamp,
+                    timestamp,
+                ),
+            )
+            connection.execute(
+                """
+                INSERT INTO customer_session_subjects(
+                    session_id, borrower_id, primary_business_id, source_type,
+                    as_of_date, data_version, demo_only, linked_at
+                )
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    session.session_id,
+                    subject.borrower.borrower_id,
+                    (
+                        subject.primary_business.business_id
+                        if subject.primary_business is not None
+                        else None
+                    ),
+                    subject.source_type,
+                    subject.as_of_date.isoformat(),
+                    subject.data_version,
+                    int(subject.demo_only),
                     timestamp,
                 ),
             )

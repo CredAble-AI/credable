@@ -2,6 +2,7 @@ from fastapi.testclient import TestClient
 
 from app.repositories.session_repository import SqliteCustomerSessionRepository
 from app.schemas.audit import AuditStage
+from app.schemas.session import CustomerSession
 from app.services.session_service import CustomerSessionService
 
 
@@ -22,6 +23,7 @@ def test_create_and_restore_small_business_demo_session(
     assert set(created["session"]) == {
         "sessionId",
         "demoProfile",
+        "customerSubject",
         "status",
         "createdAt",
         "dataVersion",
@@ -32,10 +34,43 @@ def test_create_and_restore_small_business_demo_session(
         "displayName": "소상공인 Demo",
         "description": "소상공인 고객 흐름을 확인하기 위한 합성 Demo Profile",
     }
+    assert created["session"]["customerSubject"] == {
+        "borrower": {
+            "borrowerId": "bor_demo_001",
+            "borrowerType": "SOLE_PROPRIETOR",
+            "displayName": "도담상점 고객(합성)",
+        },
+        "primaryBusiness": {
+            "businessId": "biz_demo_001",
+            "legalForm": "SOLE_PROPRIETOR",
+            "displayName": "도담상점(합성)",
+            "industryCode": "DEMO_RETAIL",
+            "industryCodeSystem": "DEMO",
+            "industryName": "소매업 예시",
+            "businessStartedOn": "2022-04-15",
+            "status": "ACTIVE",
+        },
+        "businessRole": {
+            "borrowerId": "bor_demo_001",
+            "businessId": "biz_demo_001",
+            "roleType": "OWNER",
+            "isPrimary": True,
+            "effectiveFrom": "2022-04-15",
+            "effectiveTo": None,
+        },
+        "sourceType": "BANK_INTERNAL",
+        "asOfDate": "2026-09-01",
+        "dataVersion": "demo-customer-subjects-v1",
+        "demoOnly": True,
+    }
     assert created["session"]["status"] == "CREATED"
-    assert created["session"]["dataVersion"] == "demo-profiles-v1"
+    assert created["session"]["dataVersion"] == "demo-profiles-v2"
     assert created["session"]["demoOnly"] is True
     assert created["session"]["createdAt"].endswith("Z")
+
+    legacy_session = created["session"].copy()
+    legacy_session.pop("customerSubject")
+    assert CustomerSession.model_validate(legacy_session).customer_subject is None
 
     session_id = created["sessionId"]
     get_response = client.get(f"/v1/sessions/{session_id}")
@@ -50,6 +85,7 @@ def test_create_and_restore_small_business_demo_session(
     assert stored is not None
     assert original is not None
     assert stored.session == original.session
+    assert reopened_repository.get_customer_subject(session_id) == stored.session.customer_subject
 
     events = session_repository.list_audit_events(session_id)
     assert len(events) == 1
@@ -78,12 +114,17 @@ def test_same_demo_profile_creates_a_fresh_session_each_time(
     assert len(first_events) == 1
     assert len(second_events) == 1
     assert first_events[0].stage == AuditStage.SESSION_CREATED
-    assert first_events[0].input_version == "demo-profiles-v1"
+    assert first_events[0].input_version == "demo-profiles-v2"
     assert first_events[0].output_summary == {
         "demoProfileId": "startup",
+        "borrowerId": "bor_demo_002",
+        "primaryBusinessId": "biz_demo_002",
         "demoOnly": True,
     }
     assert len(first_events[0].input_snapshot_hash) == 64
+    assert session_repository.get_customer_subject(first.json()["sessionId"]) == (
+        session_repository.get_customer_subject(second.json()["sessionId"])
+    )
 
 
 def test_catalog_contains_only_approved_demo_profiles(
