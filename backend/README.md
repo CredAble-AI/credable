@@ -179,7 +179,9 @@ curl -X POST \
 신용평가 이력, 대출·상환 이력과 외부 신용정보 Snapshot의 유형, 기준시점, 적재시점,
 `dataVersion`과 SHA-256 내용 해시를 `sourceSnapshots`에 함께 고정합니다. 따라서 동일한
 `assessmentId`가 어떤 버전의 원천 Snapshot을 참조했는지 확인하고 입력 변경 여부를 추적할 수
-있습니다.
+있습니다. 평가 시작 시각은 `featureCutoffAt`으로 고정합니다. 기준시점 이후 관측되었거나
+적재된 Snapshot은 평가 입력의 `sourceSnapshots`에서 제외하고, 해시·시점 참조만
+`excludedSourceSnapshots`에 남겨 차단 사실을 추적합니다.
 
 Snapshot 참조는 원천 데이터 전체를 API 응답이나 Audit 요약에 복제하지 않습니다. 기존 평가
 저장 JSON에 `sourceSnapshots`가 없어도 빈 목록으로 복원되므로 DB 마이그레이션 없이 이전
@@ -195,7 +197,9 @@ Snapshot 참조는 원천 데이터 전체를 API 응답이나 Audit 요약에 �
 금액은 통화별로 분리하며 은행 내부 대출과 외부 신용정보를 하나의 총부채로 합치지 않습니다.
 두 출처에 같은 대출이 중복될 가능성이 있지만 현재는 이를 식별할 은행 매칭 규칙이 정해지지
 않았기 때문입니다. 원천이 없는 상태는 `SOURCE_NOT_AVAILABLE`, 조회된 원천에 해당 기록이 없는
-상태는 `NO_RECORDS`, 계산 가능한 0건은 `AVAILABLE` 값 0으로 구분합니다.
+상태는 `NO_RECORDS`, 계산 가능한 0건은 `AVAILABLE` 값 0으로 구분합니다. 기준시점 이후의
+원천은 값을 계산하지 않고 `SOURCE_AFTER_CUTOFF`로 기록해 미래정보 유입과 사후 데이터 누수를
+차단합니다.
 
 이 Feature는 현재 Demo 평가 Adapter의 점수·등급·정책 판단에 사용하지 않습니다. 운영 전에는
 은행이 관측기간, 출처 간 중복 제거, 사용 Feature, 위험 방향·변환·가중치를 확정하고 실제

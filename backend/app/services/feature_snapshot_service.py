@@ -29,8 +29,8 @@ from app.services.assessment_data_lineage_service import AssessmentDataLineageSe
 
 
 class FeatureSnapshotService:
-    FEATURE_SET_VERSION = "demo-neutral-feature-set-v1"
-    CALCULATION_VERSION = "demo-neutral-aggregation-v1"
+    FEATURE_SET_VERSION = "demo-neutral-feature-set-v2"
+    CALCULATION_VERSION = "demo-neutral-aggregation-v2"
 
     def __init__(
         self,
@@ -51,12 +51,30 @@ class FeatureSnapshotService:
     def initialize(self) -> None:
         self.repository.initialize()
 
-    def get_or_build(self, session_id: str) -> AssessmentFeatureSnapshot | None:
+    def get_or_build(
+        self,
+        session_id: str,
+        feature_cutoff_at: datetime | None = None,
+    ) -> AssessmentFeatureSnapshot | None:
+        feature_cutoff_at = feature_cutoff_at or datetime.now(UTC)
+        if feature_cutoff_at.tzinfo is None:
+            raise ValueError("featureCutoffAt must include a timezone")
         source_snapshots = self.data_lineage_service.list_references(session_id)
         if not source_snapshots:
             return None
+        after_cutoff_types = {
+            item.snapshot_type
+            for item in source_snapshots
+            if item.observed_at > feature_cutoff_at or item.loaded_at > feature_cutoff_at
+        }
         source_lineage_hash = self._hash_json(
-            [item.model_dump(mode="json", by_alias=True) for item in source_snapshots]
+            [
+                {
+                    **item.model_dump(mode="json", by_alias=True),
+                    "pointInTimeValid": item.snapshot_type not in after_cutoff_types,
+                }
+                for item in source_snapshots
+            ]
         )
         existing = self.repository.get_by_lineage(
             session_id,
@@ -67,10 +85,10 @@ class FeatureSnapshotService:
             return existing
 
         feature_values = [
-            *self._bank_data_features(session_id),
-            *self._credit_history_features(session_id),
-            *self._loan_history_features(session_id),
-            *self._credit_exposure_features(session_id),
+            *self._bank_data_features(session_id, after_cutoff_types),
+            *self._credit_history_features(session_id, after_cutoff_types),
+            *self._loan_history_features(session_id, after_cutoff_types),
+            *self._credit_exposure_features(session_id, after_cutoff_types),
         ]
         identity = {
             "sessionId": session_id,
@@ -82,6 +100,7 @@ class FeatureSnapshotService:
             session_id=session_id,
             feature_set_version=self.FEATURE_SET_VERSION,
             calculated_at=datetime.now(UTC),
+            feature_cutoff_at=feature_cutoff_at,
             source_lineage_hash=source_lineage_hash,
             source_snapshots=source_snapshots,
             feature_values=feature_values,
@@ -96,24 +115,33 @@ class FeatureSnapshotService:
             feature_snapshot_id=snapshot.feature_snapshot_id,
             feature_set_version=snapshot.feature_set_version,
             calculated_at=snapshot.calculated_at,
+            feature_cutoff_at=snapshot.feature_cutoff_at,
             source_lineage_hash=snapshot.source_lineage_hash,
             snapshot_hash=self._hash_json(snapshot.model_dump(mode="json", by_alias=True)),
         )
 
-    def _bank_data_features(self, session_id: str) -> list[NeutralFeatureValue]:
+    def _bank_data_features(
+        self,
+        session_id: str,
+        after_cutoff_types: set[AssessmentSnapshotType],
+    ) -> list[NeutralFeatureValue]:
         source_type = AssessmentSnapshotType.BANK_ACCOUNT_DATA
-        snapshot = self.bank_data_repository.get_snapshot(session_id)
-        if snapshot is None:
+        definitions = (
+            (FeatureCode.BANK_ACCOUNT_COUNT, FeatureValueType.COUNT),
+            (FeatureCode.BANK_TRANSACTION_COUNT, FeatureValueType.COUNT),
+            (FeatureCode.BANK_SNAPSHOT_CREDIT_AMOUNT, FeatureValueType.AMOUNT),
+            (FeatureCode.BANK_SNAPSHOT_DEBIT_AMOUNT, FeatureValueType.AMOUNT),
+            (FeatureCode.BANK_LATEST_BOOKED_BALANCE, FeatureValueType.AMOUNT),
+        )
+        if source_type in after_cutoff_types:
             return self._unavailable(
                 source_type,
-                (
-                    (FeatureCode.BANK_ACCOUNT_COUNT, FeatureValueType.COUNT),
-                    (FeatureCode.BANK_TRANSACTION_COUNT, FeatureValueType.COUNT),
-                    (FeatureCode.BANK_SNAPSHOT_CREDIT_AMOUNT, FeatureValueType.AMOUNT),
-                    (FeatureCode.BANK_SNAPSHOT_DEBIT_AMOUNT, FeatureValueType.AMOUNT),
-                    (FeatureCode.BANK_LATEST_BOOKED_BALANCE, FeatureValueType.AMOUNT),
-                ),
+                definitions,
+                FeatureValueStatus.SOURCE_AFTER_CUTOFF,
             )
+        snapshot = self.bank_data_repository.get_snapshot(session_id)
+        if snapshot is None:
+            return self._unavailable(source_type, definitions)
 
         latest_balances = {}
         for balance in snapshot.balances:
@@ -145,17 +173,25 @@ class FeatureSnapshotService:
             *self._amounts(FeatureCode.BANK_LATEST_BOOKED_BALANCE, source_type, balances),
         ]
 
-    def _credit_history_features(self, session_id: str) -> list[NeutralFeatureValue]:
+    def _credit_history_features(
+        self,
+        session_id: str,
+        after_cutoff_types: set[AssessmentSnapshotType],
+    ) -> list[NeutralFeatureValue]:
         source_type = AssessmentSnapshotType.BANK_CREDIT_HISTORY
-        snapshot = self.credit_history_repository.get_snapshot(session_id)
-        if snapshot is None:
+        definitions = (
+            (FeatureCode.BANK_APPLICATION_COUNT, FeatureValueType.COUNT),
+            (FeatureCode.BANK_CREDIT_ASSESSMENT_COUNT, FeatureValueType.COUNT),
+        )
+        if source_type in after_cutoff_types:
             return self._unavailable(
                 source_type,
-                (
-                    (FeatureCode.BANK_APPLICATION_COUNT, FeatureValueType.COUNT),
-                    (FeatureCode.BANK_CREDIT_ASSESSMENT_COUNT, FeatureValueType.COUNT),
-                ),
+                definitions,
+                FeatureValueStatus.SOURCE_AFTER_CUTOFF,
             )
+        snapshot = self.credit_history_repository.get_snapshot(session_id)
+        if snapshot is None:
+            return self._unavailable(source_type, definitions)
         return [
             self._count(
                 FeatureCode.BANK_APPLICATION_COUNT,
@@ -169,18 +205,26 @@ class FeatureSnapshotService:
             ),
         ]
 
-    def _loan_history_features(self, session_id: str) -> list[NeutralFeatureValue]:
+    def _loan_history_features(
+        self,
+        session_id: str,
+        after_cutoff_types: set[AssessmentSnapshotType],
+    ) -> list[NeutralFeatureValue]:
         source_type = AssessmentSnapshotType.BANK_LOAN_HISTORY
-        snapshot = self.loan_history_repository.get_snapshot(session_id)
-        if snapshot is None:
+        definitions = (
+            (FeatureCode.BANK_ACTIVE_LOAN_COUNT, FeatureValueType.COUNT),
+            (FeatureCode.BANK_OUTSTANDING_PRINCIPAL, FeatureValueType.AMOUNT),
+            (FeatureCode.BANK_CURED_DELINQUENCY_COUNT, FeatureValueType.COUNT),
+        )
+        if source_type in after_cutoff_types:
             return self._unavailable(
                 source_type,
-                (
-                    (FeatureCode.BANK_ACTIVE_LOAN_COUNT, FeatureValueType.COUNT),
-                    (FeatureCode.BANK_OUTSTANDING_PRINCIPAL, FeatureValueType.AMOUNT),
-                    (FeatureCode.BANK_CURED_DELINQUENCY_COUNT, FeatureValueType.COUNT),
-                ),
+                definitions,
+                FeatureValueStatus.SOURCE_AFTER_CUTOFF,
             )
+        snapshot = self.loan_history_repository.get_snapshot(session_id)
+        if snapshot is None:
+            return self._unavailable(source_type, definitions)
         active_loans = [
             item for item in snapshot.loan_accounts if item.status == LoanAccountStatus.ACTIVE
         ]
@@ -197,19 +241,27 @@ class FeatureSnapshotService:
             ),
         ]
 
-    def _credit_exposure_features(self, session_id: str) -> list[NeutralFeatureValue]:
+    def _credit_exposure_features(
+        self,
+        session_id: str,
+        after_cutoff_types: set[AssessmentSnapshotType],
+    ) -> list[NeutralFeatureValue]:
         source_type = AssessmentSnapshotType.EXTERNAL_CREDIT_EXPOSURE
-        snapshot = self.credit_exposure_repository.get_snapshot(session_id)
-        if snapshot is None:
+        definitions = (
+            (FeatureCode.EXTERNAL_ACTIVE_EXPOSURE_COUNT, FeatureValueType.COUNT),
+            (FeatureCode.EXTERNAL_OUTSTANDING_BALANCE, FeatureValueType.AMOUNT),
+            (FeatureCode.EXTERNAL_CURED_DELINQUENCY_COUNT, FeatureValueType.COUNT),
+            (FeatureCode.EXTERNAL_ACTIVE_GUARANTEE_COUNT, FeatureValueType.COUNT),
+        )
+        if source_type in after_cutoff_types:
             return self._unavailable(
                 source_type,
-                (
-                    (FeatureCode.EXTERNAL_ACTIVE_EXPOSURE_COUNT, FeatureValueType.COUNT),
-                    (FeatureCode.EXTERNAL_OUTSTANDING_BALANCE, FeatureValueType.AMOUNT),
-                    (FeatureCode.EXTERNAL_CURED_DELINQUENCY_COUNT, FeatureValueType.COUNT),
-                    (FeatureCode.EXTERNAL_ACTIVE_GUARANTEE_COUNT, FeatureValueType.COUNT),
-                ),
+                definitions,
+                FeatureValueStatus.SOURCE_AFTER_CUTOFF,
             )
+        snapshot = self.credit_exposure_repository.get_snapshot(session_id)
+        if snapshot is None:
+            return self._unavailable(source_type, definitions)
         active_exposures = [
             item for item in snapshot.exposures if item.status == ExposureStatus.ACTIVE
         ]
@@ -286,13 +338,14 @@ class FeatureSnapshotService:
         self,
         source_type: AssessmentSnapshotType,
         definitions: tuple[tuple[FeatureCode, FeatureValueType], ...],
+        status: FeatureValueStatus = FeatureValueStatus.SOURCE_NOT_AVAILABLE,
     ) -> list[NeutralFeatureValue]:
         return [
             NeutralFeatureValue(
                 feature_code=code,
                 source_snapshot_type=source_type,
                 value_type=value_type,
-                status=FeatureValueStatus.SOURCE_NOT_AVAILABLE,
+                status=status,
                 calculation_version=self.CALCULATION_VERSION,
             )
             for code, value_type in definitions

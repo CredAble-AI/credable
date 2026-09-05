@@ -13,6 +13,7 @@ class FeatureValueStatus(StrEnum):
     AVAILABLE = "AVAILABLE"
     NO_RECORDS = "NO_RECORDS"
     SOURCE_NOT_AVAILABLE = "SOURCE_NOT_AVAILABLE"
+    SOURCE_AFTER_CUTOFF = "SOURCE_AFTER_CUTOFF"
 
 
 class FeatureValueType(StrEnum):
@@ -73,6 +74,7 @@ class AssessmentFeatureSnapshot(ApiModel):
     session_id: str = Field(min_length=1)
     feature_set_version: str = Field(min_length=1)
     calculated_at: datetime
+    feature_cutoff_at: datetime | None = None
     source_lineage_hash: str = Field(pattern=r"^[0-9a-f]{64}$")
     source_snapshots: list[AssessmentDataSnapshotReference] = Field(min_length=1)
     feature_values: list[NeutralFeatureValue] = Field(min_length=1)
@@ -82,10 +84,26 @@ class AssessmentFeatureSnapshot(ApiModel):
     def validate_snapshot(self) -> "AssessmentFeatureSnapshot":
         if self.calculated_at.tzinfo is None:
             raise ValueError("calculatedAt must include a timezone")
+        if self.feature_cutoff_at is not None:
+            if self.feature_cutoff_at.tzinfo is None:
+                raise ValueError("featureCutoffAt must include a timezone")
+            if self.feature_cutoff_at > self.calculated_at:
+                raise ValueError("featureCutoffAt cannot be later than calculatedAt")
         snapshot_types = [item.snapshot_type for item in self.source_snapshots]
         if len(snapshot_types) != len(set(snapshot_types)):
             raise ValueError("sourceSnapshots snapshotType values must be unique")
         dimensions = [(item.feature_code, item.currency) for item in self.feature_values]
         if len(dimensions) != len(set(dimensions)):
             raise ValueError("featureCode and currency dimensions must be unique")
+        if self.feature_cutoff_at is not None:
+            after_cutoff_types = {
+                item.snapshot_type
+                for item in self.source_snapshots
+                if item.observed_at > self.feature_cutoff_at
+                or item.loaded_at > self.feature_cutoff_at
+            }
+            for item in self.feature_values:
+                is_after_cutoff = item.source_snapshot_type in after_cutoff_types
+                if is_after_cutoff != (item.status == FeatureValueStatus.SOURCE_AFTER_CUTOFF):
+                    raise ValueError("feature status must match its point-in-time eligibility")
         return self

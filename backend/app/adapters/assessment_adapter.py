@@ -58,6 +58,25 @@ class DemoAssessmentAdapter(AssessmentAdapter):
                 status=AssessmentStatus.INSUFFICIENT_DATA,
                 reason_code="DEMO_REQUIRED_DATA_NOT_VERIFIED",
             )
+        if snapshot.feature_cutoff_at is not None:
+            eligible_source_types = {item.source_type for item in snapshot.source_snapshots}
+            required_source_after_cutoff = any(
+                item.source_type in self._catalog.required_verified_sources
+                for item in snapshot.excluded_source_snapshots
+            )
+            if required_source_after_cutoff:
+                return AdapterAssessmentResult(
+                    status=AssessmentStatus.INSUFFICIENT_DATA,
+                    reason_code="DEMO_REQUIRED_DATA_AFTER_FEATURE_CUTOFF",
+                )
+            if any(
+                source_type not in eligible_source_types
+                for source_type in self._catalog.required_verified_sources
+            ):
+                return AdapterAssessmentResult(
+                    status=AssessmentStatus.INSUFFICIENT_DATA,
+                    reason_code="DEMO_REQUIRED_DATA_SNAPSHOT_NOT_AVAILABLE",
+                )
         return self._results.get(
             snapshot.demo_profile_id,
             AdapterAssessmentResult(
