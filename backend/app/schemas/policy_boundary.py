@@ -66,6 +66,74 @@ class PolicyBoundaryCheckResponse(ApiModel):
     boundary_check: PolicyBoundaryCheckState | None
 
 
+class EvidenceResolutionStatus(StrEnum):
+    RESOLVED = "RESOLVED"
+    MORE_EVIDENCE_REQUIRED = "MORE_EVIDENCE_REQUIRED"
+    HUMAN_REVIEW = "HUMAN_REVIEW"
+
+
+class EvidenceResolutionNextAction(StrEnum):
+    SHOW_UPDATED_RESULTS = "SHOW_UPDATED_RESULTS"
+    REQUEST_NEXT_EVIDENCE = "REQUEST_NEXT_EVIDENCE"
+    UNDERWRITER_REVIEW = "UNDERWRITER_REVIEW"
+
+
+class EvidenceResolutionState(ApiModel):
+    resolution_id: str = Field(min_length=1)
+    comparison_id: str = Field(min_length=1)
+    supplemental_assessment_id: str = Field(min_length=1)
+    status: EvidenceResolutionStatus
+    next_action: EvidenceResolutionNextAction
+    stop_evidence_collection: bool
+    underwriter_required: bool
+    reason_code: str = Field(min_length=1)
+    possible_routes: list[str]
+    crossed_boundary_codes: list[str]
+    resolved_at: datetime
+    calibration_version: str | None
+    boundary_policy_version: str = Field(min_length=1)
+    demo_only: Literal[True] = True
+
+    @model_validator(mode="after")
+    def validate_resolution(self) -> "EvidenceResolutionState":
+        if self.resolved_at.tzinfo is None:
+            raise ValueError("resolvedAt must include a timezone")
+        if len(self.possible_routes) != len(set(self.possible_routes)):
+            raise ValueError("possibleRoutes values must be unique")
+        if len(self.crossed_boundary_codes) != len(set(self.crossed_boundary_codes)):
+            raise ValueError("crossedBoundaryCodes values must be unique")
+        if self.status == EvidenceResolutionStatus.RESOLVED:
+            if (
+                self.next_action != EvidenceResolutionNextAction.SHOW_UPDATED_RESULTS
+                or not self.stop_evidence_collection
+                or self.underwriter_required
+                or len(self.possible_routes) != 1
+                or self.crossed_boundary_codes
+            ):
+                raise ValueError("RESOLVED state requires one stable route")
+        elif self.status == EvidenceResolutionStatus.MORE_EVIDENCE_REQUIRED:
+            if (
+                self.next_action != EvidenceResolutionNextAction.REQUEST_NEXT_EVIDENCE
+                or self.stop_evidence_collection
+                or self.underwriter_required
+                or len(self.possible_routes) < 2
+                or not self.crossed_boundary_codes
+            ):
+                raise ValueError("MORE_EVIDENCE_REQUIRED state must continue collection")
+        elif (
+            self.next_action != EvidenceResolutionNextAction.UNDERWRITER_REVIEW
+            or not self.stop_evidence_collection
+            or not self.underwriter_required
+        ):
+            raise ValueError("HUMAN_REVIEW state must stop automated collection")
+        return self
+
+
+class EvidenceResolutionResponse(ApiModel):
+    session_id: str = Field(min_length=1)
+    resolution: EvidenceResolutionState | None
+
+
 class DemoGradeRoute(ApiModel):
     grade: str = Field(min_length=1)
     route: str = Field(min_length=1)

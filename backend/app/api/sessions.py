@@ -16,7 +16,7 @@ from app.schemas.evidence_submission import (
     EvidenceSubmissionCreateRequest,
     EvidenceSubmissionResponse,
 )
-from app.schemas.policy_boundary import PolicyBoundaryCheckResponse
+from app.schemas.policy_boundary import EvidenceResolutionResponse, PolicyBoundaryCheckResponse
 from app.schemas.product import ProductCatalogResponse
 from app.schemas.product_condition import ProductConditionQueryResponse
 from app.schemas.session import (
@@ -35,7 +35,7 @@ from app.services.data_source_service import DataSourceService
 from app.services.evidence_quality_service import EvidenceQualityService
 from app.services.evidence_selection_service import EvidenceSelectionService
 from app.services.evidence_submission_service import EvidenceSubmissionService
-from app.services.policy_boundary_service import PolicyBoundaryService
+from app.services.policy_boundary_service import EvidenceResolutionService, PolicyBoundaryService
 from app.services.product_catalog_service import ProductCatalogService
 from app.services.product_condition_service import ProductConditionService
 from app.services.session_service import CustomerSessionService
@@ -65,6 +65,10 @@ def get_supplemental_assessment_service(request: Request) -> SupplementalAssessm
 
 def get_assessment_comparison_service(request: Request) -> AssessmentComparisonService:
     return request.app.state.assessment_comparison_service
+
+
+def get_evidence_resolution_service(request: Request) -> EvidenceResolutionService:
+    return request.app.state.evidence_resolution_service
 
 
 def get_policy_boundary_service(request: Request) -> PolicyBoundaryService:
@@ -281,6 +285,36 @@ async def compare_assessments(
     request: Request,
 ) -> AssessmentComparisonResponse:
     return get_assessment_comparison_service(request).compare(
+        session_id,
+        request.state.request_id,
+    )
+
+
+@router.get(
+    "/{session_id}/assessment/resolution",
+    response_model=EvidenceResolutionResponse,
+    responses={404: {"model": ApiErrorResponse}},
+)
+async def get_evidence_resolution(
+    session_id: str,
+    request: Request,
+) -> EvidenceResolutionResponse:
+    return get_evidence_resolution_service(request).get_latest(session_id)
+
+
+@router.post(
+    "/{session_id}/assessment/resolution",
+    response_model=EvidenceResolutionResponse,
+    responses={
+        404: {"model": ApiErrorResponse},
+        409: {"model": ApiErrorResponse},
+    },
+)
+async def resolve_evidence_collection(
+    session_id: str,
+    request: Request,
+) -> EvidenceResolutionResponse:
+    return get_evidence_resolution_service(request).resolve(
         session_id,
         request.state.request_id,
     )

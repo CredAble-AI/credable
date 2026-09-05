@@ -42,7 +42,11 @@ from app.services.evidence_submission_service import (
     DemoEvidenceSubmissionCatalog,
     EvidenceSubmissionService,
 )
-from app.services.policy_boundary_service import DemoPolicyBoundaryCatalog, PolicyBoundaryService
+from app.services.policy_boundary_service import (
+    DemoPolicyBoundaryCatalog,
+    EvidenceResolutionService,
+    PolicyBoundaryService,
+)
 from app.services.product_catalog_service import ProductCatalogService
 from app.services.product_condition_service import ProductConditionService
 from app.services.session_service import CustomerSessionService, DemoProfileCatalog
@@ -228,6 +232,21 @@ def assessment_comparison_service(
 
 
 @pytest.fixture
+def evidence_resolution_service(
+    policy_boundary_repository: SqlitePolicyBoundaryRepository,
+    assessment_repository: SqliteAssessmentRepository,
+    session_service: CustomerSessionService,
+    policy_boundary_service: PolicyBoundaryService,
+) -> EvidenceResolutionService:
+    return EvidenceResolutionService(
+        repository=policy_boundary_repository,
+        assessment_repository=assessment_repository,
+        session_service=session_service,
+        catalog=policy_boundary_service.catalog,
+    )
+
+
+@pytest.fixture
 def product_catalog_repository(tmp_path) -> SqliteProductCatalogRepository:
     return SqliteProductCatalogRepository(tmp_path / "test.db")
 
@@ -279,6 +298,7 @@ def client(
     evidence_quality_service: EvidenceQualityService,
     supplemental_assessment_service: SupplementalAssessmentService,
     assessment_comparison_service: AssessmentComparisonService,
+    evidence_resolution_service: EvidenceResolutionService,
     product_catalog_service: ProductCatalogService,
     product_condition_service: ProductConditionService,
 ) -> Generator[TestClient]:
@@ -294,6 +314,7 @@ def client(
             evidence_quality_service=evidence_quality_service,
             supplemental_assessment_service=supplemental_assessment_service,
             assessment_comparison_service=assessment_comparison_service,
+            evidence_resolution_service=evidence_resolution_service,
             product_catalog_service=product_catalog_service,
             product_condition_service=product_condition_service,
             admin_authenticator=AdminApiKeyAuthenticator("test-admin-api-key"),
