@@ -1,4 +1,5 @@
 import type { ApiError } from '../types/api'
+import type { ConsentListResponse, ConsentState } from '../types/consent'
 import { emptyConsents, type BusinessBorrowerType, type ConsentSelections, type CustomerSession, type DemoProfile } from '../types/customerSession'
 
 export interface CustomerSessionProvider {
@@ -38,9 +39,6 @@ interface BackendCustomerSession {
 interface DemoProfileCatalogResponse { dataVersion: string; profiles: DemoProfile[]; demoOnly: true }
 interface DemoSessionCreateResponse { sessionId: string; session: BackendCustomerSession }
 interface CustomerSessionState { session: BackendCustomerSession }
-interface ConsentState { sourceType: 'BANK_INTERNAL' | 'CREDIT_INFORMATION' | 'CUSTOMER_SUBMITTED' | 'EXTERNAL_CONNECTED'; status: 'PENDING' | 'GRANTED' | 'WITHDRAWN' }
-interface ConsentListResponse { sessionId: string; consents: ConsentState[]; scopeVersion: string; demoOnly: true }
-
 const toCustomerSession = (session: BackendCustomerSession, consents: ConsentSelections): CustomerSession => ({
   sessionId: session.sessionId,
   selectedProfileType: session.demoProfile.demoProfileId,
@@ -102,8 +100,8 @@ export const liveCustomerSessionProvider: CustomerSessionProvider = {
   async updateConsents(consents, signal) {
     const sessionId = readSessionId()
     if (!sessionId) return null
-    // No backend grant/withdraw call is wired yet, so this only carries the customer's selection
-    // forward to the next screen; a refresh restores the backend's actual (currently PENDING) state via get().
+    // Compatibility path for screens that still consume the legacy grouped consent shape.
+    // New consent changes use liveConsentProvider's source-based grant/withdraw endpoints.
     const sessionState = await apiRequest<CustomerSessionState>(`/v1/sessions/${encodeURIComponent(sessionId)}`, signal)
     return toCustomerSession(sessionState.session, consents)
   },
