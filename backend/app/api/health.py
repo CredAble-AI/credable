@@ -9,6 +9,7 @@ from app.services.assessment_service import (
 )
 from app.services.bank_data_service import BankDataService
 from app.services.consent_service import ConsentService
+from app.services.credit_exposure_service import CreditExposureService
 from app.services.credit_history_service import CreditHistoryService
 from app.services.data_source_service import DataSourceService
 from app.services.evidence_quality_service import EvidenceQualityService
@@ -36,6 +37,7 @@ async def get_readiness(request: Request) -> ReadinessResponse:
     bank_data_service: BankDataService = request.app.state.bank_data_service
     credit_history_service: CreditHistoryService = request.app.state.credit_history_service
     loan_history_service: LoanHistoryService = request.app.state.loan_history_service
+    credit_exposure_service: CreditExposureService = request.app.state.credit_exposure_service
     consent_service: ConsentService = request.app.state.consent_service
     data_source_service: DataSourceService = request.app.state.data_source_service
     assessment_service: AssessmentService = request.app.state.assessment_service
@@ -64,6 +66,7 @@ async def get_readiness(request: Request) -> ReadinessResponse:
         **bank_data_service.readiness(),
         **credit_history_service.readiness(),
         **loan_history_service.readiness(),
+        **credit_exposure_service.readiness(),
         **consent_service.readiness(),
         **data_source_service.readiness(),
         **assessment_service.readiness(),

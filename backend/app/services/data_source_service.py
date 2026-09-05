@@ -19,7 +19,7 @@ from app.services.consent_service import ConsentService
 from app.services.session_service import CustomerSessionService
 
 
-class BankInternalSnapshotMaterializer(Protocol):
+class SnapshotMaterializer(Protocol):
     def materialize_if_version_matches(
         self,
         session_id: str,
@@ -34,13 +34,15 @@ class DataSourceService:
         consent_service: ConsentService,
         session_service: CustomerSessionService,
         adapter: DataSourceAdapter,
-        bank_internal_materializers: tuple[BankInternalSnapshotMaterializer, ...] = (),
+        bank_internal_materializers: tuple[SnapshotMaterializer, ...] = (),
+        credit_information_materializers: tuple[SnapshotMaterializer, ...] = (),
     ) -> None:
         self.repository = repository
         self.consent_service = consent_service
         self.session_service = session_service
         self.adapter = adapter
         self.bank_internal_materializers = bank_internal_materializers
+        self.credit_information_materializers = credit_information_materializers
 
     def initialize(self) -> None:
         self.repository.initialize()
@@ -75,14 +77,21 @@ class DataSourceService:
                     retrieval_status=RetrievalStatus.FAILED,
                     reason_code="DATA_SOURCE_ADAPTER_ERROR",
                 )
+            materializers = {
+                ConsentSourceType.BANK_INTERNAL: self.bank_internal_materializers,
+                ConsentSourceType.CREDIT_INFORMATION: self.credit_information_materializers,
+            }.get(consent.source_type, ())
+            materialization_error_code = {
+                ConsentSourceType.BANK_INTERNAL: "BANK_DATA_MATERIALIZATION_ERROR",
+                ConsentSourceType.CREDIT_INFORMATION: "CREDIT_INFORMATION_MATERIALIZATION_ERROR",
+            }.get(consent.source_type, "DATA_MATERIALIZATION_ERROR")
             if (
-                self.bank_internal_materializers
-                and consent.source_type == ConsentSourceType.BANK_INTERNAL
+                materializers
                 and result.retrieval_status == RetrievalStatus.RETRIEVED
                 and result.verification_status == VerificationStatus.VERIFIED
             ):
                 try:
-                    for materializer in self.bank_internal_materializers:
+                    for materializer in materializers:
                         materializer.materialize_if_version_matches(
                             session_id,
                             result.data_version,
@@ -90,7 +99,7 @@ class DataSourceService:
                 except Exception:
                     result = AdapterRetrievalResult(
                         retrieval_status=RetrievalStatus.FAILED,
-                        reason_code="BANK_DATA_MATERIALIZATION_ERROR",
+                        reason_code=materialization_error_code,
                     )
             state = DataSourceState(
                 source_type=consent.source_type,

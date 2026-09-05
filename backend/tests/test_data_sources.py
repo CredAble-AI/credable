@@ -5,6 +5,7 @@ from fastapi.testclient import TestClient
 from app.adapters.data_source_adapter import DataSourceAdapter, DemoDataSourceAdapter
 from app.core.config import settings
 from app.repositories.bank_data_repository import SqliteBankDataRepository
+from app.repositories.credit_exposure_repository import SqliteCreditExposureRepository
 from app.repositories.credit_history_repository import SqliteCreditHistoryRepository
 from app.repositories.data_source_repository import SqliteDataSourceRepository
 from app.repositories.loan_history_repository import SqliteLoanHistoryRepository
@@ -148,6 +149,7 @@ def test_demo_data_sources_match_small_business_frontend_fixture(
     bank_data_repository: SqliteBankDataRepository,
     credit_history_repository: SqliteCreditHistoryRepository,
     loan_history_repository: SqliteLoanHistoryRepository,
+    credit_exposure_repository: SqliteCreditExposureRepository,
 ) -> None:
     session_id = create_session(client)
     for source_type in ConsentSourceType:
@@ -165,7 +167,12 @@ def test_demo_data_sources_match_small_business_frontend_fixture(
     assert {item["observedAt"] for item in sources} == {"2026-08-31T23:59:59+09:00"}
     versions = {item["sourceType"]: item["dataVersion"] for item in sources}
     assert versions["BANK_INTERNAL"] == "synthetic-bank-data-v1"
-    assert set(versions.values()) == {"synthetic-bank-data-v1", "synthetic-demo-v1"}
+    assert versions["CREDIT_INFORMATION"] == "synthetic-credit-information-v1"
+    assert set(versions.values()) == {
+        "synthetic-bank-data-v1",
+        "synthetic-credit-information-v1",
+        "synthetic-demo-v1",
+    }
     assert all(item["demoOnly"] is True for item in sources)
     bank_snapshot = bank_data_repository.get_snapshot(session_id)
     assert bank_snapshot is not None
@@ -180,11 +187,16 @@ def test_demo_data_sources_match_small_business_frontend_fixture(
     assert loan_snapshot.data_version == versions["BANK_INTERNAL"]
     assert len(loan_snapshot.loan_accounts) == 1
     assert len(loan_snapshot.repayment_events) == 2
+    exposure_snapshot = credit_exposure_repository.get_snapshot(session_id)
+    assert exposure_snapshot is not None
+    assert exposure_snapshot.data_version == versions["CREDIT_INFORMATION"]
+    assert len(exposure_snapshot.exposures) == 1
 
 
 def test_demo_data_sources_keep_startup_stale_and_failed_states_separate(
     client: TestClient,
     data_source_service: DataSourceService,
+    credit_exposure_repository: SqliteCreditExposureRepository,
 ) -> None:
     session_id = create_session(client, "startup")
     for source_type in ConsentSourceType:
@@ -204,6 +216,10 @@ def test_demo_data_sources_keep_startup_stale_and_failed_states_separate(
     assert sources["EXTERNAL_CONNECTED"]["reasonCode"] == "DEMO_PARTNER_UNAVAILABLE"
     assert sources["EXTERNAL_CONNECTED"]["observedAt"] is None
     assert sources["EXTERNAL_CONNECTED"]["dataVersion"] is None
+    exposure_snapshot = credit_exposure_repository.get_snapshot(session_id)
+    assert exposure_snapshot is not None
+    assert exposure_snapshot.data_version == "synthetic-credit-information-v1"
+    assert exposure_snapshot.exposures == []
 
 
 def test_withdrawal_hides_stored_state_and_regrant_requires_refresh(
