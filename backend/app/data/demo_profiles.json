@@ -1,15 +1,73 @@
 {
-  "dataVersion": "demo-profiles-v1",
+  "dataVersion": "demo-profiles-v2",
   "profiles": [
     {
       "demoProfileId": "small-business",
       "displayName": "소상공인 Demo",
-      "description": "소상공인 고객 흐름을 확인하기 위한 합성 Demo Profile"
+      "description": "소상공인 고객 흐름을 확인하기 위한 합성 Demo Profile",
+      "customerSubject": {
+        "borrower": {
+          "borrowerId": "bor_demo_001",
+          "borrowerType": "SOLE_PROPRIETOR",
+          "displayName": "도담상점 고객(합성)"
+        },
+        "primaryBusiness": {
+          "businessId": "biz_demo_001",
+          "legalForm": "SOLE_PROPRIETOR",
+          "displayName": "도담상점(합성)",
+          "industryCode": "DEMO_RETAIL",
+          "industryCodeSystem": "DEMO",
+          "industryName": "소매업 예시",
+          "businessStartedOn": "2022-04-15",
+          "status": "ACTIVE"
+        },
+        "businessRole": {
+          "borrowerId": "bor_demo_001",
+          "businessId": "biz_demo_001",
+          "roleType": "OWNER",
+          "isPrimary": true,
+          "effectiveFrom": "2022-04-15",
+          "effectiveTo": null
+        },
+        "sourceType": "BANK_INTERNAL",
+        "asOfDate": "2026-09-01",
+        "dataVersion": "demo-customer-subjects-v1",
+        "demoOnly": true
+      }
     },
     {
       "demoProfileId": "startup",
       "displayName": "스타트업 Demo",
-      "description": "스타트업 고객 흐름을 확인하기 위한 합성 Demo Profile"
+      "description": "스타트업 고객 흐름을 확인하기 위한 합성 Demo Profile",
+      "customerSubject": {
+        "borrower": {
+          "borrowerId": "bor_demo_002",
+          "borrowerType": "CORPORATION",
+          "displayName": "넥스트웍스 법인(합성)"
+        },
+        "primaryBusiness": {
+          "businessId": "biz_demo_002",
+          "legalForm": "CORPORATION",
+          "displayName": "넥스트웍스(합성)",
+          "industryCode": "DEMO_SOFTWARE",
+          "industryCodeSystem": "DEMO",
+          "industryName": "소프트웨어업 예시",
+          "businessStartedOn": "2024-11-01",
+          "status": "ACTIVE"
+        },
+        "businessRole": {
+          "borrowerId": "bor_demo_002",
+          "businessId": "biz_demo_002",
+          "roleType": "BORROWER_ENTITY",
+          "isPrimary": true,
+          "effectiveFrom": "2024-11-01",
+          "effectiveTo": null
+        },
+        "sourceType": "BANK_INTERNAL",
+        "asOfDate": "2026-09-01",
+        "dataVersion": "demo-customer-subjects-v1",
+        "demoOnly": true
+      }
     }
   ]
 }

@@ -27,8 +27,11 @@ uv run uvicorn app.main:app --reload
 
 ## Demo 고객 세션 API
 
-Demo Profile은 소상공인과 스타트업 예시만 제공합니다. 같은 Profile을 다시 요청해도 새로운
-세션을 생성하며, 생성된 세션은 `sessionId`로 복구할 수 있습니다.
+Demo Profile은 소상공인과 스타트업 합성 사례를 제공합니다. `demoProfileId`는 테스트에서
+고정된 Fixture를 선택하기 위한 내부 시나리오 키이며 고객이 가입 단계에서 고르는 업종·유형이
+아닙니다. 실제 서비스에서는 모든 대출 탐색 고객이 같은 진입 흐름을 사용하고, 고객·사업자
+유형은 은행 보유 속성을 서버가 식별합니다. 같은 Profile을 다시 요청해도 새로운 세션을
+생성하며, 생성된 세션은 `sessionId`로 복구할 수 있습니다.
 
 ```bash
 curl http://127.0.0.1:8000/v1/demo-profiles
@@ -40,12 +43,19 @@ curl -X POST http://127.0.0.1:8000/v1/sessions/demo \
 curl http://127.0.0.1:8000/v1/sessions/<sessionId>
 ```
 
-Frontend는 `GET /v1/demo-profiles` 응답의 `demoProfileId`를 세션 생성 요청에 사용합니다.
-응답에는 표시용 이름·설명과 `dataVersion`, `demoOnly`가 포함되므로 Profile 목록을 별도로
-하드코딩하지 않습니다.
+현재 Frontend 호환 계층은 `GET /v1/demo-profiles` 응답의 `demoProfileId`를 세션 생성 요청에
+사용합니다. 이는 고객 분류 선택지가 아니라 Demo Adapter의 합성 시나리오를 지정하는 키이며,
+응답의 표시용 이름·설명과 `dataVersion`, `demoOnly`도 Demo 실행에만 사용합니다.
 
-세션에는 평가점수·등급·한도·금리를 포함하지 않습니다. 현재 단계에서는 합성 Demo Profile,
-`demoOnly`, 데이터 버전과 생성 시각만 저장합니다.
+세션에는 서버가 확정한 `customerSubject`가 포함됩니다. 고객, 주사업체와 고객-사업체 관계를
+각각 `borrowers`, `businesses`, `borrower_business_roles`에 정규화하고
+`customer_session_subjects`로 세션과 연결합니다. 출처, 기준일, 데이터 버전과 `demoOnly`를
+함께 보존하며 실제 주민·사업자등록번호는 저장하지 않습니다. 현재 값과 코드체계는 모두 합성
+Fixture이므로 실제 은행 고객정보나 공식 업종코드로 해석하지 않습니다.
+
+기존 Frontend 호환을 위해 세션 생성 요청의 `demoProfileId`와 응답의 `demoProfile`은 당분간
+유지합니다. 고객 화면에서 Profile 선택을 제거한 뒤에는 이 값을 테스트·관리자 경로로만
+제한하는 후속 계약 변경이 필요합니다.
 
 ## Demo 동의 상태 API
 

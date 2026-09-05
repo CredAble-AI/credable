@@ -79,6 +79,7 @@ class CustomerSessionService:
         session = CustomerSession(
             session_id=f"ses_{uuid4().hex}",
             demo_profile=definition.to_profile(),
+            customer_subject=definition.customer_subject,
             created_at=created_at,
             data_version=self.catalog.data_version,
         )
@@ -90,6 +91,16 @@ class CustomerSessionService:
             separators=(",", ":"),
             sort_keys=True,
         )
+        output_summary: dict[str, str | bool | int | float] = {
+            "demoProfileId": definition.demo_profile_id,
+            "borrowerId": definition.customer_subject.borrower.borrower_id,
+            "demoOnly": session.demo_only,
+        }
+        if definition.customer_subject.primary_business is not None:
+            output_summary["primaryBusinessId"] = (
+                definition.customer_subject.primary_business.business_id
+            )
+
         audit_event = SessionAuditEvent(
             event_id=f"evt_{uuid4().hex}",
             session_id=session.session_id,
@@ -99,10 +110,7 @@ class CustomerSessionService:
             actor=AuditActor.SYSTEM,
             input_version=self.catalog.data_version,
             input_snapshot_hash=hashlib.sha256(snapshot_json.encode()).hexdigest(),
-            output_summary={
-                "demoProfileId": definition.demo_profile_id,
-                "demoOnly": session.demo_only,
-            },
+            output_summary=output_summary,
             data_version=self.catalog.data_version,
         )
         return self.repository.create_session(state=state, audit_event=audit_event)

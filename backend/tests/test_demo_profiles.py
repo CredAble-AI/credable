@@ -9,7 +9,7 @@ def test_list_demo_profiles_returns_supported_session_profiles(
     assert response.status_code == 200
     assert response.headers["X-Request-ID"].startswith("req_")
     assert response.json() == {
-        "dataVersion": "demo-profiles-v1",
+        "dataVersion": "demo-profiles-v2",
         "profiles": [
             {
                 "demoProfileId": "small-business",
