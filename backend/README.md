@@ -176,6 +176,30 @@ Fixture의 내부 참조 문자열이나 원본 금융자료는 저장·응답·
 구현해야 합니다. 다음 단계의 품질 검증은 현재 등록된 메타데이터와 별도 Demo 품질 Fixture를
 사용합니다.
 
+## Demo Evidence 품질 검증 API
+
+제출된 Evidence를 출처·최신성·진위·완전성·일관성·조작 위험의 여섯 차원으로 검증합니다.
+모든 차원이 `PASSED`일 때만 `ACCEPTED`와 `eligibleForReassessment: true`를 반환하며,
+하나라도 `FAILED` 또는 `NOT_VERIFIED`이면 `REJECTED`로 차단합니다.
+
+```bash
+curl \
+  http://127.0.0.1:8000/v1/sessions/<sessionId>/evidence/submissions/<submissionId>/quality
+
+curl -X POST \
+  http://127.0.0.1:8000/v1/sessions/<sessionId>/evidence/submissions/<submissionId>/quality
+```
+
+현재 결과는 합성 Demo Fixture에 명시된 상태와 설명 코드이며 실제 문서 판독, 서명·발급처
+검증이나 금융기관 품질 임계값을 구현한 것이 아닙니다. 같은 `submissionId`를 다시 검증하면
+저장된 결과를 반환해 중복 판정과 중복 Audit을 만들지 않습니다. 판정에는 제출 Snapshot
+Hash, 데이터 버전, 품질 정책 버전을 보존하며 원본 Evidence나 내부 임계값은 응답과 Audit에
+포함하지 않습니다.
+
+실제 운영 규칙은 은행이 인정하는 발급처, 유효기간, 필수 필드, 교차검증 원천과 조작 탐지
+방식이 확정된 뒤 Adapter로 교체해야 합니다. 품질 검증을 통과하지 못한 Evidence는 다음
+보완평가 입력으로 사용할 수 없습니다.
+
 ## 자사 상품 카탈로그 API
 
 상품 카탈로그는 세션별 최신 상태 조회와 새로고침을 지원합니다. 기본 Demo Adapter는
@@ -258,11 +282,11 @@ uv run pytest
 ## 현재 범위
 
 현재 FastAPI 애플리케이션, liveness/readiness API, Demo 고객 세션, 데이터 출처별 동의와
-조회·검증 상태, 보완평가 실행 기반, Demo 정책 경계 판정·최소 증빙 선택·제출 상태, 합성
-자사 상품 카탈로그와 비교 API를 제공합니다. 합성 데이터 출처 상태와 보완평가 상태,
-소상공인용 개인화 상품 조건은 기존 Frontend Fixture와 일치합니다. Legacy `/v1/cases/*`
-흐름은 제거됐습니다. 실제 평가모델·은행 상품정책·은행 연동과 Frontend의 Backend API
-전환은 별도 작업으로 진행합니다.
+조회·검증 상태, 보완평가 실행 기반, Demo 정책 경계 판정·최소 증빙 선택·제출·품질 검증
+상태, 합성 자사 상품 카탈로그와 비교 API를 제공합니다. 합성 데이터 출처 상태와 보완평가
+상태, 소상공인용 개인화 상품 조건은 기존 Frontend Fixture와 일치합니다. Legacy
+`/v1/cases/*` 흐름은 제거됐습니다. 실제 평가모델·은행 상품정책·Evidence 품질 검증·은행
+연동과 Frontend의 Backend API 전환은 별도 작업으로 진행합니다.
 
 기존 SQLite 파일에 남아 있을 수 있는 Legacy Case 테이블과 데이터는 보존·삭제 정책이 정해질
 때까지 애플리케이션이 자동으로 삭제하지 않습니다.
