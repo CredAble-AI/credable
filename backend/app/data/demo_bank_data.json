@@ -1,0 +1,90 @@
+{
+  "dataVersion": "synthetic-bank-data-v1",
+  "profiles": [
+    {
+      "demoProfileId": "small-business",
+      "borrowerId": "bor_demo_001",
+      "primaryBusinessId": "biz_demo_001",
+      "observedAt": "2026-08-31T23:59:59+09:00",
+      "accounts": [
+        {
+          "accountId": "acc_demo_001",
+          "borrowerId": "bor_demo_001",
+          "primaryBusinessId": "biz_demo_001",
+          "institutionCode": "DEMO_BANK",
+          "accountType": "DEMAND_DEPOSIT",
+          "currency": "KRW",
+          "openedOn": "2022-04-15",
+          "closedOn": null,
+          "status": "ACTIVE"
+        }
+      ],
+      "balances": [
+        {
+          "accountId": "acc_demo_001",
+          "asOfAt": "2026-08-31T23:59:59+09:00",
+          "bookedBalance": "7840000",
+          "availableBalance": "7840000",
+          "currency": "KRW"
+        }
+      ],
+      "transactions": [
+        {"transactionId":"txn_demo_001_01","accountId":"acc_demo_001","bookedAt":"2026-03-05T10:15:00+09:00","valueDate":"2026-03-05","creditDebitIndicator":"CREDIT","amount":"12800000","currency":"KRW","balanceAfter":"16300000","transactionTypeCode":"DEMO_CREDIT_TRANSFER"},
+        {"transactionId":"txn_demo_001_02","accountId":"acc_demo_001","bookedAt":"2026-03-28T16:30:00+09:00","valueDate":"2026-03-28","creditDebitIndicator":"DEBIT","amount":"11900000","currency":"KRW","balanceAfter":"4400000","transactionTypeCode":"DEMO_DEBIT_TRANSFER"},
+        {"transactionId":"txn_demo_001_03","accountId":"acc_demo_001","bookedAt":"2026-04-05T10:20:00+09:00","valueDate":"2026-04-05","creditDebitIndicator":"CREDIT","amount":"13100000","currency":"KRW","balanceAfter":"17500000","transactionTypeCode":"DEMO_CREDIT_TRANSFER"},
+        {"transactionId":"txn_demo_001_04","accountId":"acc_demo_001","bookedAt":"2026-04-28T16:25:00+09:00","valueDate":"2026-04-28","creditDebitIndicator":"DEBIT","amount":"12500000","currency":"KRW","balanceAfter":"5000000","transactionTypeCode":"DEMO_DEBIT_TRANSFER"},
+        {"transactionId":"txn_demo_001_05","accountId":"acc_demo_001","bookedAt":"2026-05-05T10:10:00+09:00","valueDate":"2026-05-05","creditDebitIndicator":"CREDIT","amount":"12400000","currency":"KRW","balanceAfter":"17400000","transactionTypeCode":"DEMO_CREDIT_TRANSFER"},
+        {"transactionId":"txn_demo_001_06","accountId":"acc_demo_001","bookedAt":"2026-05-28T16:35:00+09:00","valueDate":"2026-05-28","creditDebitIndicator":"DEBIT","amount":"12000000","currency":"KRW","balanceAfter":"5400000","transactionTypeCode":"DEMO_DEBIT_TRANSFER"},
+        {"transactionId":"txn_demo_001_07","accountId":"acc_demo_001","bookedAt":"2026-06-05T10:05:00+09:00","valueDate":"2026-06-05","creditDebitIndicator":"CREDIT","amount":"13700000","currency":"KRW","balanceAfter":"19100000","transactionTypeCode":"DEMO_CREDIT_TRANSFER"},
+        {"transactionId":"txn_demo_001_08","accountId":"acc_demo_001","bookedAt":"2026-06-28T16:20:00+09:00","valueDate":"2026-06-28","creditDebitIndicator":"DEBIT","amount":"12900000","currency":"KRW","balanceAfter":"6200000","transactionTypeCode":"DEMO_DEBIT_TRANSFER"},
+        {"transactionId":"txn_demo_001_09","accountId":"acc_demo_001","bookedAt":"2026-07-05T10:30:00+09:00","valueDate":"2026-07-05","creditDebitIndicator":"CREDIT","amount":"14100000","currency":"KRW","balanceAfter":"20300000","transactionTypeCode":"DEMO_CREDIT_TRANSFER"},
+        {"transactionId":"txn_demo_001_10","accountId":"acc_demo_001","bookedAt":"2026-07-28T16:15:00+09:00","valueDate":"2026-07-28","creditDebitIndicator":"DEBIT","amount":"13400000","currency":"KRW","balanceAfter":"6900000","transactionTypeCode":"DEMO_DEBIT_TRANSFER"},
+        {"transactionId":"txn_demo_001_11","accountId":"acc_demo_001","bookedAt":"2026-08-05T10:25:00+09:00","valueDate":"2026-08-05","creditDebitIndicator":"CREDIT","amount":"14500000","currency":"KRW","balanceAfter":"21400000","transactionTypeCode":"DEMO_CREDIT_TRANSFER"},
+        {"transactionId":"txn_demo_001_12","accountId":"acc_demo_001","bookedAt":"2026-08-28T16:40:00+09:00","valueDate":"2026-08-28","creditDebitIndicator":"DEBIT","amount":"13560000","currency":"KRW","balanceAfter":"7840000","transactionTypeCode":"DEMO_DEBIT_TRANSFER"}
+      ]
+    },
+    {
+      "demoProfileId": "startup",
+      "borrowerId": "bor_demo_002",
+      "primaryBusinessId": "biz_demo_002",
+      "observedAt": "2026-08-31T23:59:59+09:00",
+      "accounts": [
+        {
+          "accountId": "acc_demo_002",
+          "borrowerId": "bor_demo_002",
+          "primaryBusinessId": "biz_demo_002",
+          "institutionCode": "DEMO_BANK",
+          "accountType": "DEMAND_DEPOSIT",
+          "currency": "KRW",
+          "openedOn": "2024-11-01",
+          "closedOn": null,
+          "status": "ACTIVE"
+        }
+      ],
+      "balances": [
+        {
+          "accountId": "acc_demo_002",
+          "asOfAt": "2026-08-31T23:59:59+09:00",
+          "bookedBalance": "82000000",
+          "availableBalance": "82000000",
+          "currency": "KRW"
+        }
+      ],
+      "transactions": [
+        {"transactionId":"txn_demo_002_01","accountId":"acc_demo_002","bookedAt":"2026-03-05T11:00:00+09:00","valueDate":"2026-03-05","creditDebitIndicator":"CREDIT","amount":"45000000","currency":"KRW","balanceAfter":"127000000","transactionTypeCode":"DEMO_CREDIT_TRANSFER"},
+        {"transactionId":"txn_demo_002_02","accountId":"acc_demo_002","bookedAt":"2026-03-28T17:00:00+09:00","valueDate":"2026-03-28","creditDebitIndicator":"DEBIT","amount":"38000000","currency":"KRW","balanceAfter":"89000000","transactionTypeCode":"DEMO_DEBIT_TRANSFER"},
+        {"transactionId":"txn_demo_002_03","accountId":"acc_demo_002","bookedAt":"2026-04-05T11:05:00+09:00","valueDate":"2026-04-05","creditDebitIndicator":"CREDIT","amount":"32000000","currency":"KRW","balanceAfter":"121000000","transactionTypeCode":"DEMO_CREDIT_TRANSFER"},
+        {"transactionId":"txn_demo_002_04","accountId":"acc_demo_002","bookedAt":"2026-04-28T17:05:00+09:00","valueDate":"2026-04-28","creditDebitIndicator":"DEBIT","amount":"40000000","currency":"KRW","balanceAfter":"81000000","transactionTypeCode":"DEMO_DEBIT_TRANSFER"},
+        {"transactionId":"txn_demo_002_05","accountId":"acc_demo_002","bookedAt":"2026-05-05T11:10:00+09:00","valueDate":"2026-05-05","creditDebitIndicator":"CREDIT","amount":"38000000","currency":"KRW","balanceAfter":"119000000","transactionTypeCode":"DEMO_CREDIT_TRANSFER"},
+        {"transactionId":"txn_demo_002_06","accountId":"acc_demo_002","bookedAt":"2026-05-28T17:10:00+09:00","valueDate":"2026-05-28","creditDebitIndicator":"DEBIT","amount":"42000000","currency":"KRW","balanceAfter":"77000000","transactionTypeCode":"DEMO_DEBIT_TRANSFER"},
+        {"transactionId":"txn_demo_002_07","accountId":"acc_demo_002","bookedAt":"2026-06-05T11:15:00+09:00","valueDate":"2026-06-05","creditDebitIndicator":"CREDIT","amount":"35000000","currency":"KRW","balanceAfter":"112000000","transactionTypeCode":"DEMO_CREDIT_TRANSFER"},
+        {"transactionId":"txn_demo_002_08","accountId":"acc_demo_002","bookedAt":"2026-06-28T17:15:00+09:00","valueDate":"2026-06-28","creditDebitIndicator":"DEBIT","amount":"43000000","currency":"KRW","balanceAfter":"69000000","transactionTypeCode":"DEMO_DEBIT_TRANSFER"},
+        {"transactionId":"txn_demo_002_09","accountId":"acc_demo_002","bookedAt":"2026-07-05T11:20:00+09:00","valueDate":"2026-07-05","creditDebitIndicator":"CREDIT","amount":"40000000","currency":"KRW","balanceAfter":"109000000","transactionTypeCode":"DEMO_CREDIT_TRANSFER"},
+        {"transactionId":"txn_demo_002_10","accountId":"acc_demo_002","bookedAt":"2026-07-28T17:20:00+09:00","valueDate":"2026-07-28","creditDebitIndicator":"DEBIT","amount":"44000000","currency":"KRW","balanceAfter":"65000000","transactionTypeCode":"DEMO_DEBIT_TRANSFER"},
+        {"transactionId":"txn_demo_002_11","accountId":"acc_demo_002","bookedAt":"2026-08-05T11:25:00+09:00","valueDate":"2026-08-05","creditDebitIndicator":"CREDIT","amount":"42000000","currency":"KRW","balanceAfter":"107000000","transactionTypeCode":"DEMO_CREDIT_TRANSFER"},
+        {"transactionId":"txn_demo_002_12","accountId":"acc_demo_002","bookedAt":"2026-08-28T17:25:00+09:00","valueDate":"2026-08-28","creditDebitIndicator":"DEBIT","amount":"25000000","currency":"KRW","balanceAfter":"82000000","transactionTypeCode":"DEMO_DEBIT_TRANSFER"}
+      ]
+    }
+  ],
+  "demoOnly": true
+}

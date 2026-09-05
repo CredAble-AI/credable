@@ -4,6 +4,7 @@ from fastapi.testclient import TestClient
 
 from app.adapters.data_source_adapter import DataSourceAdapter, DemoDataSourceAdapter
 from app.core.config import settings
+from app.repositories.bank_data_repository import SqliteBankDataRepository
 from app.repositories.data_source_repository import SqliteDataSourceRepository
 from app.repositories.session_repository import SqliteCustomerSessionRepository
 from app.schemas.audit import AuditStage
@@ -142,6 +143,7 @@ def test_refresh_isolates_source_failure_and_records_verified_metadata(
 def test_demo_data_sources_match_small_business_frontend_fixture(
     client: TestClient,
     data_source_service: DataSourceService,
+    bank_data_repository: SqliteBankDataRepository,
 ) -> None:
     session_id = create_session(client)
     for source_type in ConsentSourceType:
@@ -157,8 +159,14 @@ def test_demo_data_sources_match_small_business_frontend_fixture(
     assert {item["retrievalStatus"] for item in sources} == {"RETRIEVED"}
     assert {item["verificationStatus"] for item in sources} == {"VERIFIED"}
     assert {item["observedAt"] for item in sources} == {"2026-08-31T23:59:59+09:00"}
-    assert {item["dataVersion"] for item in sources} == {"synthetic-demo-v1"}
+    versions = {item["sourceType"]: item["dataVersion"] for item in sources}
+    assert versions["BANK_INTERNAL"] == "synthetic-bank-data-v1"
+    assert set(versions.values()) == {"synthetic-bank-data-v1", "synthetic-demo-v1"}
     assert all(item["demoOnly"] is True for item in sources)
+    bank_snapshot = bank_data_repository.get_snapshot(session_id)
+    assert bank_snapshot is not None
+    assert bank_snapshot.data_version == versions["BANK_INTERNAL"]
+    assert len(bank_snapshot.transactions) == 12
 
 
 def test_demo_data_sources_keep_startup_stale_and_failed_states_separate(

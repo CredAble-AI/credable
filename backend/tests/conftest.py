@@ -14,6 +14,7 @@ from app.core.admin_auth import AdminApiKeyAuthenticator
 from app.core.config import settings
 from app.main import create_app
 from app.repositories.assessment_repository import SqliteAssessmentRepository
+from app.repositories.bank_data_repository import SqliteBankDataRepository
 from app.repositories.consent_repository import SqliteConsentRepository
 from app.repositories.data_source_repository import SqliteDataSourceRepository
 from app.repositories.evidence_quality_repository import SqliteEvidenceQualityRepository
@@ -28,6 +29,7 @@ from app.services.assessment_service import (
     AssessmentService,
     SupplementalAssessmentService,
 )
+from app.services.bank_data_service import BankDataService, DemoBankDataCatalogService
 from app.services.consent_service import ConsentService, DemoConsentScopeCatalog
 from app.services.data_source_service import DataSourceService
 from app.services.evidence_quality_service import (
@@ -85,6 +87,23 @@ def consent_service(
 
 
 @pytest.fixture
+def bank_data_repository(tmp_path) -> SqliteBankDataRepository:
+    return SqliteBankDataRepository(tmp_path / "test.db")
+
+
+@pytest.fixture
+def bank_data_service(
+    bank_data_repository: SqliteBankDataRepository,
+    session_service: CustomerSessionService,
+) -> BankDataService:
+    return BankDataService(
+        repository=bank_data_repository,
+        session_service=session_service,
+        catalog=DemoBankDataCatalogService(settings.demo_bank_data_path),
+    )
+
+
+@pytest.fixture
 def data_source_repository(tmp_path) -> SqliteDataSourceRepository:
     return SqliteDataSourceRepository(tmp_path / "test.db")
 
@@ -94,12 +113,14 @@ def data_source_service(
     data_source_repository: SqliteDataSourceRepository,
     consent_service: ConsentService,
     session_service: CustomerSessionService,
+    bank_data_service: BankDataService,
 ) -> DataSourceService:
     return DataSourceService(
         repository=data_source_repository,
         consent_service=consent_service,
         session_service=session_service,
         adapter=EmptyDemoDataSourceAdapter(),
+        bank_data_service=bank_data_service,
     )
 
 
@@ -295,6 +316,7 @@ def product_condition_service(
 @pytest.fixture
 def client(
     session_service: CustomerSessionService,
+    bank_data_service: BankDataService,
     consent_service: ConsentService,
     data_source_service: DataSourceService,
     assessment_service: AssessmentService,
@@ -311,6 +333,7 @@ def client(
     with TestClient(
         create_app(
             session_service=session_service,
+            bank_data_service=bank_data_service,
             consent_service=consent_service,
             data_source_service=data_source_service,
             assessment_service=assessment_service,

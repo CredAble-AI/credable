@@ -6,7 +6,7 @@ from uuid import uuid4
 from app.adapters.data_source_adapter import DataSourceAdapter
 from app.repositories.data_source_repository import DataSourceRepository
 from app.schemas.audit import AuditActor, AuditStage, SessionAuditEvent
-from app.schemas.consent import ConsentState, ConsentStatus
+from app.schemas.consent import ConsentSourceType, ConsentState, ConsentStatus
 from app.schemas.data_source import (
     AdapterRetrievalResult,
     DataSourceListResponse,
@@ -14,6 +14,7 @@ from app.schemas.data_source import (
     RetrievalStatus,
     VerificationStatus,
 )
+from app.services.bank_data_service import BankDataService
 from app.services.consent_service import ConsentService
 from app.services.session_service import CustomerSessionService
 
@@ -25,11 +26,13 @@ class DataSourceService:
         consent_service: ConsentService,
         session_service: CustomerSessionService,
         adapter: DataSourceAdapter,
+        bank_data_service: BankDataService | None = None,
     ) -> None:
         self.repository = repository
         self.consent_service = consent_service
         self.session_service = session_service
         self.adapter = adapter
+        self.bank_data_service = bank_data_service
 
     def initialize(self) -> None:
         self.repository.initialize()
@@ -64,6 +67,22 @@ class DataSourceService:
                     retrieval_status=RetrievalStatus.FAILED,
                     reason_code="DATA_SOURCE_ADAPTER_ERROR",
                 )
+            if (
+                self.bank_data_service is not None
+                and consent.source_type == ConsentSourceType.BANK_INTERNAL
+                and result.retrieval_status == RetrievalStatus.RETRIEVED
+                and result.verification_status == VerificationStatus.VERIFIED
+            ):
+                try:
+                    self.bank_data_service.materialize_if_version_matches(
+                        session_id,
+                        result.data_version,
+                    )
+                except Exception:
+                    result = AdapterRetrievalResult(
+                        retrieval_status=RetrievalStatus.FAILED,
+                        reason_code="BANK_DATA_MATERIALIZATION_ERROR",
+                    )
             state = DataSourceState(
                 source_type=consent.source_type,
                 display_name=consent.display_name,
