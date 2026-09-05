@@ -1,4 +1,5 @@
 from collections.abc import Generator
+from pathlib import Path
 
 import pytest
 from fastapi.testclient import TestClient
@@ -64,6 +65,7 @@ from app.services.evidence_submission_service import (
 )
 from app.services.feature_snapshot_service import FeatureSnapshotService
 from app.services.loan_history_service import DemoLoanHistoryCatalogService, LoanHistoryService
+from app.services.model_registry_service import DemoModelRegistryCatalog, ModelRegistryService
 from app.services.policy_boundary_service import (
     DemoPolicyBoundaryCatalog,
     EvidenceResolutionService,
@@ -273,6 +275,7 @@ def assessment_service(
     data_source_service: DataSourceService,
     assessment_data_lineage_service: AssessmentDataLineageService,
     feature_snapshot_service: FeatureSnapshotService,
+    model_registry_service: ModelRegistryService,
 ) -> AssessmentService:
     return AssessmentService(
         repository=assessment_repository,
@@ -281,6 +284,14 @@ def assessment_service(
         adapter=UnconfiguredDemoAssessmentAdapter(),
         data_lineage_service=assessment_data_lineage_service,
         feature_snapshot_service=feature_snapshot_service,
+        model_registry_service=model_registry_service,
+    )
+
+
+@pytest.fixture
+def model_registry_service() -> ModelRegistryService:
+    return ModelRegistryService(
+        DemoModelRegistryCatalog(Path(__file__).parent / "fixtures" / "demo_model_registry.json")
     )
 
 
@@ -376,6 +387,7 @@ def supplemental_assessment_service(
     evidence_submission_repository: SqliteEvidenceSubmissionRepository,
     evidence_selection_repository: SqliteEvidenceSelectionRepository,
     policy_boundary_repository: SqlitePolicyBoundaryRepository,
+    model_registry_service: ModelRegistryService,
 ) -> SupplementalAssessmentService:
     return SupplementalAssessmentService(
         repository=assessment_repository,
@@ -385,6 +397,7 @@ def supplemental_assessment_service(
         selection_repository=evidence_selection_repository,
         boundary_repository=policy_boundary_repository,
         adapter=UnconfiguredSupplementalAssessmentAdapter(),
+        model_registry_service=model_registry_service,
     )
 
 
@@ -473,6 +486,7 @@ def client(
     evidence_resolution_service: EvidenceResolutionService,
     product_catalog_service: ProductCatalogService,
     product_condition_service: ProductConditionService,
+    model_registry_service: ModelRegistryService,
 ) -> Generator[TestClient]:
     with TestClient(
         create_app(
@@ -493,6 +507,7 @@ def client(
             evidence_resolution_service=evidence_resolution_service,
             product_catalog_service=product_catalog_service,
             product_condition_service=product_condition_service,
+            model_registry_service=model_registry_service,
             admin_authenticator=AdminApiKeyAuthenticator("test-admin-api-key"),
         )
     ) as test_client:

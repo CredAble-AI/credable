@@ -304,6 +304,11 @@ def test_supplemental_assessment_uses_only_accepted_evidence(
         "pointInTimeExcludedEvidenceCount": 0,
         "calibrationMode": "RULE_TABLE",
         "calibrationVersion": "demo-uncertainty-rule-table-v1",
+        "modelRegistryVersion": "test-model-registry-v1",
+        "modelGovernanceAllowed": True,
+        "requestedModelVersion": "demo-small-business-supplemental-assessment-v1",
+        "modelValidationStatus": "DEMO_ONLY",
+        "modelOperationalState": "RUNNING",
         "demoOnly": True,
     }
 

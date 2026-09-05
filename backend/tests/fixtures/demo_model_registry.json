@@ -1,0 +1,49 @@
+{
+  "registryVersion": "test-model-registry-v1",
+  "models": [
+    {
+      "modelVersion": "demo-small-business-assessment-v1",
+      "modelRole": "BASELINE_ASSESSMENT",
+      "featureSetVersion": "demo-neutral-feature-set-v2",
+      "validationStatus": "DEMO_ONLY",
+      "operationalState": "RUNNING",
+      "demoOnly": true
+    },
+    {
+      "modelVersion": "demo-small-business-supplemental-assessment-v1",
+      "modelRole": "SUPPLEMENTAL_ASSESSMENT",
+      "validationStatus": "DEMO_ONLY",
+      "operationalState": "RUNNING",
+      "demoOnly": true
+    },
+    {
+      "modelVersion": "test-single-evidence-model-v1",
+      "modelRole": "SUPPLEMENTAL_ASSESSMENT",
+      "validationStatus": "DEMO_ONLY",
+      "operationalState": "RUNNING",
+      "demoOnly": true
+    },
+    {
+      "modelVersion": "test-cumulative-evidence-model-v1",
+      "modelRole": "SUPPLEMENTAL_ASSESSMENT",
+      "validationStatus": "DEMO_ONLY",
+      "operationalState": "RUNNING",
+      "demoOnly": true
+    },
+    {
+      "modelVersion": "test-supplemental-model-v1",
+      "modelRole": "SUPPLEMENTAL_ASSESSMENT",
+      "validationStatus": "DEMO_ONLY",
+      "operationalState": "RUNNING",
+      "demoOnly": true
+    },
+    {
+      "modelVersion": "contract-test-assessment-v1",
+      "modelRole": "BASELINE_ASSESSMENT",
+      "validationStatus": "DEMO_ONLY",
+      "operationalState": "RUNNING",
+      "demoOnly": true
+    }
+  ],
+  "demoOnly": true
+}

@@ -58,6 +58,23 @@ class FailingAssessmentAdapter(AssessmentAdapter):
         return True
 
 
+class UnregisteredModelAssessmentAdapter(AssessmentAdapter):
+    def run(self, snapshot: AssessmentInputSnapshot) -> AdapterAssessmentResult:
+        del snapshot
+        return AdapterAssessmentResult(
+            status="COMPLETED",
+            model_version="unregistered-model-v1",
+            uncertainty=AssessmentUncertainty(
+                grade_set=["DEMO_GRADE_B"],
+                calibration_mode=CalibrationMode.RULE_TABLE,
+                calibration_version="test-calibration-v1",
+            ),
+        )
+
+    def is_ready(self) -> bool:
+        return True
+
+
 def test_assessment_is_not_run_before_first_execution(client: TestClient) -> None:
     session_id = create_session(client)
 
@@ -142,6 +159,29 @@ def test_run_without_model_returns_explicit_state_and_preserves_snapshot(
     }
 
 
+def test_unregistered_model_result_is_not_saved_as_completed(
+    client: TestClient,
+    assessment_service: AssessmentService,
+    session_repository: SqliteCustomerSessionRepository,
+) -> None:
+    session_id = create_session(client)
+    assessment_service.adapter = UnregisteredModelAssessmentAdapter()
+
+    response = client.post(f"/v1/sessions/{session_id}/assessment/run")
+
+    assert response.status_code == 200
+    assessment = response.json()["assessment"]
+    assert assessment["status"] == "FAILED"
+    assert assessment["modelVersion"] is None
+    assert assessment["uncertainty"] is None
+    assert assessment["reasonCode"] == "ASSESSMENT_MODEL_NOT_REGISTERED"
+    event = session_repository.list_audit_events(session_id)[-1]
+    assert event.model_version is None
+    assert event.output_summary["requestedModelVersion"] == "unregistered-model-v1"
+    assert event.output_summary["modelRegistryVersion"] == "test-model-registry-v1"
+    assert event.output_summary["modelGovernanceAllowed"] is False
+
+
 def test_demo_assessment_requires_verified_bank_sources(
     client: TestClient,
     assessment_service: AssessmentService,
@@ -219,6 +259,12 @@ def test_demo_assessment_completes_small_business_fixture(
         "pointInTimeExcludedSourceCount": 0,
         "calibrationMode": "RULE_TABLE",
         "calibrationVersion": "demo-uncertainty-rule-table-v1",
+        "modelRegistryVersion": "test-model-registry-v1",
+        "modelGovernanceAllowed": True,
+        "requestedModelVersion": "demo-small-business-assessment-v1",
+        "modelValidationStatus": "DEMO_ONLY",
+        "modelOperationalState": "RUNNING",
+        "modelFeatureSetVersion": "demo-neutral-feature-set-v2",
         "demoOnly": True,
     }
 

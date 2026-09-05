@@ -17,6 +17,7 @@ from app.services.evidence_selection_service import EvidenceSelectionService
 from app.services.evidence_submission_service import EvidenceSubmissionService
 from app.services.feature_snapshot_service import FeatureSnapshotService
 from app.services.loan_history_service import LoanHistoryService
+from app.services.model_registry_service import ModelRegistryService
 from app.services.policy_boundary_service import EvidenceResolutionService, PolicyBoundaryService
 from app.services.product_catalog_service import ProductCatalogService
 from app.services.product_condition_service import ProductConditionService
@@ -43,6 +44,7 @@ async def get_readiness(request: Request) -> ReadinessResponse:
     data_source_service: DataSourceService = request.app.state.data_source_service
     assessment_service: AssessmentService = request.app.state.assessment_service
     feature_snapshot_service: FeatureSnapshotService = request.app.state.feature_snapshot_service
+    model_registry_service: ModelRegistryService = request.app.state.model_registry_service
     supplemental_assessment_service: SupplementalAssessmentService = (
         request.app.state.supplemental_assessment_service
     )
@@ -72,6 +74,7 @@ async def get_readiness(request: Request) -> ReadinessResponse:
         **consent_service.readiness(),
         **data_source_service.readiness(),
         **feature_snapshot_service.readiness(),
+        **model_registry_service.readiness(),
         **assessment_service.readiness(),
         **supplemental_assessment_service.readiness(),
         **assessment_comparison_service.readiness(),
