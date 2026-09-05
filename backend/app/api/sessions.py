@@ -5,6 +5,7 @@ from app.schemas.comparison import ProductComparisonResponse
 from app.schemas.consent import ConsentListResponse, ConsentState
 from app.schemas.data_source import DataSourceListResponse
 from app.schemas.error import ApiErrorResponse
+from app.schemas.policy_boundary import PolicyBoundaryCheckResponse
 from app.schemas.product import ProductCatalogResponse
 from app.schemas.product_condition import ProductConditionQueryResponse
 from app.schemas.session import (
@@ -16,6 +17,7 @@ from app.services.assessment_service import AssessmentService
 from app.services.comparison_service import ProductComparisonService
 from app.services.consent_service import ConsentService
 from app.services.data_source_service import DataSourceService
+from app.services.policy_boundary_service import PolicyBoundaryService
 from app.services.product_catalog_service import ProductCatalogService
 from app.services.product_condition_service import ProductConditionService
 from app.services.session_service import CustomerSessionService
@@ -37,6 +39,10 @@ def get_data_source_service(request: Request) -> DataSourceService:
 
 def get_assessment_service(request: Request) -> AssessmentService:
     return request.app.state.assessment_service
+
+
+def get_policy_boundary_service(request: Request) -> PolicyBoundaryService:
+    return request.app.state.policy_boundary_service
 
 
 def get_product_catalog_service(request: Request) -> ProductCatalogService:
@@ -175,6 +181,36 @@ async def run_assessment(
     request: Request,
 ) -> AssessmentResponse:
     return get_assessment_service(request).run(
+        session_id,
+        request.state.request_id,
+    )
+
+
+@router.get(
+    "/{session_id}/assessment/boundary-check",
+    response_model=PolicyBoundaryCheckResponse,
+    responses={404: {"model": ApiErrorResponse}},
+)
+async def get_policy_boundary_check(
+    session_id: str,
+    request: Request,
+) -> PolicyBoundaryCheckResponse:
+    return get_policy_boundary_service(request).get_latest(session_id)
+
+
+@router.post(
+    "/{session_id}/assessment/boundary-check",
+    response_model=PolicyBoundaryCheckResponse,
+    responses={
+        404: {"model": ApiErrorResponse},
+        409: {"model": ApiErrorResponse},
+    },
+)
+async def run_policy_boundary_check(
+    session_id: str,
+    request: Request,
+) -> PolicyBoundaryCheckResponse:
+    return get_policy_boundary_service(request).check(
         session_id,
         request.state.request_id,
     )

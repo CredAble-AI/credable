@@ -13,12 +13,14 @@ from app.main import create_app
 from app.repositories.assessment_repository import SqliteAssessmentRepository
 from app.repositories.consent_repository import SqliteConsentRepository
 from app.repositories.data_source_repository import SqliteDataSourceRepository
+from app.repositories.policy_boundary_repository import SqlitePolicyBoundaryRepository
 from app.repositories.product_catalog_repository import SqliteProductCatalogRepository
 from app.repositories.product_condition_repository import SqliteProductConditionRepository
 from app.repositories.session_repository import SqliteCustomerSessionRepository
 from app.services.assessment_service import AssessmentService
 from app.services.consent_service import ConsentService, DemoConsentScopeCatalog
 from app.services.data_source_service import DataSourceService
+from app.services.policy_boundary_service import DemoPolicyBoundaryCatalog, PolicyBoundaryService
 from app.services.product_catalog_service import ProductCatalogService
 from app.services.product_condition_service import ProductConditionService
 from app.services.session_service import CustomerSessionService, DemoProfileCatalog
@@ -95,6 +97,25 @@ def assessment_service(
 
 
 @pytest.fixture
+def policy_boundary_repository(tmp_path) -> SqlitePolicyBoundaryRepository:
+    return SqlitePolicyBoundaryRepository(tmp_path / "test.db")
+
+
+@pytest.fixture
+def policy_boundary_service(
+    policy_boundary_repository: SqlitePolicyBoundaryRepository,
+    session_service: CustomerSessionService,
+    assessment_service: AssessmentService,
+) -> PolicyBoundaryService:
+    return PolicyBoundaryService(
+        repository=policy_boundary_repository,
+        session_service=session_service,
+        assessment_service=assessment_service,
+        catalog=DemoPolicyBoundaryCatalog(settings.demo_policy_boundaries_path),
+    )
+
+
+@pytest.fixture
 def product_catalog_repository(tmp_path) -> SqliteProductCatalogRepository:
     return SqliteProductCatalogRepository(tmp_path / "test.db")
 
@@ -140,6 +161,7 @@ def client(
     consent_service: ConsentService,
     data_source_service: DataSourceService,
     assessment_service: AssessmentService,
+    policy_boundary_service: PolicyBoundaryService,
     product_catalog_service: ProductCatalogService,
     product_condition_service: ProductConditionService,
 ) -> Generator[TestClient]:
@@ -149,6 +171,7 @@ def client(
             consent_service=consent_service,
             data_source_service=data_source_service,
             assessment_service=assessment_service,
+            policy_boundary_service=policy_boundary_service,
             product_catalog_service=product_catalog_service,
             product_condition_service=product_condition_service,
             admin_authenticator=AdminApiKeyAuthenticator("test-admin-api-key"),

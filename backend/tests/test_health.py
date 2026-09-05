@@ -55,6 +55,14 @@ def test_ready_returns_current_dependency_checks(client: TestClient) -> None:
                 "status": "ok",
             },
             {
+                "name": "policy_boundary_repository",
+                "status": "ok",
+            },
+            {
+                "name": "policy_boundary_catalog",
+                "status": "ok",
+            },
+            {
                 "name": "product_catalog_repository",
                 "status": "ok",
             },
@@ -92,6 +100,7 @@ def test_openapi_exposes_health_routes(client: TestClient) -> None:
     assert "/v1/sessions/{session_id}/data-sources/refresh" in paths
     assert "/v1/sessions/{session_id}/assessment" in paths
     assert "/v1/sessions/{session_id}/assessment/run" in paths
+    assert "/v1/sessions/{session_id}/assessment/boundary-check" in paths
     assert "/v1/sessions/{session_id}/products" in paths
     assert "/v1/sessions/{session_id}/products/refresh" in paths
     assert "/v1/sessions/{session_id}/product-conditions" in paths
