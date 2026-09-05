@@ -9,6 +9,7 @@ from app.repositories.session_repository import SqliteCustomerSessionRepository
 from app.schemas.assessment import (
     AdapterAssessmentResult,
     AssessmentInputSnapshot,
+    AssessmentSnapshotType,
     AssessmentUncertainty,
     CalibrationMode,
 )
@@ -119,6 +120,7 @@ def test_run_without_model_returns_explicit_state_and_preserves_snapshot(
     assert snapshot.demo_profile_id == "startup"
     assert len(snapshot.data_sources) == 4
     assert {item.retrieval_status for item in snapshot.data_sources} == {"CONSENT_REQUIRED"}
+    assert snapshot.source_snapshots == []
 
     event = session_repository.list_audit_events(session_id)[-1]
     assert event.stage == AuditStage.ASSESSMENT_RUN
@@ -154,6 +156,7 @@ def test_demo_assessment_completes_small_business_fixture(
     assessment_service: AssessmentService,
     data_source_service: DataSourceService,
     session_repository: SqliteCustomerSessionRepository,
+    assessment_repository: SqliteAssessmentRepository,
 ) -> None:
     session_id = create_session(client, "small-business")
     prepare_required_demo_sources(client, session_id, data_source_service)
@@ -176,6 +179,19 @@ def test_demo_assessment_completes_small_business_fixture(
         "demoOnly": True,
     }
     assert assessment["demoOnly"] is True
+    snapshot = assessment_repository.get_snapshot(assessment["assessmentId"])
+    assert snapshot is not None
+    assert {item.snapshot_type for item in snapshot.source_snapshots} == {
+        AssessmentSnapshotType.BANK_ACCOUNT_DATA,
+        AssessmentSnapshotType.BANK_CREDIT_HISTORY,
+        AssessmentSnapshotType.BANK_LOAN_HISTORY,
+        AssessmentSnapshotType.EXTERNAL_CREDIT_EXPOSURE,
+    }
+    assert {item.source_type for item in snapshot.source_snapshots} == {
+        ConsentSourceType.BANK_INTERNAL,
+        ConsentSourceType.CREDIT_INFORMATION,
+    }
+    assert all(len(item.snapshot_hash) == 64 for item in snapshot.source_snapshots)
     event = session_repository.list_audit_events(session_id)[-1]
     assert event.output_summary == {
         "assessmentStatus": "COMPLETED",
@@ -189,6 +205,7 @@ def test_demo_assessment_keeps_startup_as_insufficient_data(
     client: TestClient,
     assessment_service: AssessmentService,
     data_source_service: DataSourceService,
+    assessment_repository: SqliteAssessmentRepository,
 ) -> None:
     session_id = create_session(client)
     prepare_required_demo_sources(client, session_id, data_source_service)
@@ -203,6 +220,9 @@ def test_demo_assessment_keeps_startup_as_insufficient_data(
     assert assessment["uncertainty"] is None
     assert "score" not in response.text.lower()
     assert "grade" not in response.text.lower()
+    snapshot = assessment_repository.get_snapshot(assessment["assessmentId"])
+    assert snapshot is not None
+    assert len(snapshot.source_snapshots) == 4
 
 
 def test_each_run_is_preserved_and_get_returns_latest(

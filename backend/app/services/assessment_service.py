@@ -31,6 +31,7 @@ from app.schemas.audit import AuditActor, AuditStage, SessionAuditEvent
 from app.schemas.evidence_quality import EvidenceQualityStatus
 from app.schemas.evidence_selection import EvidenceSelectionStatus
 from app.schemas.policy_boundary import BoundaryStatus
+from app.services.assessment_data_lineage_service import AssessmentDataLineageService
 from app.services.data_source_service import DataSourceService
 from app.services.session_service import CustomerSessionService
 
@@ -108,11 +109,13 @@ class AssessmentService:
         session_service: CustomerSessionService,
         data_source_service: DataSourceService,
         adapter: AssessmentAdapter,
+        data_lineage_service: AssessmentDataLineageService | None = None,
     ) -> None:
         self.repository = repository
         self.session_service = session_service
         self.data_source_service = data_source_service
         self.adapter = adapter
+        self.data_lineage_service = data_lineage_service
 
     def initialize(self) -> None:
         self.repository.initialize()
@@ -131,6 +134,11 @@ class AssessmentService:
             session_id=session_id,
             demo_profile_id=session.demo_profile.demo_profile_id,
             data_sources=data_sources,
+            source_snapshots=(
+                self.data_lineage_service.list_references(session_id)
+                if self.data_lineage_service is not None
+                else []
+            ),
         )
         snapshot_json = json.dumps(
             snapshot.model_dump(mode="json", by_alias=True),
@@ -317,6 +325,7 @@ class SupplementalAssessmentService:
             baseline_input_snapshot_id=baseline.input_snapshot_id,
             baseline_uncertainty=baseline.uncertainty,
             data_sources=baseline_snapshot.data_sources,
+            source_snapshots=baseline_snapshot.source_snapshots,
             accepted_evidence=accepted_evidence,
             accepted_evidence_set=accepted_evidence_set,
         )

@@ -34,8 +34,14 @@ from app.repositories.policy_boundary_repository import SqlitePolicyBoundaryRepo
 from app.repositories.product_catalog_repository import SqliteProductCatalogRepository
 from app.repositories.product_condition_repository import SqliteProductConditionRepository
 from app.repositories.session_repository import SqliteCustomerSessionRepository
+from app.schemas.assessment import AssessmentSnapshotType
+from app.schemas.consent import ConsentSourceType
 from app.schemas.error import ApiErrorDetail, ApiErrorResponse
 from app.services.admin_audit_service import AdminAuditService
+from app.services.assessment_data_lineage_service import (
+    AssessmentDataLineageService,
+    SnapshotSource,
+)
 from app.services.assessment_service import (
     AssessmentComparisonService,
     AssessmentService,
@@ -151,15 +157,50 @@ def build_data_source_service(
     )
 
 
+def build_assessment_data_lineage_service(
+    bank_data_service: BankDataService,
+    credit_history_service: CreditHistoryService,
+    loan_history_service: LoanHistoryService,
+    credit_exposure_service: CreditExposureService,
+) -> AssessmentDataLineageService:
+    return AssessmentDataLineageService(
+        sources=(
+            SnapshotSource(
+                source_type=ConsentSourceType.BANK_INTERNAL,
+                snapshot_type=AssessmentSnapshotType.BANK_ACCOUNT_DATA,
+                repository=bank_data_service.repository,
+            ),
+            SnapshotSource(
+                source_type=ConsentSourceType.BANK_INTERNAL,
+                snapshot_type=AssessmentSnapshotType.BANK_CREDIT_HISTORY,
+                repository=credit_history_service.repository,
+            ),
+            SnapshotSource(
+                source_type=ConsentSourceType.BANK_INTERNAL,
+                snapshot_type=AssessmentSnapshotType.BANK_LOAN_HISTORY,
+                repository=loan_history_service.repository,
+            ),
+            SnapshotSource(
+                source_type=ConsentSourceType.CREDIT_INFORMATION,
+                snapshot_type=AssessmentSnapshotType.EXTERNAL_CREDIT_EXPOSURE,
+                repository=credit_exposure_service.repository,
+                observed_at_field="reported_at",
+            ),
+        )
+    )
+
+
 def build_assessment_service(
     session_service: CustomerSessionService,
     data_source_service: DataSourceService,
+    data_lineage_service: AssessmentDataLineageService,
 ) -> AssessmentService:
     return AssessmentService(
         repository=SqliteAssessmentRepository(settings.database_path),
         session_service=session_service,
         data_source_service=data_source_service,
         adapter=DemoAssessmentAdapter(settings.demo_assessments_path),
+        data_lineage_service=data_lineage_service,
     )
 
 
@@ -327,9 +368,16 @@ def create_app(
         resolved_loan_history_service,
         resolved_credit_exposure_service,
     )
+    resolved_assessment_data_lineage_service = build_assessment_data_lineage_service(
+        resolved_bank_data_service,
+        resolved_credit_history_service,
+        resolved_loan_history_service,
+        resolved_credit_exposure_service,
+    )
     resolved_assessment_service = assessment_service or build_assessment_service(
         resolved_session_service,
         resolved_data_source_service,
+        resolved_assessment_data_lineage_service,
     )
     resolved_policy_boundary_service = policy_boundary_service or build_policy_boundary_service(
         resolved_session_service,
@@ -445,6 +493,9 @@ def create_app(
     application.state.credit_exposure_service = resolved_credit_exposure_service
     application.state.consent_service = resolved_consent_service
     application.state.data_source_service = resolved_data_source_service
+    application.state.assessment_data_lineage_service = (
+        resolved_assessment_data_lineage_service
+    )
     application.state.assessment_service = resolved_assessment_service
     application.state.policy_boundary_service = resolved_policy_boundary_service
     application.state.evidence_selection_service = resolved_evidence_selection_service
