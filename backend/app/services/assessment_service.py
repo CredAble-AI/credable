@@ -30,10 +30,12 @@ from app.schemas.assessment import (
 from app.schemas.audit import AuditActor, AuditStage, SessionAuditEvent
 from app.schemas.evidence_quality import EvidenceQualityStatus
 from app.schemas.evidence_selection import EvidenceSelectionStatus
+from app.schemas.model_registry import ModelGovernanceResolution, ModelRole
 from app.schemas.policy_boundary import BoundaryStatus
 from app.services.assessment_data_lineage_service import AssessmentDataLineageService
 from app.services.data_source_service import DataSourceService
 from app.services.feature_snapshot_service import FeatureSnapshotService
+from app.services.model_registry_service import ModelRegistryService
 from app.services.session_service import CustomerSessionService
 
 
@@ -112,6 +114,7 @@ class AssessmentService:
         adapter: AssessmentAdapter,
         data_lineage_service: AssessmentDataLineageService | None = None,
         feature_snapshot_service: FeatureSnapshotService | None = None,
+        model_registry_service: ModelRegistryService | None = None,
     ) -> None:
         self.repository = repository
         self.session_service = session_service
@@ -119,6 +122,7 @@ class AssessmentService:
         self.adapter = adapter
         self.data_lineage_service = data_lineage_service
         self.feature_snapshot_service = feature_snapshot_service
+        self.model_registry_service = model_registry_service
 
     def initialize(self) -> None:
         self.repository.initialize()
@@ -181,6 +185,12 @@ class AssessmentService:
                 status=AssessmentStatus.FAILED,
                 reason_code="ASSESSMENT_ADAPTER_ERROR",
             )
+        governance: ModelGovernanceResolution | None = None
+        if self.model_registry_service is not None:
+            result, governance = self.model_registry_service.govern(
+                result,
+                ModelRole.BASELINE_ASSESSMENT,
+            )
 
         calculated_at = datetime.now(UTC)
         state = AssessmentState(
@@ -205,6 +215,7 @@ class AssessmentService:
                     "calibrationVersion": state.uncertainty.calibration_version,
                 }
             )
+        self._add_governance_summary(output_summary, governance)
         audit_event = SessionAuditEvent(
             event_id=f"evt_{uuid4().hex}",
             session_id=session_id,
@@ -232,6 +243,31 @@ class AssessmentService:
             "assessment_adapter": self.adapter.is_ready(),
         }
 
+    @staticmethod
+    def _add_governance_summary(
+        output_summary: dict[str, str | bool | int],
+        governance: ModelGovernanceResolution | None,
+    ) -> None:
+        if governance is None:
+            return
+        output_summary.update(
+            {
+                "modelRegistryVersion": governance.registry_version,
+                "modelGovernanceAllowed": governance.allowed,
+                "requestedModelVersion": governance.requested_model_version,
+            }
+        )
+        if governance.validation_status is not None:
+            output_summary["modelValidationStatus"] = governance.validation_status.value
+        if governance.operational_state is not None:
+            output_summary["modelOperationalState"] = governance.operational_state.value
+        if governance.feature_set_version is not None:
+            output_summary["modelFeatureSetVersion"] = governance.feature_set_version
+        if governance.training_data_version is not None:
+            output_summary["modelTrainingDataVersion"] = governance.training_data_version
+        if governance.policy_version is not None:
+            output_summary["modelPolicyVersion"] = governance.policy_version
+
 
 class SupplementalAssessmentService:
     def __init__(
@@ -243,6 +279,7 @@ class SupplementalAssessmentService:
         selection_repository: EvidenceSelectionRepository,
         boundary_repository: PolicyBoundaryRepository,
         adapter: SupplementalAssessmentAdapter,
+        model_registry_service: ModelRegistryService | None = None,
     ) -> None:
         self.repository = repository
         self.session_service = session_service
@@ -251,6 +288,7 @@ class SupplementalAssessmentService:
         self.selection_repository = selection_repository
         self.boundary_repository = boundary_repository
         self.adapter = adapter
+        self.model_registry_service = model_registry_service
 
     def initialize(self) -> None:
         self.repository.initialize()
@@ -385,6 +423,12 @@ class SupplementalAssessmentService:
                     status=AssessmentStatus.FAILED,
                     reason_code="SUPPLEMENTAL_ASSESSMENT_ADAPTER_ERROR",
                 )
+        governance: ModelGovernanceResolution | None = None
+        if self.model_registry_service is not None:
+            result, governance = self.model_registry_service.govern(
+                result,
+                ModelRole.SUPPLEMENTAL_ASSESSMENT,
+            )
 
         calculated_at = datetime.now(UTC)
         state = SupplementalAssessmentState(
@@ -417,6 +461,7 @@ class SupplementalAssessmentService:
                     "calibrationVersion": state.uncertainty.calibration_version,
                 }
             )
+        AssessmentService._add_governance_summary(output_summary, governance)
         audit_event = SessionAuditEvent(
             event_id=f"evt_{uuid4().hex}",
             session_id=session_id,

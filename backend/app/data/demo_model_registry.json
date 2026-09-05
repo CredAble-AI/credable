@@ -1,0 +1,26 @@
+{
+  "registryVersion": "demo-model-registry-v1",
+  "models": [
+    {
+      "modelVersion": "demo-small-business-assessment-v1",
+      "modelRole": "BASELINE_ASSESSMENT",
+      "featureSetVersion": "demo-neutral-feature-set-v2",
+      "trainingDataVersion": null,
+      "policyVersion": null,
+      "validationStatus": "DEMO_ONLY",
+      "operationalState": "RUNNING",
+      "demoOnly": true
+    },
+    {
+      "modelVersion": "demo-small-business-supplemental-assessment-v1",
+      "modelRole": "SUPPLEMENTAL_ASSESSMENT",
+      "featureSetVersion": null,
+      "trainingDataVersion": null,
+      "policyVersion": null,
+      "validationStatus": "DEMO_ONLY",
+      "operationalState": "RUNNING",
+      "demoOnly": true
+    }
+  ],
+  "demoOnly": true
+}

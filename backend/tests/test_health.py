@@ -83,6 +83,10 @@ def test_ready_returns_current_dependency_checks(client: TestClient) -> None:
                 "status": "ok",
             },
             {
+                "name": "model_registry_catalog",
+                "status": "ok",
+            },
+            {
                 "name": "assessment_repository",
                 "status": "ok",
             },

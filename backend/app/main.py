@@ -75,6 +75,7 @@ from app.services.evidence_submission_service import (
 )
 from app.services.feature_snapshot_service import FeatureSnapshotService
 from app.services.loan_history_service import DemoLoanHistoryCatalogService, LoanHistoryService
+from app.services.model_registry_service import DemoModelRegistryCatalog, ModelRegistryService
 from app.services.policy_boundary_service import (
     DemoPolicyBoundaryCatalog,
     EvidenceResolutionService,
@@ -197,6 +198,7 @@ def build_assessment_service(
     data_source_service: DataSourceService,
     data_lineage_service: AssessmentDataLineageService,
     feature_snapshot_service: FeatureSnapshotService,
+    model_registry_service: ModelRegistryService,
 ) -> AssessmentService:
     return AssessmentService(
         repository=SqliteAssessmentRepository(settings.database_path),
@@ -205,6 +207,13 @@ def build_assessment_service(
         adapter=DemoAssessmentAdapter(settings.demo_assessments_path),
         data_lineage_service=data_lineage_service,
         feature_snapshot_service=feature_snapshot_service,
+        model_registry_service=model_registry_service,
+    )
+
+
+def build_model_registry_service() -> ModelRegistryService:
+    return ModelRegistryService(
+        catalog=DemoModelRegistryCatalog(settings.demo_model_registry_path),
     )
 
 
@@ -296,6 +305,7 @@ def build_supplemental_assessment_service(
     evidence_selection_service: EvidenceSelectionService,
     evidence_submission_service: EvidenceSubmissionService,
     evidence_quality_service: EvidenceQualityService,
+    model_registry_service: ModelRegistryService,
 ) -> SupplementalAssessmentService:
     return SupplementalAssessmentService(
         repository=assessment_service.repository,
@@ -305,6 +315,7 @@ def build_supplemental_assessment_service(
         selection_repository=evidence_selection_service.repository,
         boundary_repository=policy_boundary_service.repository,
         adapter=DemoSupplementalAssessmentAdapter(settings.demo_supplemental_assessments_path),
+        model_registry_service=model_registry_service,
     )
 
 
@@ -365,6 +376,7 @@ def create_app(
     evidence_resolution_service: EvidenceResolutionService | None = None,
     product_catalog_service: ProductCatalogService | None = None,
     product_condition_service: ProductConditionService | None = None,
+    model_registry_service: ModelRegistryService | None = None,
     admin_authenticator: AdminApiKeyAuthenticator | None = None,
 ) -> FastAPI:
     resolved_session_service = session_service or build_session_service()
@@ -407,14 +419,18 @@ def create_app(
             resolved_credit_exposure_service,
         )
     )
+    resolved_model_registry_service = model_registry_service or build_model_registry_service()
     resolved_assessment_service = assessment_service or build_assessment_service(
         resolved_session_service,
         resolved_data_source_service,
         resolved_assessment_data_lineage_service,
         resolved_feature_snapshot_service,
+        resolved_model_registry_service,
     )
     if resolved_assessment_service.feature_snapshot_service is None:
         resolved_assessment_service.feature_snapshot_service = resolved_feature_snapshot_service
+    if resolved_assessment_service.model_registry_service is None:
+        resolved_assessment_service.model_registry_service = resolved_model_registry_service
     resolved_policy_boundary_service = policy_boundary_service or build_policy_boundary_service(
         resolved_session_service,
         resolved_assessment_service,
@@ -448,8 +464,13 @@ def create_app(
             resolved_evidence_selection_service,
             resolved_evidence_submission_service,
             resolved_evidence_quality_service,
+            resolved_model_registry_service,
         )
     )
+    if resolved_supplemental_assessment_service.model_registry_service is None:
+        resolved_supplemental_assessment_service.model_registry_service = (
+            resolved_model_registry_service
+        )
     resolved_assessment_comparison_service = (
         assessment_comparison_service
         or build_assessment_comparison_service(
@@ -532,6 +553,7 @@ def create_app(
     application.state.data_source_service = resolved_data_source_service
     application.state.assessment_data_lineage_service = resolved_assessment_data_lineage_service
     application.state.feature_snapshot_service = resolved_feature_snapshot_service
+    application.state.model_registry_service = resolved_model_registry_service
     application.state.assessment_service = resolved_assessment_service
     application.state.policy_boundary_service = resolved_policy_boundary_service
     application.state.evidence_selection_service = resolved_evidence_selection_service
