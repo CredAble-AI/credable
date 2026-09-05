@@ -222,6 +222,54 @@ class SupplementalAssessmentResponse(ApiModel):
     supplemental_assessment: SupplementalAssessmentState | None
 
 
+class AssessmentComparisonBasis(StrEnum):
+    GRADE_SET = "GRADE_SET"
+    NUMERIC_INTERVAL = "NUMERIC_INTERVAL"
+    NOT_COMPARABLE = "NOT_COMPARABLE"
+
+
+class AssessmentUncertaintyChange(StrEnum):
+    NARROWED = "NARROWED"
+    UNCHANGED = "UNCHANGED"
+    EXPANDED = "EXPANDED"
+    SHIFTED = "SHIFTED"
+    NOT_COMPARABLE = "NOT_COMPARABLE"
+
+
+class AssessmentComparisonState(ApiModel):
+    comparison_id: str = Field(min_length=1)
+    baseline_assessment_id: str = Field(min_length=1)
+    supplemental_assessment_id: str = Field(min_length=1)
+    quality_check_id: str = Field(min_length=1)
+    basis: AssessmentComparisonBasis
+    uncertainty_change: AssessmentUncertaintyChange
+    before_uncertainty: AssessmentUncertainty | None
+    after_uncertainty: AssessmentUncertainty | None
+    rationale_codes: list[str] = Field(min_length=1)
+    baseline_model_version: str | None
+    supplemental_model_version: str | None
+    compared_at: datetime
+    demo_only: Literal[True] = True
+
+    @model_validator(mode="after")
+    def validate_comparison(self) -> "AssessmentComparisonState":
+        if self.compared_at.tzinfo is None:
+            raise ValueError("comparedAt must include a timezone")
+        if len(self.rationale_codes) != len(set(self.rationale_codes)):
+            raise ValueError("rationaleCodes values must be unique")
+        is_not_comparable = self.basis == AssessmentComparisonBasis.NOT_COMPARABLE
+        if is_not_comparable != (
+            self.uncertainty_change == AssessmentUncertaintyChange.NOT_COMPARABLE
+        ):
+            raise ValueError("comparison basis and uncertainty change must agree")
+        return self
+
+
+class AssessmentComparisonResponse(ApiModel):
+    session_id: str = Field(min_length=1)
+    comparison: AssessmentComparisonState | None
+
+
 class DemoSupplementalAssessmentDefinition(ApiModel):
     demo_profile_id: str = Field(min_length=1)
     evidence_type: str = Field(min_length=1)
