@@ -88,8 +88,7 @@ curl -X POST \
 ## Demo 보완평가 실행 기반
 
 보완평가는 현재 데이터 출처 상태를 고정된 입력 Snapshot으로 저장한 뒤 별도 Adapter를
-호출합니다. 기본 Demo Adapter는 Frontend Mock과 같은 결과 상태를 사용하되 점수·등급을
-생성하지 않습니다. 은행 내부 데이터와 정식 조회 신용정보가 모두 검증된 경우 소상공인은
+호출합니다. 은행 내부 데이터와 정식 조회 신용정보가 모두 검증된 경우 소상공인은
 `COMPLETED`, 스타트업은 `INSUFFICIENT_DATA`를 반환합니다.
 
 ```bash
@@ -103,6 +102,13 @@ curl -X POST \
 보존합니다. 두 필수 출처가 준비되지 않았으면 `DEMO_REQUIRED_DATA_NOT_VERIFIED`를 반환하며,
 이는 신용상 불리한 결과가 아닙니다. 모든 분기는 합성 Demo 규칙이고 생성형 AI가 평가값을
 생성하지 않습니다.
+
+`COMPLETED` 응답은 단일 점수만 확정하지 않고 `uncertainty`를 함께 제공합니다. 이 계약은
+선택적인 점추정치·상하한 구간 또는 가능한 등급 집합, `calibrationMode`와
+`calibrationVersion`을 포함합니다. 현재 Demo는 실제 확률 보정을 주장하지 않으며
+`RULE_TABLE` 방식의 합성 등급 집합만 반환합니다. 실제 은행 성과라벨로 독립 검증하기 전에는
+`CONFORMAL_CALIBRATED`를 사용하지 않습니다. 이전 실행 이력에는 `uncertainty: null`이 적용돼
+기존 SQLite JSON 상태를 그대로 읽을 수 있습니다.
 
 ## 자사 상품 카탈로그 API
 
