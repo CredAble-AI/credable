@@ -22,6 +22,7 @@ from app.repositories.data_source_repository import SqliteDataSourceRepository
 from app.repositories.evidence_quality_repository import SqliteEvidenceQualityRepository
 from app.repositories.evidence_selection_repository import SqliteEvidenceSelectionRepository
 from app.repositories.evidence_submission_repository import SqliteEvidenceSubmissionRepository
+from app.repositories.feature_snapshot_repository import SqliteFeatureSnapshotRepository
 from app.repositories.loan_history_repository import SqliteLoanHistoryRepository
 from app.repositories.policy_boundary_repository import SqlitePolicyBoundaryRepository
 from app.repositories.product_catalog_repository import SqliteProductCatalogRepository
@@ -61,6 +62,7 @@ from app.services.evidence_submission_service import (
     DemoEvidenceSubmissionCatalog,
     EvidenceSubmissionService,
 )
+from app.services.feature_snapshot_service import FeatureSnapshotService
 from app.services.loan_history_service import DemoLoanHistoryCatalogService, LoanHistoryService
 from app.services.policy_boundary_service import (
     DemoPolicyBoundaryCatalog,
@@ -241,11 +243,36 @@ def assessment_repository(tmp_path) -> SqliteAssessmentRepository:
 
 
 @pytest.fixture
+def feature_snapshot_repository(tmp_path) -> SqliteFeatureSnapshotRepository:
+    return SqliteFeatureSnapshotRepository(tmp_path / "test.db")
+
+
+@pytest.fixture
+def feature_snapshot_service(
+    feature_snapshot_repository: SqliteFeatureSnapshotRepository,
+    assessment_data_lineage_service: AssessmentDataLineageService,
+    bank_data_repository: SqliteBankDataRepository,
+    credit_history_repository: SqliteCreditHistoryRepository,
+    loan_history_repository: SqliteLoanHistoryRepository,
+    credit_exposure_repository: SqliteCreditExposureRepository,
+) -> FeatureSnapshotService:
+    return FeatureSnapshotService(
+        repository=feature_snapshot_repository,
+        data_lineage_service=assessment_data_lineage_service,
+        bank_data_repository=bank_data_repository,
+        credit_history_repository=credit_history_repository,
+        loan_history_repository=loan_history_repository,
+        credit_exposure_repository=credit_exposure_repository,
+    )
+
+
+@pytest.fixture
 def assessment_service(
     assessment_repository: SqliteAssessmentRepository,
     session_service: CustomerSessionService,
     data_source_service: DataSourceService,
     assessment_data_lineage_service: AssessmentDataLineageService,
+    feature_snapshot_service: FeatureSnapshotService,
 ) -> AssessmentService:
     return AssessmentService(
         repository=assessment_repository,
@@ -253,6 +280,7 @@ def assessment_service(
         data_source_service=data_source_service,
         adapter=UnconfiguredDemoAssessmentAdapter(),
         data_lineage_service=assessment_data_lineage_service,
+        feature_snapshot_service=feature_snapshot_service,
     )
 
 

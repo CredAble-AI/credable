@@ -261,13 +261,16 @@ def test_supplemental_assessment_uses_only_accepted_evidence(
     )
     assert len(snapshot.data_sources) == 4
     assert len(snapshot.source_snapshots) == 4
+    assert snapshot.feature_snapshot is not None
 
     legacy_snapshot = snapshot.model_dump(mode="json", by_alias=True)
     legacy_snapshot.pop("acceptedEvidenceSet")
     legacy_snapshot.pop("sourceSnapshots")
+    legacy_snapshot.pop("featureSnapshot")
     restored = SupplementalAssessmentInputSnapshot.model_validate(legacy_snapshot)
     assert restored.accepted_evidence_set == [restored.accepted_evidence]
     assert restored.source_snapshots == []
+    assert restored.feature_snapshot is None
 
     event = session_repository.list_audit_events(session_id)[-1]
     assert event.stage == AuditStage.SUPPLEMENTAL_ASSESSMENT_RUN

@@ -33,6 +33,7 @@ from app.schemas.evidence_selection import EvidenceSelectionStatus
 from app.schemas.policy_boundary import BoundaryStatus
 from app.services.assessment_data_lineage_service import AssessmentDataLineageService
 from app.services.data_source_service import DataSourceService
+from app.services.feature_snapshot_service import FeatureSnapshotService
 from app.services.session_service import CustomerSessionService
 
 
@@ -110,12 +111,14 @@ class AssessmentService:
         data_source_service: DataSourceService,
         adapter: AssessmentAdapter,
         data_lineage_service: AssessmentDataLineageService | None = None,
+        feature_snapshot_service: FeatureSnapshotService | None = None,
     ) -> None:
         self.repository = repository
         self.session_service = session_service
         self.data_source_service = data_source_service
         self.adapter = adapter
         self.data_lineage_service = data_lineage_service
+        self.feature_snapshot_service = feature_snapshot_service
 
     def initialize(self) -> None:
         self.repository.initialize()
@@ -130,14 +133,25 @@ class AssessmentService:
     def run(self, session_id: str, request_id: str) -> AssessmentResponse:
         session = self.session_service.get_session(session_id).session
         data_sources = self.data_source_service.list_states(session_id).data_sources
+        source_snapshots = (
+            self.data_lineage_service.list_references(session_id)
+            if self.data_lineage_service is not None
+            else []
+        )
+        feature_snapshot = (
+            self.feature_snapshot_service.get_or_build(session_id)
+            if self.feature_snapshot_service is not None and source_snapshots
+            else None
+        )
         snapshot = AssessmentInputSnapshot(
             session_id=session_id,
             demo_profile_id=session.demo_profile.demo_profile_id,
             data_sources=data_sources,
-            source_snapshots=(
-                self.data_lineage_service.list_references(session_id)
-                if self.data_lineage_service is not None
-                else []
+            source_snapshots=source_snapshots,
+            feature_snapshot=(
+                self.feature_snapshot_service.get_reference(feature_snapshot)
+                if self.feature_snapshot_service is not None and feature_snapshot is not None
+                else None
             ),
         )
         snapshot_json = json.dumps(
@@ -326,6 +340,7 @@ class SupplementalAssessmentService:
             baseline_uncertainty=baseline.uncertainty,
             data_sources=baseline_snapshot.data_sources,
             source_snapshots=baseline_snapshot.source_snapshots,
+            feature_snapshot=baseline_snapshot.feature_snapshot,
             accepted_evidence=accepted_evidence,
             accepted_evidence_set=accepted_evidence_set,
         )

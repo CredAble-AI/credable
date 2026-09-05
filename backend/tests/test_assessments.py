@@ -121,6 +121,7 @@ def test_run_without_model_returns_explicit_state_and_preserves_snapshot(
     assert len(snapshot.data_sources) == 4
     assert {item.retrieval_status for item in snapshot.data_sources} == {"CONSENT_REQUIRED"}
     assert snapshot.source_snapshots == []
+    assert snapshot.feature_snapshot is None
 
     event = session_repository.list_audit_events(session_id)[-1]
     assert event.stage == AuditStage.ASSESSMENT_RUN
@@ -192,6 +193,10 @@ def test_demo_assessment_completes_small_business_fixture(
         ConsentSourceType.CREDIT_INFORMATION,
     }
     assert all(len(item.snapshot_hash) == 64 for item in snapshot.source_snapshots)
+    assert snapshot.feature_snapshot is not None
+    assert snapshot.feature_snapshot.feature_snapshot_id.startswith("fts_")
+    assert snapshot.feature_snapshot.feature_set_version == "demo-neutral-feature-set-v1"
+    assert len(snapshot.feature_snapshot.snapshot_hash) == 64
     event = session_repository.list_audit_events(session_id)[-1]
     assert event.output_summary == {
         "assessmentStatus": "COMPLETED",
@@ -223,6 +228,7 @@ def test_demo_assessment_keeps_startup_as_insufficient_data(
     snapshot = assessment_repository.get_snapshot(assessment["assessmentId"])
     assert snapshot is not None
     assert len(snapshot.source_snapshots) == 4
+    assert snapshot.feature_snapshot is not None
 
 
 def test_each_run_is_preserved_and_get_returns_latest(
