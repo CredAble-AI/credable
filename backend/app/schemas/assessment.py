@@ -148,3 +148,94 @@ class AssessmentState(ApiModel):
 class AssessmentResponse(ApiModel):
     session_id: str = Field(min_length=1)
     assessment: AssessmentState
+
+
+class SupplementalAssessmentRunRequest(ApiModel):
+    submission_id: str = Field(min_length=1)
+
+
+class AcceptedEvidenceSnapshot(ApiModel):
+    quality_check_id: str = Field(min_length=1)
+    submission_id: str = Field(min_length=1)
+    selection_id: str = Field(min_length=1)
+    boundary_check_id: str = Field(min_length=1)
+    evidence_type: str = Field(min_length=1)
+    source_type: ConsentSourceType
+    observed_at: datetime
+    checked_at: datetime
+    submission_snapshot_hash: str = Field(pattern=r"^[0-9a-f]{64}$")
+    evidence_data_version: str = Field(min_length=1)
+    quality_policy_version: str = Field(min_length=1)
+    demo_only: Literal[True] = True
+
+    @model_validator(mode="after")
+    def validate_evidence_timestamps(self) -> "AcceptedEvidenceSnapshot":
+        if self.observed_at.tzinfo is None or self.checked_at.tzinfo is None:
+            raise ValueError("accepted Evidence timestamps must include a timezone")
+        return self
+
+
+class SupplementalAssessmentInputSnapshot(ApiModel):
+    session_id: str = Field(min_length=1)
+    demo_profile_id: str = Field(min_length=1)
+    baseline_assessment_id: str = Field(min_length=1)
+    baseline_input_snapshot_id: str = Field(min_length=1)
+    baseline_uncertainty: AssessmentUncertainty
+    data_sources: list[DataSourceState]
+    accepted_evidence: AcceptedEvidenceSnapshot
+    demo_only: Literal[True] = True
+
+
+class SupplementalAssessmentState(ApiModel):
+    supplemental_assessment_id: str = Field(min_length=1)
+    baseline_assessment_id: str = Field(min_length=1)
+    quality_check_id: str = Field(min_length=1)
+    submission_id: str = Field(min_length=1)
+    status: AssessmentStatus
+    calculated_at: datetime
+    input_snapshot_id: str = Field(min_length=1)
+    model_version: str | None = None
+    reason_code: str | None = None
+    uncertainty: AssessmentUncertainty | None = None
+    demo_only: Literal[True] = True
+
+    @model_validator(mode="after")
+    def validate_supplemental_state(self) -> "SupplementalAssessmentState":
+        if self.calculated_at.tzinfo is None:
+            raise ValueError("calculatedAt must include a timezone")
+        if self.status == AssessmentStatus.NOT_RUN:
+            raise ValueError("saved supplemental assessment cannot be NOT_RUN")
+        if self.status == AssessmentStatus.COMPLETED:
+            if self.model_version is None:
+                raise ValueError("COMPLETED supplemental assessment requires modelVersion")
+            if self.uncertainty is None:
+                raise ValueError("COMPLETED supplemental assessment requires uncertainty")
+        elif not self.reason_code:
+            raise ValueError("incomplete supplemental assessment requires reasonCode")
+        elif self.uncertainty is not None:
+            raise ValueError("incomplete supplemental assessment cannot expose uncertainty")
+        return self
+
+
+class SupplementalAssessmentResponse(ApiModel):
+    session_id: str = Field(min_length=1)
+    supplemental_assessment: SupplementalAssessmentState | None
+
+
+class DemoSupplementalAssessmentDefinition(ApiModel):
+    demo_profile_id: str = Field(min_length=1)
+    evidence_type: str = Field(min_length=1)
+    result: AdapterAssessmentResult
+
+
+class DemoSupplementalAssessmentCatalogData(ApiModel):
+    data_version: str = Field(min_length=1)
+    assessments: list[DemoSupplementalAssessmentDefinition] = Field(min_length=1)
+    demo_only: Literal[True] = True
+
+    @model_validator(mode="after")
+    def validate_unique_inputs(self) -> "DemoSupplementalAssessmentCatalogData":
+        inputs = [(item.demo_profile_id, item.evidence_type) for item in self.assessments]
+        if len(inputs) != len(set(inputs)):
+            raise ValueError("supplemental assessment input pairs must be unique")
+        return self

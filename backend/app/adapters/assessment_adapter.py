@@ -6,6 +6,8 @@ from app.schemas.assessment import (
     AssessmentInputSnapshot,
     AssessmentStatus,
     DemoAssessmentCatalogData,
+    DemoSupplementalAssessmentCatalogData,
+    SupplementalAssessmentInputSnapshot,
 )
 from app.schemas.data_source import RetrievalStatus, VerificationStatus
 
@@ -79,3 +81,63 @@ class DemoAssessmentAdapter(AssessmentAdapter):
         )
         self._catalog = catalog
         self._results = {item.demo_profile_id: item.result for item in catalog.assessments}
+
+
+class SupplementalAssessmentAdapter(ABC):
+    @abstractmethod
+    def run(self, snapshot: SupplementalAssessmentInputSnapshot) -> AdapterAssessmentResult:
+        """Run an approved supplemental model using accepted Evidence metadata."""
+
+    @abstractmethod
+    def is_ready(self) -> bool:
+        """Report whether the adapter can return an explicit execution state."""
+
+
+class UnconfiguredSupplementalAssessmentAdapter(SupplementalAssessmentAdapter):
+    def run(self, snapshot: SupplementalAssessmentInputSnapshot) -> AdapterAssessmentResult:
+        del snapshot
+        return AdapterAssessmentResult(
+            status=AssessmentStatus.MODEL_NOT_CONFIGURED,
+            reason_code="DEMO_SUPPLEMENTAL_ASSESSMENT_MODEL_NOT_CONFIGURED",
+        )
+
+    def is_ready(self) -> bool:
+        return True
+
+
+class DemoSupplementalAssessmentAdapter(SupplementalAssessmentAdapter):
+    def __init__(self, catalog_path: Path) -> None:
+        self.catalog_path = catalog_path
+        self._catalog: DemoSupplementalAssessmentCatalogData | None = None
+        self._results: dict[tuple[str, str], AdapterAssessmentResult] = {}
+
+    def run(self, snapshot: SupplementalAssessmentInputSnapshot) -> AdapterAssessmentResult:
+        self._initialize()
+        return self._results.get(
+            (
+                snapshot.demo_profile_id,
+                snapshot.accepted_evidence.evidence_type,
+            ),
+            AdapterAssessmentResult(
+                status=AssessmentStatus.MODEL_NOT_CONFIGURED,
+                reason_code="DEMO_SUPPLEMENTAL_ASSESSMENT_INPUT_NOT_CONFIGURED",
+            ),
+        )
+
+    def is_ready(self) -> bool:
+        try:
+            self._initialize()
+        except (OSError, ValueError):
+            return False
+        return True
+
+    def _initialize(self) -> None:
+        if self._catalog is not None:
+            return
+        catalog = DemoSupplementalAssessmentCatalogData.model_validate_json(
+            self.catalog_path.read_text(encoding="utf-8")
+        )
+        self._catalog = catalog
+        self._results = {
+            (item.demo_profile_id, item.evidence_type): item.result for item in catalog.assessments
+        }

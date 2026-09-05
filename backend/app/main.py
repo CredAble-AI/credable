@@ -6,7 +6,10 @@ from fastapi import FastAPI
 from fastapi import Request as FastAPIRequest
 from fastapi.responses import JSONResponse
 
-from app.adapters.assessment_adapter import DemoAssessmentAdapter
+from app.adapters.assessment_adapter import (
+    DemoAssessmentAdapter,
+    DemoSupplementalAssessmentAdapter,
+)
 from app.adapters.data_source_adapter import DemoDataSourceAdapter
 from app.adapters.product_catalog_adapter import DemoProductCatalogAdapter
 from app.adapters.product_condition_adapter import DemoProductConditionAdapter
@@ -29,7 +32,7 @@ from app.repositories.product_condition_repository import SqliteProductCondition
 from app.repositories.session_repository import SqliteCustomerSessionRepository
 from app.schemas.error import ApiErrorDetail, ApiErrorResponse
 from app.services.admin_audit_service import AdminAuditService
-from app.services.assessment_service import AssessmentService
+from app.services.assessment_service import AssessmentService, SupplementalAssessmentService
 from app.services.comparison_service import ProductComparisonService
 from app.services.consent_service import ConsentService, DemoConsentScopeCatalog
 from app.services.data_source_service import DataSourceService
@@ -155,6 +158,25 @@ def build_evidence_quality_service(
     )
 
 
+def build_supplemental_assessment_service(
+    session_service: CustomerSessionService,
+    assessment_service: AssessmentService,
+    policy_boundary_service: PolicyBoundaryService,
+    evidence_selection_service: EvidenceSelectionService,
+    evidence_submission_service: EvidenceSubmissionService,
+    evidence_quality_service: EvidenceQualityService,
+) -> SupplementalAssessmentService:
+    return SupplementalAssessmentService(
+        repository=assessment_service.repository,
+        session_service=session_service,
+        quality_repository=evidence_quality_service.repository,
+        submission_repository=evidence_submission_service.repository,
+        selection_repository=evidence_selection_service.repository,
+        boundary_repository=policy_boundary_service.repository,
+        adapter=DemoSupplementalAssessmentAdapter(settings.demo_supplemental_assessments_path),
+    )
+
+
 def build_product_condition_service(
     session_service: CustomerSessionService,
     product_catalog_service: ProductCatalogService,
@@ -180,6 +202,7 @@ def create_app(
     evidence_selection_service: EvidenceSelectionService | None = None,
     evidence_submission_service: EvidenceSubmissionService | None = None,
     evidence_quality_service: EvidenceQualityService | None = None,
+    supplemental_assessment_service: SupplementalAssessmentService | None = None,
     product_catalog_service: ProductCatalogService | None = None,
     product_condition_service: ProductConditionService | None = None,
     admin_authenticator: AdminApiKeyAuthenticator | None = None,
@@ -217,6 +240,17 @@ def create_app(
         resolved_session_service,
         resolved_evidence_submission_service,
     )
+    resolved_supplemental_assessment_service = (
+        supplemental_assessment_service
+        or build_supplemental_assessment_service(
+            resolved_session_service,
+            resolved_assessment_service,
+            resolved_policy_boundary_service,
+            resolved_evidence_selection_service,
+            resolved_evidence_submission_service,
+            resolved_evidence_quality_service,
+        )
+    )
     resolved_product_catalog_service = product_catalog_service or build_product_catalog_service(
         resolved_session_service
     )
@@ -247,6 +281,7 @@ def create_app(
         resolved_evidence_selection_service.initialize()
         resolved_evidence_submission_service.initialize()
         resolved_evidence_quality_service.initialize()
+        resolved_supplemental_assessment_service.initialize()
         resolved_product_catalog_service.initialize()
         resolved_product_condition_service.initialize()
         yield
@@ -267,6 +302,7 @@ def create_app(
     application.state.evidence_selection_service = resolved_evidence_selection_service
     application.state.evidence_submission_service = resolved_evidence_submission_service
     application.state.evidence_quality_service = resolved_evidence_quality_service
+    application.state.supplemental_assessment_service = resolved_supplemental_assessment_service
     application.state.product_catalog_service = resolved_product_catalog_service
     application.state.product_condition_service = resolved_product_condition_service
     application.state.product_comparison_service = resolved_product_comparison_service

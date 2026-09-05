@@ -3,7 +3,10 @@ from collections.abc import Generator
 import pytest
 from fastapi.testclient import TestClient
 
-from app.adapters.assessment_adapter import UnconfiguredDemoAssessmentAdapter
+from app.adapters.assessment_adapter import (
+    UnconfiguredDemoAssessmentAdapter,
+    UnconfiguredSupplementalAssessmentAdapter,
+)
 from app.adapters.data_source_adapter import EmptyDemoDataSourceAdapter
 from app.adapters.product_catalog_adapter import UnconfiguredProductCatalogAdapter
 from app.adapters.product_condition_adapter import UnconfiguredProductConditionAdapter
@@ -20,7 +23,7 @@ from app.repositories.policy_boundary_repository import SqlitePolicyBoundaryRepo
 from app.repositories.product_catalog_repository import SqliteProductCatalogRepository
 from app.repositories.product_condition_repository import SqliteProductConditionRepository
 from app.repositories.session_repository import SqliteCustomerSessionRepository
-from app.services.assessment_service import AssessmentService
+from app.services.assessment_service import AssessmentService, SupplementalAssessmentService
 from app.services.consent_service import ConsentService, DemoConsentScopeCatalog
 from app.services.data_source_service import DataSourceService
 from app.services.evidence_quality_service import (
@@ -190,6 +193,26 @@ def evidence_quality_service(
 
 
 @pytest.fixture
+def supplemental_assessment_service(
+    assessment_repository: SqliteAssessmentRepository,
+    session_service: CustomerSessionService,
+    evidence_quality_repository: SqliteEvidenceQualityRepository,
+    evidence_submission_repository: SqliteEvidenceSubmissionRepository,
+    evidence_selection_repository: SqliteEvidenceSelectionRepository,
+    policy_boundary_repository: SqlitePolicyBoundaryRepository,
+) -> SupplementalAssessmentService:
+    return SupplementalAssessmentService(
+        repository=assessment_repository,
+        session_service=session_service,
+        quality_repository=evidence_quality_repository,
+        submission_repository=evidence_submission_repository,
+        selection_repository=evidence_selection_repository,
+        boundary_repository=policy_boundary_repository,
+        adapter=UnconfiguredSupplementalAssessmentAdapter(),
+    )
+
+
+@pytest.fixture
 def product_catalog_repository(tmp_path) -> SqliteProductCatalogRepository:
     return SqliteProductCatalogRepository(tmp_path / "test.db")
 
@@ -239,6 +262,7 @@ def client(
     evidence_selection_service: EvidenceSelectionService,
     evidence_submission_service: EvidenceSubmissionService,
     evidence_quality_service: EvidenceQualityService,
+    supplemental_assessment_service: SupplementalAssessmentService,
     product_catalog_service: ProductCatalogService,
     product_condition_service: ProductConditionService,
 ) -> Generator[TestClient]:
@@ -252,6 +276,7 @@ def client(
             evidence_selection_service=evidence_selection_service,
             evidence_submission_service=evidence_submission_service,
             evidence_quality_service=evidence_quality_service,
+            supplemental_assessment_service=supplemental_assessment_service,
             product_catalog_service=product_catalog_service,
             product_condition_service=product_condition_service,
             admin_authenticator=AdminApiKeyAuthenticator("test-admin-api-key"),

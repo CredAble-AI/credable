@@ -1,6 +1,10 @@
 from fastapi import APIRouter, Request, status
 
-from app.schemas.assessment import AssessmentResponse
+from app.schemas.assessment import (
+    AssessmentResponse,
+    SupplementalAssessmentResponse,
+    SupplementalAssessmentRunRequest,
+)
 from app.schemas.comparison import ProductComparisonResponse
 from app.schemas.consent import ConsentListResponse, ConsentState
 from app.schemas.data_source import DataSourceListResponse
@@ -19,7 +23,7 @@ from app.schemas.session import (
     DemoSessionCreateRequest,
     DemoSessionCreateResponse,
 )
-from app.services.assessment_service import AssessmentService
+from app.services.assessment_service import AssessmentService, SupplementalAssessmentService
 from app.services.comparison_service import ProductComparisonService
 from app.services.consent_service import ConsentService
 from app.services.data_source_service import DataSourceService
@@ -48,6 +52,10 @@ def get_data_source_service(request: Request) -> DataSourceService:
 
 def get_assessment_service(request: Request) -> AssessmentService:
     return request.app.state.assessment_service
+
+
+def get_supplemental_assessment_service(request: Request) -> SupplementalAssessmentService:
+    return request.app.state.supplemental_assessment_service
 
 
 def get_policy_boundary_service(request: Request) -> PolicyBoundaryService:
@@ -203,6 +211,38 @@ async def run_assessment(
 ) -> AssessmentResponse:
     return get_assessment_service(request).run(
         session_id,
+        request.state.request_id,
+    )
+
+
+@router.get(
+    "/{session_id}/assessment/supplemental",
+    response_model=SupplementalAssessmentResponse,
+    responses={404: {"model": ApiErrorResponse}},
+)
+async def get_supplemental_assessment(
+    session_id: str,
+    request: Request,
+) -> SupplementalAssessmentResponse:
+    return get_supplemental_assessment_service(request).get_latest(session_id)
+
+
+@router.post(
+    "/{session_id}/assessment/supplemental/run",
+    response_model=SupplementalAssessmentResponse,
+    responses={
+        404: {"model": ApiErrorResponse},
+        409: {"model": ApiErrorResponse},
+    },
+)
+async def run_supplemental_assessment(
+    session_id: str,
+    payload: SupplementalAssessmentRunRequest,
+    request: Request,
+) -> SupplementalAssessmentResponse:
+    return get_supplemental_assessment_service(request).run(
+        session_id,
+        payload.submission_id,
         request.state.request_id,
     )
 
