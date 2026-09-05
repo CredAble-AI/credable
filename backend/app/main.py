@@ -28,6 +28,7 @@ from app.repositories.data_source_repository import SqliteDataSourceRepository
 from app.repositories.evidence_quality_repository import SqliteEvidenceQualityRepository
 from app.repositories.evidence_selection_repository import SqliteEvidenceSelectionRepository
 from app.repositories.evidence_submission_repository import SqliteEvidenceSubmissionRepository
+from app.repositories.loan_history_repository import SqliteLoanHistoryRepository
 from app.repositories.policy_boundary_repository import SqlitePolicyBoundaryRepository
 from app.repositories.product_catalog_repository import SqliteProductCatalogRepository
 from app.repositories.product_condition_repository import SqliteProductConditionRepository
@@ -60,6 +61,7 @@ from app.services.evidence_submission_service import (
     DemoEvidenceSubmissionCatalog,
     EvidenceSubmissionService,
 )
+from app.services.loan_history_service import DemoLoanHistoryCatalogService, LoanHistoryService
 from app.services.policy_boundary_service import (
     DemoPolicyBoundaryCatalog,
     EvidenceResolutionService,
@@ -106,18 +108,31 @@ def build_credit_history_service(session_service: CustomerSessionService) -> Cre
     )
 
 
+def build_loan_history_service(session_service: CustomerSessionService) -> LoanHistoryService:
+    return LoanHistoryService(
+        repository=SqliteLoanHistoryRepository(settings.database_path),
+        session_service=session_service,
+        catalog=DemoLoanHistoryCatalogService(settings.demo_loan_history_path),
+    )
+
+
 def build_data_source_service(
     consent_service: ConsentService,
     session_service: CustomerSessionService,
     bank_data_service: BankDataService,
     credit_history_service: CreditHistoryService,
+    loan_history_service: LoanHistoryService,
 ) -> DataSourceService:
     return DataSourceService(
         repository=SqliteDataSourceRepository(settings.database_path),
         consent_service=consent_service,
         session_service=session_service,
         adapter=DemoDataSourceAdapter(settings.demo_data_sources_path),
-        bank_internal_materializers=(bank_data_service, credit_history_service),
+        bank_internal_materializers=(
+            bank_data_service,
+            credit_history_service,
+            loan_history_service,
+        ),
     )
 
 
@@ -259,6 +274,7 @@ def create_app(
     session_service: CustomerSessionService | None = None,
     bank_data_service: BankDataService | None = None,
     credit_history_service: CreditHistoryService | None = None,
+    loan_history_service: LoanHistoryService | None = None,
     consent_service: ConsentService | None = None,
     data_source_service: DataSourceService | None = None,
     assessment_service: AssessmentService | None = None,
@@ -280,12 +296,16 @@ def create_app(
     resolved_credit_history_service = credit_history_service or build_credit_history_service(
         resolved_session_service
     )
+    resolved_loan_history_service = loan_history_service or build_loan_history_service(
+        resolved_session_service
+    )
     resolved_consent_service = consent_service or build_consent_service(resolved_session_service)
     resolved_data_source_service = data_source_service or build_data_source_service(
         resolved_consent_service,
         resolved_session_service,
         resolved_bank_data_service,
         resolved_credit_history_service,
+        resolved_loan_history_service,
     )
     resolved_assessment_service = assessment_service or build_assessment_service(
         resolved_session_service,
@@ -374,6 +394,7 @@ def create_app(
         resolved_session_service.initialize()
         resolved_bank_data_service.initialize()
         resolved_credit_history_service.initialize()
+        resolved_loan_history_service.initialize()
         resolved_consent_service.initialize()
         resolved_data_source_service.initialize()
         resolved_assessment_service.initialize()
@@ -399,6 +420,7 @@ def create_app(
     application.state.session_service = resolved_session_service
     application.state.bank_data_service = resolved_bank_data_service
     application.state.credit_history_service = resolved_credit_history_service
+    application.state.loan_history_service = resolved_loan_history_service
     application.state.consent_service = resolved_consent_service
     application.state.data_source_service = resolved_data_source_service
     application.state.assessment_service = resolved_assessment_service
