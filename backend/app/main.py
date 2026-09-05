@@ -130,6 +130,7 @@ def build_policy_boundary_service(
 
 def build_evidence_selection_service(
     session_service: CustomerSessionService,
+    assessment_service: AssessmentService,
     policy_boundary_service: PolicyBoundaryService,
     data_source_service: DataSourceService,
 ) -> EvidenceSelectionService:
@@ -138,6 +139,9 @@ def build_evidence_selection_service(
         session_service=session_service,
         boundary_service=policy_boundary_service,
         data_source_service=data_source_service,
+        assessment_repository=assessment_service.repository,
+        resolution_repository=policy_boundary_service.repository,
+        submission_repository=SqliteEvidenceSubmissionRepository(settings.database_path),
         catalog=DemoEvidenceCandidateCatalog(settings.demo_evidence_candidates_path),
     )
 
@@ -147,7 +151,7 @@ def build_evidence_submission_service(
     evidence_selection_service: EvidenceSelectionService,
 ) -> EvidenceSubmissionService:
     return EvidenceSubmissionService(
-        repository=SqliteEvidenceSubmissionRepository(settings.database_path),
+        repository=evidence_selection_service.submission_repository,
         session_service=session_service,
         selection_service=evidence_selection_service,
         catalog=DemoEvidenceSubmissionCatalog(settings.demo_evidence_submissions_path),
@@ -258,6 +262,7 @@ def create_app(
         evidence_selection_service
         or build_evidence_selection_service(
             resolved_session_service,
+            resolved_assessment_service,
             resolved_policy_boundary_service,
             resolved_data_source_service,
         )

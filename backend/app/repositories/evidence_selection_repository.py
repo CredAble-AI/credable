@@ -23,6 +23,10 @@ class EvidenceSelectionRepository(ABC):
         """Return an existing selection for the same boundary decision."""
 
     @abstractmethod
+    def get_by_resolution_id(self, resolution_id: str) -> EvidenceSelectionState | None:
+        """Return an existing repeated selection for the same Evidence resolution."""
+
+    @abstractmethod
     def save_selection(
         self,
         *,
@@ -54,12 +58,55 @@ class SqliteEvidenceSelectionRepository(EvidenceSelectionRepository):
     def initialize(self) -> None:
         self.database_path.parent.mkdir(parents=True, exist_ok=True)
         with self._connect() as connection:
+            columns = {
+                row["name"]
+                for row in connection.execute("PRAGMA table_info(evidence_selections)").fetchall()
+            }
+            if columns and "resolution_id" not in columns:
+                connection.executescript(
+                    """
+                    ALTER TABLE evidence_selections RENAME TO evidence_selections_legacy;
+
+                    CREATE TABLE evidence_selections (
+                        selection_order INTEGER PRIMARY KEY AUTOINCREMENT,
+                        selection_id TEXT NOT NULL UNIQUE,
+                        boundary_check_id TEXT NOT NULL,
+                        resolution_id TEXT UNIQUE,
+                        session_id TEXT NOT NULL,
+                        state_json TEXT NOT NULL,
+                        selected_at TEXT NOT NULL,
+                        FOREIGN KEY (session_id) REFERENCES customer_sessions(session_id)
+                    );
+
+                    INSERT INTO evidence_selections(
+                        selection_order,
+                        selection_id,
+                        boundary_check_id,
+                        resolution_id,
+                        session_id,
+                        state_json,
+                        selected_at
+                    )
+                    SELECT
+                        selection_order,
+                        selection_id,
+                        boundary_check_id,
+                        NULL,
+                        session_id,
+                        state_json,
+                        selected_at
+                    FROM evidence_selections_legacy;
+
+                    DROP TABLE evidence_selections_legacy;
+                    """
+                )
             connection.executescript(
                 """
                 CREATE TABLE IF NOT EXISTS evidence_selections (
                     selection_order INTEGER PRIMARY KEY AUTOINCREMENT,
                     selection_id TEXT NOT NULL UNIQUE,
-                    boundary_check_id TEXT NOT NULL UNIQUE,
+                    boundary_check_id TEXT NOT NULL,
+                    resolution_id TEXT UNIQUE,
                     session_id TEXT NOT NULL,
                     state_json TEXT NOT NULL,
                     selected_at TEXT NOT NULL,
@@ -91,8 +138,22 @@ class SqliteEvidenceSelectionRepository(EvidenceSelectionRepository):
     ) -> EvidenceSelectionState | None:
         with self._connect() as connection:
             row = connection.execute(
-                "SELECT state_json FROM evidence_selections WHERE boundary_check_id = ?",
+                """
+                SELECT state_json
+                FROM evidence_selections
+                WHERE boundary_check_id = ? AND resolution_id IS NULL
+                ORDER BY selection_order ASC
+                LIMIT 1
+                """,
                 (boundary_check_id,),
+            ).fetchone()
+        return EvidenceSelectionState.model_validate_json(row["state_json"]) if row else None
+
+    def get_by_resolution_id(self, resolution_id: str) -> EvidenceSelectionState | None:
+        with self._connect() as connection:
+            row = connection.execute(
+                "SELECT state_json FROM evidence_selections WHERE resolution_id = ?",
+                (resolution_id,),
             ).fetchone()
         return EvidenceSelectionState.model_validate_json(row["state_json"]) if row else None
 
@@ -109,15 +170,17 @@ class SqliteEvidenceSelectionRepository(EvidenceSelectionRepository):
                 INSERT INTO evidence_selections(
                     selection_id,
                     boundary_check_id,
+                    resolution_id,
                     session_id,
                     state_json,
                     selected_at
                 )
-                VALUES (?, ?, ?, ?, ?)
+                VALUES (?, ?, ?, ?, ?, ?)
                 """,
                 (
                     state.selection_id,
                     state.boundary_check_id,
+                    state.resolution_id,
                     session_id,
                     state.model_dump_json(by_alias=True),
                     state.selected_at.isoformat(),

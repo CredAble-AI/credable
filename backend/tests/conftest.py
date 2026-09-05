@@ -149,6 +149,9 @@ def evidence_selection_repository(tmp_path) -> SqliteEvidenceSelectionRepository
 @pytest.fixture
 def evidence_selection_service(
     evidence_selection_repository: SqliteEvidenceSelectionRepository,
+    evidence_submission_repository: SqliteEvidenceSubmissionRepository,
+    assessment_repository: SqliteAssessmentRepository,
+    policy_boundary_repository: SqlitePolicyBoundaryRepository,
     session_service: CustomerSessionService,
     policy_boundary_service: PolicyBoundaryService,
     data_source_service: DataSourceService,
@@ -158,6 +161,9 @@ def evidence_selection_service(
         session_service=session_service,
         boundary_service=policy_boundary_service,
         data_source_service=data_source_service,
+        assessment_repository=assessment_repository,
+        resolution_repository=policy_boundary_repository,
+        submission_repository=evidence_submission_repository,
         catalog=DemoEvidenceCandidateCatalog(settings.demo_evidence_candidates_path),
     )
 
