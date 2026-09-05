@@ -15,6 +15,8 @@ from app.schemas.assessment import (
     AdapterAssessmentResult,
     AssessmentInputSnapshot,
     AssessmentStatus,
+    AssessmentUncertainty,
+    CalibrationMode,
 )
 from app.schemas.audit import AuditStage
 from app.schemas.product import (
@@ -124,6 +126,11 @@ class CompletedAssessmentAdapter(AssessmentAdapter):
         return AdapterAssessmentResult(
             status=AssessmentStatus.COMPLETED,
             model_version="contract-test-assessment-v1",
+            uncertainty=AssessmentUncertainty(
+                grade_set=["TEST_GRADE_B", "TEST_GRADE_C"],
+                calibration_mode=CalibrationMode.RULE_TABLE,
+                calibration_version="contract-test-rule-v1",
+            ),
         )
 
     def is_ready(self) -> bool:

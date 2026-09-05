@@ -1,3 +1,4 @@
+import pytest
 from fastapi.testclient import TestClient
 
 from app.adapters.assessment_adapter import AssessmentAdapter, DemoAssessmentAdapter
@@ -5,7 +6,12 @@ from app.adapters.data_source_adapter import DemoDataSourceAdapter
 from app.core.config import settings
 from app.repositories.assessment_repository import SqliteAssessmentRepository
 from app.repositories.session_repository import SqliteCustomerSessionRepository
-from app.schemas.assessment import AdapterAssessmentResult, AssessmentInputSnapshot
+from app.schemas.assessment import (
+    AdapterAssessmentResult,
+    AssessmentInputSnapshot,
+    AssessmentUncertainty,
+    CalibrationMode,
+)
 from app.schemas.audit import AuditStage
 from app.schemas.consent import ConsentSourceType
 from app.services.assessment_service import AssessmentService
@@ -61,6 +67,7 @@ def test_assessment_is_not_run_before_first_execution(client: TestClient) -> Non
             "inputSnapshotId": None,
             "modelVersion": None,
             "reasonCode": None,
+            "uncertainty": None,
             "demoOnly": True,
         },
     }
@@ -86,6 +93,7 @@ def test_run_without_model_returns_explicit_state_and_preserves_snapshot(
         "inputSnapshotId",
         "modelVersion",
         "reasonCode",
+        "uncertainty",
         "demoOnly",
     }
     assert assessment["assessmentId"].startswith("asm_")
@@ -94,6 +102,7 @@ def test_run_without_model_returns_explicit_state_and_preserves_snapshot(
     assert assessment["inputSnapshotId"].startswith("dss_")
     assert assessment["modelVersion"] is None
     assert assessment["reasonCode"] == "DEMO_ASSESSMENT_MODEL_NOT_CONFIGURED"
+    assert assessment["uncertainty"] is None
     assert assessment["demoOnly"] is True
     assert "score" not in response.text.lower()
     assert "grade" not in response.text.lower()
@@ -144,6 +153,7 @@ def test_demo_assessment_completes_small_business_fixture(
     client: TestClient,
     assessment_service: AssessmentService,
     data_source_service: DataSourceService,
+    session_repository: SqliteCustomerSessionRepository,
 ) -> None:
     session_id = create_session(client, "small-business")
     prepare_required_demo_sources(client, session_id, data_source_service)
@@ -156,9 +166,23 @@ def test_demo_assessment_completes_small_business_fixture(
     assert assessment["status"] == "COMPLETED"
     assert assessment["modelVersion"] == "demo-small-business-assessment-v1"
     assert assessment["reasonCode"] is None
+    assert assessment["uncertainty"] == {
+        "pointEstimate": None,
+        "lowerBound": None,
+        "upperBound": None,
+        "gradeSet": ["DEMO_GRADE_B", "DEMO_GRADE_C"],
+        "calibrationMode": "RULE_TABLE",
+        "calibrationVersion": "demo-uncertainty-rule-table-v1",
+        "demoOnly": True,
+    }
     assert assessment["demoOnly"] is True
-    assert "score" not in response.text.lower()
-    assert "grade" not in response.text.lower()
+    event = session_repository.list_audit_events(session_id)[-1]
+    assert event.output_summary == {
+        "assessmentStatus": "COMPLETED",
+        "calibrationMode": "RULE_TABLE",
+        "calibrationVersion": "demo-uncertainty-rule-table-v1",
+        "demoOnly": True,
+    }
 
 
 def test_demo_assessment_keeps_startup_as_insufficient_data(
@@ -176,6 +200,7 @@ def test_demo_assessment_keeps_startup_as_insufficient_data(
     assert assessment["status"] == "INSUFFICIENT_DATA"
     assert assessment["reasonCode"] == "DEMO_VERIFIED_DATA_INSUFFICIENT"
     assert assessment["modelVersion"] is None
+    assert assessment["uncertainty"] is None
     assert "score" not in response.text.lower()
     assert "grade" not in response.text.lower()
 
@@ -229,3 +254,36 @@ def test_unknown_session_uses_standard_error(client: TestClient) -> None:
     assert response.status_code == 404
     assert response.json()["error"]["code"] == "CUSTOMER_SESSION_NOT_FOUND"
     assert response.json()["error"]["requestId"].startswith("req_")
+
+
+def test_uncertainty_requires_a_complete_interval_or_grade_set() -> None:
+    with pytest.raises(ValueError, match="both bounds"):
+        AssessmentUncertainty(
+            lower_bound=0.1,
+            calibration_mode=CalibrationMode.RULE_TABLE,
+            calibration_version="test-rule-v1",
+        )
+
+    with pytest.raises(ValueError, match="interval or gradeSet"):
+        AssessmentUncertainty(
+            calibration_mode=CalibrationMode.RULE_TABLE,
+            calibration_version="test-rule-v1",
+        )
+
+
+def test_uncertainty_rejects_inconsistent_values() -> None:
+    with pytest.raises(ValueError, match="within the uncertainty interval"):
+        AssessmentUncertainty(
+            point_estimate=0.8,
+            lower_bound=0.2,
+            upper_bound=0.6,
+            calibration_mode=CalibrationMode.CONFORMAL_CALIBRATED,
+            calibration_version="test-calibration-v1",
+        )
+
+    with pytest.raises(ValueError, match="must be unique"):
+        AssessmentUncertainty(
+            grade_set=["DEMO_GRADE_B", "DEMO_GRADE_B"],
+            calibration_mode=CalibrationMode.RULE_TABLE,
+            calibration_version="test-rule-v1",
+        )

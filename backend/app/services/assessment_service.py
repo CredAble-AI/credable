@@ -73,7 +73,19 @@ class AssessmentService:
             input_snapshot_id=snapshot_id,
             model_version=result.model_version,
             reason_code=result.reason_code,
+            uncertainty=result.uncertainty,
         )
+        output_summary: dict[str, str | bool] = {
+            "assessmentStatus": state.status.value,
+            "demoOnly": state.demo_only,
+        }
+        if state.uncertainty is not None:
+            output_summary.update(
+                {
+                    "calibrationMode": state.uncertainty.calibration_mode.value,
+                    "calibrationVersion": state.uncertainty.calibration_version,
+                }
+            )
         audit_event = SessionAuditEvent(
             event_id=f"evt_{uuid4().hex}",
             session_id=session_id,
@@ -83,10 +95,7 @@ class AssessmentService:
             actor=AuditActor.SYSTEM,
             input_version=snapshot_id,
             input_snapshot_hash=snapshot_hash,
-            output_summary={
-                "assessmentStatus": state.status.value,
-                "demoOnly": state.demo_only,
-            },
+            output_summary=output_summary,
             data_version=snapshot_id,
             model_version=state.model_version,
         )
