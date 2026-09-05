@@ -16,6 +16,10 @@ class EvidenceSubmissionRepository(ABC):
         """Return the latest Evidence submission for a session."""
 
     @abstractmethod
+    def list_for_session(self, session_id: str) -> list[EvidenceSubmissionState]:
+        """Return all Evidence submissions for a session in submission order."""
+
+    @abstractmethod
     def get_by_submission_id(self, submission_id: str) -> EvidenceSubmissionState | None:
         """Return an Evidence submission by its identifier."""
 
@@ -93,6 +97,19 @@ class SqliteEvidenceSubmissionRepository(EvidenceSubmissionRepository):
                 (session_id,),
             ).fetchone()
         return EvidenceSubmissionState.model_validate_json(row["state_json"]) if row else None
+
+    def list_for_session(self, session_id: str) -> list[EvidenceSubmissionState]:
+        with self._connect() as connection:
+            rows = connection.execute(
+                """
+                SELECT state_json
+                FROM evidence_submissions
+                WHERE session_id = ?
+                ORDER BY submission_order ASC
+                """,
+                (session_id,),
+            ).fetchall()
+        return [EvidenceSubmissionState.model_validate_json(row["state_json"]) for row in rows]
 
     def get_by_submission_id(self, submission_id: str) -> EvidenceSubmissionState | None:
         with self._connect() as connection:

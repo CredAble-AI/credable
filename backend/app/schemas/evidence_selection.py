@@ -58,6 +58,7 @@ class SelectedEvidenceCandidate(ApiModel):
 class EvidenceSelectionState(ApiModel):
     selection_id: str = Field(min_length=1)
     boundary_check_id: str = Field(min_length=1)
+    resolution_id: str | None = Field(default=None, min_length=1)
     iteration: int = Field(ge=1)
     status: EvidenceSelectionStatus
     selected_evidence: SelectedEvidenceCandidate | None = None
@@ -74,6 +75,10 @@ class EvidenceSelectionState(ApiModel):
     def validate_state(self) -> "EvidenceSelectionState":
         if self.selected_at.tzinfo is None:
             raise ValueError("selectedAt must include a timezone")
+        if self.iteration == 1 and self.resolution_id is not None:
+            raise ValueError("first selection cannot reference an Evidence resolution")
+        if self.iteration > 1 and self.resolution_id is None:
+            raise ValueError("repeated selection requires an Evidence resolution")
         if self.status == EvidenceSelectionStatus.SELECTED:
             if self.selected_evidence is None:
                 raise ValueError("SELECTED state requires selectedEvidence")
