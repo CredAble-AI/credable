@@ -4,6 +4,7 @@ import EnvironmentIndicator from './EnvironmentIndicator'
 function Header() {
   return (
     <header className="header">
+      <a className="skip-link" href="#main-content">본문 바로가기</a>
       <div className="container header__inner">
         <Link className="wordmark" to="/" aria-label="CredAble 홈">
           <img src="/brand/credable-mark-3d.png" width="36" height="36" alt="" />

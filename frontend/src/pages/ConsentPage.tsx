@@ -108,7 +108,7 @@ function ConsentPage() {
   return (
     <div className="workspace-shell customer-flow">
       <Header />
-      <main className="consent-page">
+      <main id="main-content" tabIndex={-1} className="consent-page">
         <div className="container consent-page__inner">
           <header className="consent-heading">
             <div><p className="flow-kicker">DATA CONSENT</p><h1>연결할 데이터의 이용 범위를 확인해주세요</h1><p>각 항목의 설명과 필수 여부는 서버가 제공한 동의 범위를 그대로 표시합니다. 동의는 실제 데이터 연결 성공을 보장하지 않습니다.</p></div>

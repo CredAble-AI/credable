@@ -1,4 +1,6 @@
 .site-shell { overflow: hidden; }
+.skip-link { position: fixed; z-index: 100; top: 12px; left: 50%; padding: 10px 14px; border-radius: var(--radius-sm); color: var(--color-navy); background: #fff; box-shadow: 0 8px 24px rgba(0, 7, 22, .24); font-size: 14px; font-weight: 800; transform: translate(-50%, calc(-100% - 20px)); transition: transform .15s ease; }
+.skip-link:focus { transform: translate(-50%, 0); }
 .header { position: absolute; inset: 0 0 auto; z-index: 10; color: #fff; }
 .header__inner { height: 88px; display: flex; align-items: center; gap: 48px; }
 .wordmark { display: flex; align-items: center; gap: 10px; font-size: 24px; font-weight: 700; letter-spacing: -.8px; }
@@ -92,6 +94,7 @@ footer { border-top: 1px solid var(--color-border); background: #fff; }
   .wordmark > span { display: none; }.header .button { padding-inline: 12px; }.brand-scene { min-height: 350px; }.evidence-chip { transform: scale(.9); }.chip-one { left: -12px; }.chip-two { right: -12px; }.chip-three { right: -10px; }
 }
 @media (prefers-reduced-motion: reduce) {
+  .skip-link { transition: none; }
   .hero__content, .brand-scene, .brand-object { animation: none; }
   .brand-object { transform: none; transition: none; }
   .brand-reflection { transform: none; }

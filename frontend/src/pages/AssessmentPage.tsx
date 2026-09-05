@@ -220,7 +220,7 @@ function AssessmentPage() {
         : !boundary ? '저장된 정책 경계 결과가 없습니다. 확인을 선택하면 서버에 새 확인을 요청합니다.'
           : boundaryCopy[boundary.decision.status].description
 
-  return <div className="workspace-shell customer-flow"><Header /><main className="assessment-page"><div className="container assessment-page__inner">
+  return <div className="workspace-shell customer-flow"><Header /><main id="main-content" tabIndex={-1} className="assessment-page"><div className="container assessment-page__inner">
     <nav className="assessment-steps" aria-label="진행 단계"><span>시작</span><span>동의</span><span>데이터 연결</span><strong aria-current="step">기준평가</strong><span>상품 비교</span></nav>
     <header className="assessment-heading"><div>{isMockMode && <span className="assessment-badge">Mock result · Demo Only</span>}<p className="flow-kicker">BASELINE ASSESSMENT</p><h1>연결된 데이터를 바탕으로 기준평가를 확인합니다</h1><p>서버가 확정한 평가 상태와 불확실성 범위를 그대로 보여줍니다. 프론트엔드는 적격성, 위험도, 정책 경로 또는 대출 조건을 다시 계산하지 않습니다.</p></div><aside><span>현재 Demo 사례</span><strong>{session.demoProfile.displayName}</strong><small>{session.demoProfile.description}</small></aside></header>
 
