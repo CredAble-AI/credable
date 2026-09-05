@@ -1,7 +1,9 @@
+export type BusinessBorrowerType = 'SOLE_PROPRIETOR' | 'CORPORATION'
 export type DemoProfileType = string
 
 export interface DemoProfile {
   demoProfileId: string
+  businessBorrowerType: BusinessBorrowerType
   displayName: string
   description: string
 }
