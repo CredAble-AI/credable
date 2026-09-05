@@ -60,6 +60,7 @@ from app.services.evidence_selection_service import (
     EvidenceSelectionService,
 )
 from app.services.evidence_submission_service import (
+    DemoEvidenceFileCatalog,
     DemoEvidenceSubmissionCatalog,
     EvidenceSubmissionService,
 )
@@ -351,12 +352,15 @@ def evidence_submission_service(
     evidence_submission_repository: SqliteEvidenceSubmissionRepository,
     session_service: CustomerSessionService,
     evidence_selection_service: EvidenceSelectionService,
+    consent_service: ConsentService,
 ) -> EvidenceSubmissionService:
     return EvidenceSubmissionService(
         repository=evidence_submission_repository,
         session_service=session_service,
         selection_service=evidence_selection_service,
+        consent_service=consent_service,
         catalog=DemoEvidenceSubmissionCatalog(settings.demo_evidence_submissions_path),
+        file_catalog=DemoEvidenceFileCatalog(settings.demo_evidence_files_path),
     )
 
 
@@ -370,12 +374,14 @@ def evidence_quality_service(
     evidence_quality_repository: SqliteEvidenceQualityRepository,
     evidence_submission_repository: SqliteEvidenceSubmissionRepository,
     session_service: CustomerSessionService,
+    evidence_submission_service: EvidenceSubmissionService,
 ) -> EvidenceQualityService:
     return EvidenceQualityService(
         repository=evidence_quality_repository,
         submission_repository=evidence_submission_repository,
         session_service=session_service,
         catalog=DemoEvidenceQualityCatalog(settings.demo_evidence_quality_path),
+        file_catalog=evidence_submission_service.file_catalog,
     )
 
 

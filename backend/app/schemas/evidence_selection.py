@@ -6,6 +6,7 @@ from pydantic import Field, model_validator
 
 from app.schemas.base import ApiModel
 from app.schemas.consent import ConsentSourceType
+from app.schemas.evidence_file import EvidenceCollectionMode
 
 
 class EvidenceAvailability(StrEnum):
@@ -27,6 +28,7 @@ class EvidenceCandidateDefinition(ApiModel):
     display_name: str = Field(min_length=1)
     description: str = Field(min_length=1)
     source_type: ConsentSourceType
+    collection_mode: EvidenceCollectionMode
     boundary_codes: list[str] = Field(min_length=1)
     boundary_resolution_value: float = Field(ge=0, le=1)
     quality_reliability: float = Field(ge=0, le=1)
@@ -50,6 +52,7 @@ class SelectedEvidenceCandidate(ApiModel):
     display_name: str = Field(min_length=1)
     description: str = Field(min_length=1)
     source_type: ConsentSourceType
+    collection_mode: EvidenceCollectionMode | None = None
     availability: EvidenceAvailability
     rationale_codes: list[str] = Field(min_length=1)
     demo_only: Literal[True] = True

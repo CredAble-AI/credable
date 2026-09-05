@@ -1,3 +1,5 @@
+import hashlib
+import json
 from datetime import UTC, datetime
 from pathlib import Path
 from uuid import uuid4
@@ -6,6 +8,7 @@ from app.core.errors import EvidenceSubmissionNotFoundError
 from app.repositories.evidence_quality_repository import EvidenceQualityRepository
 from app.repositories.evidence_submission_repository import EvidenceSubmissionRepository
 from app.schemas.audit import AuditActor, AuditStage, SessionAuditEvent
+from app.schemas.evidence_file import DemoEvidenceFileDefinition
 from app.schemas.evidence_quality import (
     DemoEvidenceQualityCatalogData,
     DemoEvidenceQualityDefinition,
@@ -16,7 +19,8 @@ from app.schemas.evidence_quality import (
     EvidenceQualityState,
     EvidenceQualityStatus,
 )
-from app.schemas.evidence_submission import EvidenceSubmissionState
+from app.schemas.evidence_submission import EvidenceSubmissionMode, EvidenceSubmissionState
+from app.services.evidence_submission_service import DemoEvidenceFileCatalog
 from app.services.session_service import CustomerSessionService
 
 
@@ -57,11 +61,13 @@ class EvidenceQualityService:
         submission_repository: EvidenceSubmissionRepository,
         session_service: CustomerSessionService,
         catalog: DemoEvidenceQualityCatalog,
+        file_catalog: DemoEvidenceFileCatalog,
     ) -> None:
         self.repository = repository
         self.submission_repository = submission_repository
         self.session_service = session_service
         self.catalog = catalog
+        self.file_catalog = file_catalog
 
     def initialize(self) -> None:
         self.repository.initialize()
@@ -88,19 +94,23 @@ class EvidenceQualityService:
         if existing is not None:
             return EvidenceQualityResponse(session_id=session_id, quality=existing)
 
-        definition = self.catalog.get(submission.evidence_type)
-        checks = (
-            definition.checks
-            if definition is not None
-            else [
-                EvidenceQualityDimensionResult(
-                    dimension=dimension,
-                    status=EvidenceQualityDimensionStatus.NOT_VERIFIED,
-                    rationale_code=f"DEMO_{dimension.value}_POLICY_NOT_CONFIGURED",
-                )
-                for dimension in EvidenceQualityDimension
-            ]
-        )
+        if submission.submission_mode == EvidenceSubmissionMode.DEMO_FILE_UPLOAD:
+            checks, quality_policy_version = self._binary_file_checks(submission)
+        else:
+            definition = self.catalog.get(submission.evidence_type)
+            checks = (
+                definition.checks
+                if definition is not None
+                else [
+                    EvidenceQualityDimensionResult(
+                        dimension=dimension,
+                        status=EvidenceQualityDimensionStatus.NOT_VERIFIED,
+                        rationale_code=f"DEMO_{dimension.value}_POLICY_NOT_CONFIGURED",
+                    )
+                    for dimension in EvidenceQualityDimension
+                ]
+            )
+            quality_policy_version = self.catalog.quality_policy_version
         rejection_codes = [
             item.rationale_code
             for item in checks
@@ -121,7 +131,7 @@ class EvidenceQualityService:
             checked_at=checked_at,
             submission_snapshot_hash=submission.submission_snapshot_hash,
             data_version=submission.data_version,
-            quality_policy_version=self.catalog.quality_policy_version,
+            quality_policy_version=quality_policy_version,
         )
         audit_event = SessionAuditEvent(
             event_id=f"evt_{uuid4().hex}",
@@ -160,8 +170,176 @@ class EvidenceQualityService:
             raise EvidenceSubmissionNotFoundError(submission_id)
         return submission
 
+    def _binary_file_checks(
+        self,
+        submission: EvidenceSubmissionState,
+    ) -> tuple[list[EvidenceQualityDimensionResult], str]:
+        uploaded = submission.uploaded_file
+        definition = self.file_catalog.get_by_id(uploaded.demo_file_id) if uploaded else None
+        policy_version = (
+            definition.quality_policy_version
+            if definition is not None
+            else "demo-binary-evidence-quality-policy-v1"
+        )
+        provenance_valid = (
+            uploaded is not None
+            and definition is not None
+            and definition.evidence_type == submission.evidence_type
+            and definition.source_type == submission.source_type
+            and definition.data_version == submission.data_version
+            and self._uploaded_submission_snapshot_matches(submission)
+        )
+        asset_valid = definition is not None and self.file_catalog.asset_matches_manifest(
+            definition
+        )
+        authenticity_valid = (
+            provenance_valid
+            and asset_valid
+            and uploaded is not None
+            and definition is not None
+            and uploaded.sha256 == definition.sha256
+        )
+        manifest = definition.manifest if definition is not None else None
+        manifest_data = (
+            manifest.model_dump(mode="json", by_alias=True) if manifest is not None else {}
+        )
+        completeness_valid = definition is not None and all(
+            manifest_data.get(field) not in (None, "", [], {})
+            for field in definition.required_manifest_fields
+        )
+        freshness_valid = (
+            definition is not None
+            and manifest is not None
+            and manifest.period_start is not None
+            and manifest.period_end is not None
+            and manifest.generated_on is not None
+            and manifest.period_start <= manifest.period_end
+            and manifest.period_end == definition.observed_at.date()
+            and definition.observed_at <= definition.quality_reference_at
+            and manifest.generated_on <= definition.quality_reference_at.date()
+        )
+        consistency_valid = self._manifest_totals_are_consistent(definition)
+        manipulation_valid = (
+            authenticity_valid
+            and uploaded is not None
+            and definition is not None
+            and uploaded.file_name == definition.file_name
+            and uploaded.content_type == definition.content_type
+            and uploaded.size_bytes == definition.size_bytes
+        )
+        results = [
+            self._dimension_result(
+                EvidenceQualityDimension.PROVENANCE,
+                provenance_valid,
+                "DEMO_SERVER_DOCUMENT_PROVENANCE_CONFIRMED",
+                "DEMO_SERVER_DOCUMENT_PROVENANCE_INVALID",
+            ),
+            self._dimension_result(
+                EvidenceQualityDimension.FRESHNESS,
+                freshness_valid,
+                "DEMO_MANIFEST_POINT_IN_TIME_VALID",
+                "DEMO_MANIFEST_POINT_IN_TIME_INVALID",
+            ),
+            self._dimension_result(
+                EvidenceQualityDimension.AUTHENTICITY,
+                authenticity_valid,
+                "DEMO_SERVER_FILE_HASH_MATCHED",
+                "DEMO_SERVER_FILE_HASH_NOT_VERIFIED",
+            ),
+            self._dimension_result(
+                EvidenceQualityDimension.COMPLETENESS,
+                completeness_valid,
+                "DEMO_MANIFEST_REQUIRED_FIELDS_PRESENT",
+                "DEMO_MANIFEST_REQUIRED_FIELDS_MISSING",
+            ),
+            self._dimension_result(
+                EvidenceQualityDimension.CONSISTENCY,
+                consistency_valid,
+                "DEMO_MANIFEST_TOTALS_CONSISTENT",
+                "DEMO_MANIFEST_TOTALS_INCONSISTENT",
+            ),
+            self._dimension_result(
+                EvidenceQualityDimension.MANIPULATION_RISK,
+                manipulation_valid,
+                "DEMO_FILE_METADATA_AND_HASH_UNCHANGED",
+                "DEMO_FILE_METADATA_OR_HASH_CHANGED",
+            ),
+        ]
+        return results, policy_version
+
+    def _uploaded_submission_snapshot_matches(
+        self,
+        submission: EvidenceSubmissionState,
+    ) -> bool:
+        if submission.uploaded_file is None:
+            return False
+        snapshot = {
+            "selectionId": submission.selection_id,
+            "evidenceType": submission.evidence_type,
+            "sourceType": submission.source_type.value,
+            "submissionMode": submission.submission_mode.value,
+            "observedAt": submission.observed_at.isoformat(),
+            "dataVersion": submission.data_version,
+            "uploadedFile": submission.uploaded_file.model_dump(mode="json", by_alias=True),
+        }
+        serialized = json.dumps(
+            snapshot,
+            ensure_ascii=False,
+            separators=(",", ":"),
+            sort_keys=True,
+        )
+        return hashlib.sha256(serialized.encode()).hexdigest() == (
+            submission.submission_snapshot_hash
+        )
+
+    def _manifest_totals_are_consistent(
+        self,
+        definition: DemoEvidenceFileDefinition | None,
+    ) -> bool:
+        if definition is None:
+            return False
+        manifest = definition.manifest
+        if not manifest.monthly_summaries or manifest.totals is None:
+            return False
+        months = [item.month for item in manifest.monthly_summaries]
+        if len(months) != len(set(months)):
+            return False
+        if any(
+            item.sales_amount - item.deposit_amount != item.difference_amount
+            for item in manifest.monthly_summaries
+        ):
+            return False
+        return (
+            sum(item.sales_amount for item in manifest.monthly_summaries)
+            == manifest.totals.sales_amount
+            and sum(item.deposit_amount for item in manifest.monthly_summaries)
+            == manifest.totals.deposit_amount
+            and sum(item.difference_amount for item in manifest.monthly_summaries)
+            == manifest.totals.difference_amount
+            and manifest.totals.sales_amount - manifest.totals.deposit_amount
+            == manifest.totals.difference_amount
+        )
+
+    def _dimension_result(
+        self,
+        dimension: EvidenceQualityDimension,
+        passed: bool,
+        passed_code: str,
+        failed_code: str,
+    ) -> EvidenceQualityDimensionResult:
+        return EvidenceQualityDimensionResult(
+            dimension=dimension,
+            status=(
+                EvidenceQualityDimensionStatus.PASSED
+                if passed
+                else EvidenceQualityDimensionStatus.FAILED
+            ),
+            rationale_code=passed_code if passed else failed_code,
+        )
+
     def readiness(self) -> dict[str, bool]:
         return {
             "evidence_quality_repository": self.repository.is_ready(),
             "evidence_quality_catalog": self.catalog.is_ready(),
+            "demo_evidence_file_catalog": self.file_catalog.is_ready(),
         }

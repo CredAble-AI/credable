@@ -1,4 +1,7 @@
-from fastapi import APIRouter, Request, status
+from typing import Annotated
+
+from fastapi import APIRouter, File, Form, Request, UploadFile, status
+from fastapi.responses import FileResponse
 
 from app.schemas.assessment import (
     AssessmentComparisonResponse,
@@ -10,6 +13,7 @@ from app.schemas.comparison import ProductComparisonResponse
 from app.schemas.consent import ConsentListResponse, ConsentState
 from app.schemas.data_source import DataSourceListResponse
 from app.schemas.error import ApiErrorResponse
+from app.schemas.evidence_file import EvidenceSubmissionOptionResponse
 from app.schemas.evidence_quality import EvidenceQualityResponse
 from app.schemas.evidence_selection import EvidenceSelectionResponse
 from app.schemas.evidence_submission import (
@@ -382,6 +386,49 @@ async def select_next_evidence(
 
 
 @router.get(
+    "/{session_id}/evidence/selections/{selection_id}/submission-option",
+    response_model=EvidenceSubmissionOptionResponse,
+    responses={
+        404: {"model": ApiErrorResponse},
+        409: {"model": ApiErrorResponse},
+    },
+)
+async def get_evidence_submission_option(
+    session_id: str,
+    selection_id: str,
+    request: Request,
+) -> EvidenceSubmissionOptionResponse:
+    return get_evidence_submission_service(request).get_submission_option(
+        session_id,
+        selection_id,
+    )
+
+
+@router.get(
+    "/{session_id}/evidence/selections/{selection_id}/demo-file/download",
+    response_class=FileResponse,
+    responses={
+        404: {"model": ApiErrorResponse},
+        409: {"model": ApiErrorResponse},
+    },
+)
+async def download_demo_evidence_file(
+    session_id: str,
+    selection_id: str,
+    request: Request,
+) -> FileResponse:
+    file_path, definition = get_evidence_submission_service(request).get_demo_file(
+        session_id,
+        selection_id,
+    )
+    return FileResponse(
+        path=file_path,
+        media_type=definition.content_type,
+        filename=definition.file_name,
+    )
+
+
+@router.get(
     "/{session_id}/evidence/submissions/latest",
     response_model=EvidenceSubmissionResponse,
     responses={404: {"model": ApiErrorResponse}},
@@ -410,6 +457,39 @@ async def create_evidence_submission(
         session_id,
         payload,
         request.state.request_id,
+    )
+
+
+@router.post(
+    "/{session_id}/evidence/submissions/upload",
+    response_model=EvidenceSubmissionResponse,
+    responses={
+        404: {"model": ApiErrorResponse},
+        409: {"model": ApiErrorResponse},
+        413: {"model": ApiErrorResponse},
+        415: {"model": ApiErrorResponse},
+        422: {"model": ApiErrorResponse},
+    },
+)
+async def upload_demo_evidence_file(
+    session_id: str,
+    request: Request,
+    selection_id: Annotated[str, Form(alias="selectionId", min_length=1)],
+    file: Annotated[UploadFile, File()],
+) -> EvidenceSubmissionResponse:
+    service = get_evidence_submission_service(request)
+    max_size_bytes = service.upload_limit(session_id, selection_id)
+    try:
+        content = await file.read(max_size_bytes + 1)
+    finally:
+        await file.close()
+    return service.submit_demo_file(
+        session_id=session_id,
+        selection_id=selection_id,
+        file_name=file.filename,
+        content_type=file.content_type,
+        content=content,
+        request_id=request.state.request_id,
     )
 
 

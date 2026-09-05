@@ -135,6 +135,10 @@ def test_ready_returns_current_dependency_checks(client: TestClient) -> None:
                 "status": "ok",
             },
             {
+                "name": "demo_evidence_file_catalog",
+                "status": "ok",
+            },
+            {
                 "name": "evidence_quality_repository",
                 "status": "ok",
             },
@@ -187,7 +191,12 @@ def test_openapi_exposes_health_routes(client: TestClient) -> None:
     assert "/v1/admin/sessions/{session_id}/evidence-burden" in paths
     assert "/v1/sessions/{session_id}/assessment/boundary-check" in paths
     assert "/v1/sessions/{session_id}/evidence/next" in paths
+    assert "/v1/sessions/{session_id}/evidence/selections/{selection_id}/submission-option" in paths
+    assert (
+        "/v1/sessions/{session_id}/evidence/selections/{selection_id}/demo-file/download" in paths
+    )
     assert "/v1/sessions/{session_id}/evidence/submissions" in paths
+    assert "/v1/sessions/{session_id}/evidence/submissions/upload" in paths
     assert "/v1/sessions/{session_id}/evidence/submissions/latest" in paths
     assert "/v1/sessions/{session_id}/evidence/submissions/{submission_id}/quality" in paths
     assert "/v1/sessions/{session_id}/products" in paths

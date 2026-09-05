@@ -192,6 +192,7 @@ def test_ambiguous_boundary_selects_one_minimum_evidence(
         "displayName": "최근 매출·입금 요약",
         "description": "최근 매출 발생과 실제 입금 흐름을 확인할 수 있는 고객 제출 자료",
         "sourceType": "CUSTOMER_SUBMITTED",
+        "collectionMode": "DEMO_FILE_UPLOAD",
         "availability": "CONSENT_REQUIRED",
         "rationaleCodes": [
             "DEMO_RESOLVE_BOUNDARY_1_2",

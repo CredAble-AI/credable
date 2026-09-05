@@ -101,6 +101,7 @@ def test_demo_submission_preserves_metadata_without_raw_evidence(
     assert state["observedAt"] == "2026-08-31T00:00:00Z"
     assert len(state["submissionSnapshotHash"]) == 64
     assert state["dataVersion"] == "demo-recent-revenue-summary-v1"
+    assert state["uploadedFile"] is None
     assert state["demoOnly"] is True
     assert "sourceReference" not in response.text
     assert evidence_submission_repository.count_submissions(session_id) == 1
