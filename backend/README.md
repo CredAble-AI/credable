@@ -200,6 +200,32 @@ Hash, 데이터 버전, 품질 정책 버전을 보존하며 원본 Evidence나 
 방식이 확정된 뒤 Adapter로 교체해야 합니다. 품질 검증을 통과하지 못한 Evidence는 다음
 보완평가 입력으로 사용할 수 없습니다.
 
+## Demo Evidence 기반 보완평가 API
+
+기준평가가 연결된 정책 경계에서 불확실하고, 서버가 선택한 Evidence가 제출·품질
+검증을 모두 통과한 경우에만 보완평가를 실행합니다. 기준평가는 덮어쓰지 않고
+보완평가를 별도 이력으로 보존합니다.
+
+```bash
+curl \
+  http://127.0.0.1:8000/v1/sessions/<sessionId>/assessment/supplemental
+
+curl -X POST \
+  http://127.0.0.1:8000/v1/sessions/<sessionId>/assessment/supplemental/run \
+  -H 'Content-Type: application/json' \
+  -d '{"submissionId":"<submissionId>"}'
+```
+
+보완평가 입력 Snapshot에는 당시 기준평가의 고정된 데이터 출처 상태와 불확실성,
+경계 판정·선택·제출·품질 검증 ID, Evidence Snapshot Hash와 버전을 결합합니다.
+원본 Evidence는 평가 저장소나 Audit에 추가로 복제하지 않습니다. 같은 품질 검증 결과로
+재호출하면 기존 보완평가를 반환합니다.
+
+현재 Demo Fixture는 소상공인 기준평가의 가능 등급 집합 `DEMO_GRADE_B`, `DEMO_GRADE_C`를
+추가 Evidence 반영 후 `DEMO_GRADE_B`로 축소하는 합성 결과만 제공합니다. 실제 등급 개선,
+승인 가능성 또는 모델 성능을 의미하지 않으며, 실제 재평가 모델과 성과라벨 검증은 별도
+작업입니다.
+
 ## 자사 상품 카탈로그 API
 
 상품 카탈로그는 세션별 최신 상태 조회와 새로고침을 지원합니다. 기본 Demo Adapter는
@@ -282,8 +308,8 @@ uv run pytest
 ## 현재 범위
 
 현재 FastAPI 애플리케이션, liveness/readiness API, Demo 고객 세션, 데이터 출처별 동의와
-조회·검증 상태, 보완평가 실행 기반, Demo 정책 경계 판정·최소 증빙 선택·제출·품질 검증
-상태, 합성 자사 상품 카탈로그와 비교 API를 제공합니다. 합성 데이터 출처 상태와 보완평가
+조회·검증 상태, 기준평가, Demo 정책 경계 판정·최소 증빙 선택·제출·품질 검증·보완평가,
+합성 자사 상품 카탈로그와 비교 API를 제공합니다. 합성 데이터 출처 상태와 평가
 상태, 소상공인용 개인화 상품 조건은 기존 Frontend Fixture와 일치합니다. Legacy
 `/v1/cases/*` 흐름은 제거됐습니다. 실제 평가모델·은행 상품정책·Evidence 품질 검증·은행
 연동과 Frontend의 Backend API 전환은 별도 작업으로 진행합니다.
