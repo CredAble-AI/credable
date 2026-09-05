@@ -1,3 +1,5 @@
+from datetime import UTC, datetime, timedelta
+
 import pytest
 from fastapi.testclient import TestClient
 
@@ -5,6 +7,7 @@ from app.adapters.assessment_adapter import AssessmentAdapter, DemoAssessmentAda
 from app.adapters.data_source_adapter import DemoDataSourceAdapter
 from app.core.config import settings
 from app.repositories.assessment_repository import SqliteAssessmentRepository
+from app.repositories.feature_snapshot_repository import SqliteFeatureSnapshotRepository
 from app.repositories.session_repository import SqliteCustomerSessionRepository
 from app.schemas.assessment import (
     AdapterAssessmentResult,
@@ -15,6 +18,8 @@ from app.schemas.assessment import (
 )
 from app.schemas.audit import AuditStage
 from app.schemas.consent import ConsentSourceType
+from app.schemas.feature_snapshot import FeatureValueStatus
+from app.services.assessment_data_lineage_service import AssessmentDataLineageService
 from app.services.assessment_service import AssessmentService
 from app.services.data_source_service import DataSourceService
 
@@ -122,6 +127,7 @@ def test_run_without_model_returns_explicit_state_and_preserves_snapshot(
     assert {item.retrieval_status for item in snapshot.data_sources} == {"CONSENT_REQUIRED"}
     assert snapshot.source_snapshots == []
     assert snapshot.feature_snapshot is None
+    assert snapshot.feature_cutoff_at is not None
 
     event = session_repository.list_audit_events(session_id)[-1]
     assert event.stage == AuditStage.ASSESSMENT_RUN
@@ -130,6 +136,8 @@ def test_run_without_model_returns_explicit_state_and_preserves_snapshot(
     assert event.model_version is None
     assert event.output_summary == {
         "assessmentStatus": "MODEL_NOT_CONFIGURED",
+        "featureCutoffApplied": True,
+        "pointInTimeExcludedSourceCount": 0,
         "demoOnly": True,
     }
 
@@ -193,13 +201,22 @@ def test_demo_assessment_completes_small_business_fixture(
         ConsentSourceType.CREDIT_INFORMATION,
     }
     assert all(len(item.snapshot_hash) == 64 for item in snapshot.source_snapshots)
+    assert snapshot.feature_cutoff_at is not None
+    assert all(
+        item.observed_at <= snapshot.feature_cutoff_at
+        and item.loaded_at <= snapshot.feature_cutoff_at
+        for item in snapshot.source_snapshots
+    )
     assert snapshot.feature_snapshot is not None
     assert snapshot.feature_snapshot.feature_snapshot_id.startswith("fts_")
-    assert snapshot.feature_snapshot.feature_set_version == "demo-neutral-feature-set-v1"
+    assert snapshot.feature_snapshot.feature_set_version == "demo-neutral-feature-set-v2"
+    assert snapshot.feature_snapshot.feature_cutoff_at == snapshot.feature_cutoff_at
     assert len(snapshot.feature_snapshot.snapshot_hash) == 64
     event = session_repository.list_audit_events(session_id)[-1]
     assert event.output_summary == {
         "assessmentStatus": "COMPLETED",
+        "featureCutoffApplied": True,
+        "pointInTimeExcludedSourceCount": 0,
         "calibrationMode": "RULE_TABLE",
         "calibrationVersion": "demo-uncertainty-rule-table-v1",
         "demoOnly": True,
@@ -229,6 +246,50 @@ def test_demo_assessment_keeps_startup_as_insufficient_data(
     assert snapshot is not None
     assert len(snapshot.source_snapshots) == 4
     assert snapshot.feature_snapshot is not None
+
+
+def test_assessment_excludes_required_snapshot_loaded_after_feature_cutoff(
+    client: TestClient,
+    monkeypatch: pytest.MonkeyPatch,
+    assessment_service: AssessmentService,
+    data_source_service: DataSourceService,
+    assessment_data_lineage_service: AssessmentDataLineageService,
+    assessment_repository: SqliteAssessmentRepository,
+    feature_snapshot_repository: SqliteFeatureSnapshotRepository,
+) -> None:
+    session_id = create_session(client, "small-business")
+    prepare_required_demo_sources(client, session_id, data_source_service)
+    assessment_service.adapter = DemoAssessmentAdapter(settings.demo_assessments_path)
+    references = assessment_data_lineage_service.list_references(session_id)
+    future_loaded_at = datetime.now(UTC) + timedelta(days=1)
+    future_references = [
+        references[0].model_copy(update={"loaded_at": future_loaded_at}),
+        *references[1:],
+    ]
+    monkeypatch.setattr(
+        assessment_data_lineage_service,
+        "list_references",
+        lambda _: future_references,
+    )
+
+    response = client.post(f"/v1/sessions/{session_id}/assessment/run")
+
+    assert response.status_code == 200
+    assessment = response.json()["assessment"]
+    assert assessment["status"] == "INSUFFICIENT_DATA"
+    assert assessment["reasonCode"] == "DEMO_REQUIRED_DATA_AFTER_FEATURE_CUTOFF"
+    snapshot = assessment_repository.get_snapshot(assessment["assessmentId"])
+    assert snapshot is not None
+    assert len(snapshot.source_snapshots) == 3
+    assert snapshot.excluded_source_snapshots == [future_references[0]]
+    assert snapshot.feature_snapshot is not None
+    features = feature_snapshot_repository.get(snapshot.feature_snapshot.feature_snapshot_id)
+    assert features is not None
+    assert {
+        item.status
+        for item in features.feature_values
+        if item.source_snapshot_type == future_references[0].snapshot_type
+    } == {FeatureValueStatus.SOURCE_AFTER_CUTOFF}
 
 
 def test_each_run_is_preserved_and_get_returns_latest(

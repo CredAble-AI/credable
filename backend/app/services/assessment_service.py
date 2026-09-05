@@ -131,23 +131,34 @@ class AssessmentService:
         return AssessmentResponse(session_id=session_id, assessment=state)
 
     def run(self, session_id: str, request_id: str) -> AssessmentResponse:
+        feature_cutoff_at = datetime.now(UTC)
         session = self.session_service.get_session(session_id).session
         data_sources = self.data_source_service.list_states(session_id).data_sources
-        source_snapshots = (
+        available_source_snapshots = (
             self.data_lineage_service.list_references(session_id)
             if self.data_lineage_service is not None
             else []
         )
+        source_snapshots = [
+            item
+            for item in available_source_snapshots
+            if item.observed_at <= feature_cutoff_at and item.loaded_at <= feature_cutoff_at
+        ]
+        excluded_source_snapshots = [
+            item for item in available_source_snapshots if item not in source_snapshots
+        ]
         feature_snapshot = (
-            self.feature_snapshot_service.get_or_build(session_id)
-            if self.feature_snapshot_service is not None and source_snapshots
+            self.feature_snapshot_service.get_or_build(session_id, feature_cutoff_at)
+            if self.feature_snapshot_service is not None and available_source_snapshots
             else None
         )
         snapshot = AssessmentInputSnapshot(
             session_id=session_id,
             demo_profile_id=session.demo_profile.demo_profile_id,
             data_sources=data_sources,
+            feature_cutoff_at=feature_cutoff_at,
             source_snapshots=source_snapshots,
+            excluded_source_snapshots=excluded_source_snapshots,
             feature_snapshot=(
                 self.feature_snapshot_service.get_reference(feature_snapshot)
                 if self.feature_snapshot_service is not None and feature_snapshot is not None
@@ -181,8 +192,10 @@ class AssessmentService:
             reason_code=result.reason_code,
             uncertainty=result.uncertainty,
         )
-        output_summary: dict[str, str | bool] = {
+        output_summary: dict[str, str | bool | int] = {
             "assessmentStatus": state.status.value,
+            "featureCutoffApplied": True,
+            "pointInTimeExcludedSourceCount": len(excluded_source_snapshots),
             "demoOnly": state.demo_only,
         }
         if state.uncertainty is not None:

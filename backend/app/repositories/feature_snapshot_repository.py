@@ -60,6 +60,7 @@ class SqliteFeatureSnapshotRepository(FeatureSnapshotRepository):
                     session_id TEXT NOT NULL,
                     feature_set_version TEXT NOT NULL,
                     calculated_at TEXT NOT NULL,
+                    feature_cutoff_at TEXT,
                     source_lineage_hash TEXT NOT NULL,
                     source_snapshots_json TEXT NOT NULL,
                     demo_only INTEGER NOT NULL,
@@ -84,6 +85,16 @@ class SqliteFeatureSnapshotRepository(FeatureSnapshotRepository):
                 );
                 """
             )
+            columns = {
+                row["name"]
+                for row in connection.execute(
+                    "PRAGMA table_info(assessment_feature_snapshots)"
+                ).fetchall()
+            }
+            if "feature_cutoff_at" not in columns:
+                connection.execute(
+                    "ALTER TABLE assessment_feature_snapshots ADD COLUMN feature_cutoff_at TEXT"
+                )
 
     def save(self, snapshot: AssessmentFeatureSnapshot) -> AssessmentFeatureSnapshot:
         source_json = json.dumps(
@@ -97,14 +108,19 @@ class SqliteFeatureSnapshotRepository(FeatureSnapshotRepository):
                 """
                 INSERT INTO assessment_feature_snapshots(
                     feature_snapshot_id, session_id, feature_set_version, calculated_at,
-                    source_lineage_hash, source_snapshots_json, demo_only
-                ) VALUES (?, ?, ?, ?, ?, ?, ?)
+                    feature_cutoff_at, source_lineage_hash, source_snapshots_json, demo_only
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
                     snapshot.feature_snapshot_id,
                     snapshot.session_id,
                     snapshot.feature_set_version,
                     snapshot.calculated_at.isoformat(),
+                    (
+                        snapshot.feature_cutoff_at.isoformat()
+                        if snapshot.feature_cutoff_at is not None
+                        else None
+                    ),
                     snapshot.source_lineage_hash,
                     source_json,
                     int(snapshot.demo_only),
@@ -186,6 +202,7 @@ class SqliteFeatureSnapshotRepository(FeatureSnapshotRepository):
             session_id=snapshot_row["session_id"],
             feature_set_version=snapshot_row["feature_set_version"],
             calculated_at=snapshot_row["calculated_at"],
+            feature_cutoff_at=snapshot_row["feature_cutoff_at"],
             source_lineage_hash=snapshot_row["source_lineage_hash"],
             source_snapshots=[
                 AssessmentDataSnapshotReference.model_validate(item)

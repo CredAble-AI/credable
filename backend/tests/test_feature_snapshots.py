@@ -1,3 +1,5 @@
+import sqlite3
+from datetime import UTC, datetime
 from decimal import Decimal
 
 from fastapi.testclient import TestClient
@@ -54,7 +56,8 @@ def test_builds_versioned_neutral_features_without_cross_source_totals(
 
     assert snapshot is not None
     assert snapshot.feature_snapshot_id.startswith("fts_")
-    assert snapshot.feature_set_version == "demo-neutral-feature-set-v1"
+    assert snapshot.feature_set_version == "demo-neutral-feature-set-v2"
+    assert snapshot.feature_cutoff_at is not None
     assert len(snapshot.source_snapshots) == 4
     values = values_by_dimension(snapshot)
     assert values[(FeatureCode.BANK_ACCOUNT_COUNT, None)].numeric_value == Decimal("1")
@@ -133,3 +136,58 @@ def test_reuses_same_lineage_and_restores_exact_snapshot(
     reopened = SqliteFeatureSnapshotRepository(feature_snapshot_repository.database_path)
     reopened.initialize()
     assert reopened.get(first.feature_snapshot_id) == first
+
+
+def test_excludes_every_feature_from_sources_after_cutoff(
+    client: TestClient,
+    data_source_service: DataSourceService,
+    feature_snapshot_service: FeatureSnapshotService,
+) -> None:
+    session_id = create_session(client, "small-business")
+    refresh_sources(
+        client,
+        session_id,
+        data_source_service,
+        (ConsentSourceType.BANK_INTERNAL, ConsentSourceType.CREDIT_INFORMATION),
+    )
+    cutoff = datetime(2026, 1, 1, tzinfo=UTC)
+
+    snapshot = feature_snapshot_service.get_or_build(session_id, cutoff)
+
+    assert snapshot is not None
+    assert snapshot.feature_cutoff_at == cutoff
+    assert {item.status for item in snapshot.feature_values} == {
+        FeatureValueStatus.SOURCE_AFTER_CUTOFF
+    }
+    assert all(item.numeric_value is None for item in snapshot.feature_values)
+
+
+def test_repository_adds_cutoff_column_to_existing_feature_snapshot_table(tmp_path) -> None:
+    database_path = tmp_path / "legacy.db"
+    with sqlite3.connect(database_path) as connection:
+        connection.executescript(
+            """
+            CREATE TABLE assessment_feature_snapshots (
+                feature_snapshot_id TEXT PRIMARY KEY,
+                session_id TEXT NOT NULL,
+                feature_set_version TEXT NOT NULL,
+                calculated_at TEXT NOT NULL,
+                source_lineage_hash TEXT NOT NULL,
+                source_snapshots_json TEXT NOT NULL,
+                demo_only INTEGER NOT NULL,
+                UNIQUE (session_id, feature_set_version, source_lineage_hash)
+            );
+            """
+        )
+    repository = SqliteFeatureSnapshotRepository(database_path)
+
+    repository.initialize()
+
+    with sqlite3.connect(database_path) as connection:
+        columns = {
+            row[1]
+            for row in connection.execute(
+                "PRAGMA table_info(assessment_feature_snapshots)"
+            ).fetchall()
+        }
+    assert "feature_cutoff_at" in columns

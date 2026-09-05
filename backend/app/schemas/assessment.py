@@ -50,6 +50,7 @@ class AssessmentFeatureSnapshotReference(ApiModel):
     feature_snapshot_id: str = Field(min_length=1)
     feature_set_version: str = Field(min_length=1)
     calculated_at: datetime
+    feature_cutoff_at: datetime | None = None
     source_lineage_hash: str = Field(pattern=r"^[0-9a-f]{64}$")
     snapshot_hash: str = Field(pattern=r"^[0-9a-f]{64}$")
     demo_only: Literal[True] = True
@@ -58,6 +59,11 @@ class AssessmentFeatureSnapshotReference(ApiModel):
     def validate_timestamp(self) -> "AssessmentFeatureSnapshotReference":
         if self.calculated_at.tzinfo is None:
             raise ValueError("calculatedAt must include a timezone")
+        if self.feature_cutoff_at is not None:
+            if self.feature_cutoff_at.tzinfo is None:
+                raise ValueError("featureCutoffAt must include a timezone")
+            if self.feature_cutoff_at > self.calculated_at:
+                raise ValueError("featureCutoffAt cannot be later than calculatedAt")
         return self
 
 
@@ -96,15 +102,34 @@ class AssessmentInputSnapshot(ApiModel):
     session_id: str = Field(min_length=1)
     demo_profile_id: str = Field(min_length=1)
     data_sources: list[DataSourceState]
+    feature_cutoff_at: datetime | None = None
     source_snapshots: list[AssessmentDataSnapshotReference] = Field(default_factory=list)
+    excluded_source_snapshots: list[AssessmentDataSnapshotReference] = Field(default_factory=list)
     feature_snapshot: AssessmentFeatureSnapshotReference | None = None
     demo_only: Literal[True] = True
 
     @model_validator(mode="after")
     def validate_source_snapshots(self) -> "AssessmentInputSnapshot":
+        if self.feature_cutoff_at is not None and self.feature_cutoff_at.tzinfo is None:
+            raise ValueError("featureCutoffAt must include a timezone")
         snapshot_types = [item.snapshot_type for item in self.source_snapshots]
         if len(snapshot_types) != len(set(snapshot_types)):
             raise ValueError("sourceSnapshots snapshotType values must be unique")
+        excluded_types = [item.snapshot_type for item in self.excluded_source_snapshots]
+        if len(excluded_types) != len(set(excluded_types)):
+            raise ValueError("excludedSourceSnapshots snapshotType values must be unique")
+        if set(snapshot_types).intersection(excluded_types):
+            raise ValueError("included and excluded sourceSnapshots cannot overlap")
+        if self.feature_cutoff_at is not None and any(
+            item.observed_at > self.feature_cutoff_at or item.loaded_at > self.feature_cutoff_at
+            for item in self.source_snapshots
+        ):
+            raise ValueError("sourceSnapshots cannot contain data after featureCutoffAt")
+        if self.feature_cutoff_at is not None and any(
+            item.observed_at <= self.feature_cutoff_at and item.loaded_at <= self.feature_cutoff_at
+            for item in self.excluded_source_snapshots
+        ):
+            raise ValueError("excludedSourceSnapshots must be after featureCutoffAt")
         return self
 
 
