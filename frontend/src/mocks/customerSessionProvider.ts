@@ -1,6 +1,6 @@
 import type { CustomerSessionProvider } from '../api/sessionClient'
 import type { ApiError } from '../types/api'
-import { emptyConsents, type ConsentSelections, type CustomerSession, type DemoProfile } from '../types/customerSession'
+import { emptyConsents, type BusinessBorrowerType, type ConsentSelections, type CustomerSession, type DemoProfile } from '../types/customerSession'
 
 const STORAGE_KEY = 'credable.customer-session'
 const SESSION_TTL_MS = 24 * 60 * 60 * 1000
@@ -11,14 +11,19 @@ const wait = (signal: AbortSignal, milliseconds = 300) => new Promise<void>((res
 })
 
 const mockProfiles: DemoProfile[] = [
-  { demoProfileId: 'small-business', displayName: '소상공인 Demo', description: '은행 데이터와 고객 동의 데이터를 연결하는 소상공인 사례입니다.' },
-  { demoProfileId: 'startup', displayName: '스타트업 Demo', description: '여러 금융 데이터의 연결 과정을 확인하는 스타트업 사례입니다.' },
+  { demoProfileId: 'small-business', businessBorrowerType: 'SOLE_PROPRIETOR', displayName: '개인사업자', description: '개업 초기 소상공인을 예시로 한 개인사업자 합성 Demo 사례' },
+  { demoProfileId: 'startup', businessBorrowerType: 'CORPORATION', displayName: '법인사업자', description: '설립 초기 스타트업을 예시로 한 법인사업자 합성 Demo 사례' },
 ]
+
+const isBusinessBorrowerType = (value: unknown): value is BusinessBorrowerType => value === 'SOLE_PROPRIETOR' || value === 'CORPORATION'
 
 const isDemoProfile = (value: unknown): value is DemoProfile => {
   if (!value || typeof value !== 'object') return false
   const profile = value as Partial<DemoProfile>
-  return typeof profile.demoProfileId === 'string' && typeof profile.displayName === 'string' && typeof profile.description === 'string'
+  return typeof profile.demoProfileId === 'string'
+    && isBusinessBorrowerType(profile.businessBorrowerType)
+    && typeof profile.displayName === 'string'
+    && typeof profile.description === 'string'
 }
 const hasBooleanValues = (value: unknown, keys: string[]) => {
   if (!value || typeof value !== 'object') return false
@@ -63,10 +68,10 @@ export const mockCustomerSessionProvider: CustomerSessionProvider = {
     await wait(signal)
     return mockProfiles
   },
-  async create(demoProfileId, signal) {
+  async create(businessBorrowerType, signal) {
     await wait(signal)
-    const profile = mockProfiles.find((item) => item.demoProfileId === demoProfileId)
-    if (!profile) throw { code: 'DEMO_PROFILE_NOT_FOUND', message: '선택한 Demo 프로필을 찾을 수 없습니다.', retryable: false } satisfies ApiError
+    const profile = mockProfiles.find((item) => item.businessBorrowerType === businessBorrowerType)
+    if (!profile) throw { code: 'BUSINESS_BORROWER_TYPE_NOT_FOUND', message: '선택한 사업자 유형을 찾을 수 없습니다.', retryable: false } satisfies ApiError
     localStorage.removeItem(STORAGE_KEY)
     const now = new Date().toISOString()
     const session: CustomerSession = {

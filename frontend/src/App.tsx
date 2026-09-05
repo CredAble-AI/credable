@@ -18,7 +18,7 @@ const principles = [
 ]
 
 const steps = [
-  ['01', '고객 세션 시작', 'Demo 프로필로 데이터 연결 흐름을 시작합니다.'],
+  ['01', '사업자 유형 선택', '개인사업자 또는 법인사업자를 선택해 세션을 시작합니다.'],
   ['02', '이용 범위 동의', '필수 데이터와 선택 데이터를 명확히 나누어 확인합니다.'],
   ['03', '금융 데이터 연결', '고객이 동의한 범위의 데이터를 안전하게 연결합니다.'],
   ['04', '상품 조건 확인', 'Backend가 확정한 확인 가능한 조건을 같은 기준으로 비교합니다.'],
@@ -95,7 +95,7 @@ function LandingPage() {
       <Header />
       <main>
         <section className="hero" id="intro"><div className="container hero__grid">
-          <div className="hero__content"><p className="eyebrow">Bank-powered complementary credit assessment</p><h1>흩어진 금융 데이터를 연결해<br /><span>대출 조건을 한눈에 비교합니다</span></h1><p className="hero__description">CredAble은 은행이 보유하거나 고객 동의를 받아 확인한 데이터를 바탕으로 보완 평가를 수행하고, 자사 대출상품별 확인 가능한 조건을 같은 기준으로 보여줍니다.</p><div className="hero__actions"><Link className="button button--primary" to="/start">평가·상품조건 조회 시작</Link><a className="button button--secondary" href="#principles">서비스 알아보기</a></div><p className="demo-note"><span aria-hidden="true">ⓘ</span> Demo Only · 조회 결과는 실제 승인이나 최종 대출 조건을 의미하지 않습니다.</p></div>
+          <div className="hero__content"><p className="eyebrow">Bank-powered complementary credit assessment</p><h1>사업자 데이터를 모아<br /><span>대출 조건을 비교합니다</span></h1><p className="hero__description">CredAble은 사업자금 대출을 탐색하는 등록 개인사업자와 법인사업자를 대상으로, 은행이 보유하거나 고객 동의를 받아 확인한 데이터를 바탕으로 보완 평가를 수행합니다.</p><div className="hero__actions"><Link className="button button--primary" to="/start">평가·상품조건 조회 시작</Link><a className="button button--secondary" href="#principles">서비스 알아보기</a></div><p className="demo-note"><span aria-hidden="true">ⓘ</span> Demo Only · 조회 결과는 실제 승인이나 최종 대출 조건을 의미하지 않습니다.</p></div>
           <BrandScene />
         </div></section>
         <section className="principles" id="principles" aria-labelledby="principles-title"><div className="container"><p className="section-label">OUR PRINCIPLES</p><h2 id="principles-title">데이터의 범위는 투명하게,<br />조건은 같은 기준으로</h2><div className="principle-grid">{principles.map((item) => <article className="principle-card" key={item.number}><span>{item.number}</span><h3>{item.title}</h3><p>{item.body}</p></article>)}</div></div></section>

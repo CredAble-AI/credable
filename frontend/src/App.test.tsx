@@ -13,7 +13,7 @@ describe('App routing', () => {
   it('renders the customer journey entry point', () => {
     renderRoute('/')
 
-    expect(screen.getByRole('heading', { level: 1, name: /대출 조건을 한눈에 비교합니다/ })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { level: 1, name: /사업자 데이터를 모아.*대출 조건을 비교합니다/ })).toBeInTheDocument()
     expect(screen.getByRole('link', { name: '평가·상품조건 조회 시작' })).toHaveAttribute('href', '/start')
   })
 
