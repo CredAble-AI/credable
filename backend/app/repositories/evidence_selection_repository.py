@@ -16,6 +16,10 @@ class EvidenceSelectionRepository(ABC):
         """Return the latest evidence selection for a session."""
 
     @abstractmethod
+    def list_for_session(self, session_id: str) -> list[EvidenceSelectionState]:
+        """Return all Evidence selections for a session in selection order."""
+
+    @abstractmethod
     def get_for_session(
         self,
         session_id: str,
@@ -139,6 +143,19 @@ class SqliteEvidenceSelectionRepository(EvidenceSelectionRepository):
                 (session_id,),
             ).fetchone()
         return EvidenceSelectionState.model_validate_json(row["state_json"]) if row else None
+
+    def list_for_session(self, session_id: str) -> list[EvidenceSelectionState]:
+        with self._connect() as connection:
+            rows = connection.execute(
+                """
+                SELECT state_json
+                FROM evidence_selections
+                WHERE session_id = ?
+                ORDER BY selection_order ASC
+                """,
+                (session_id,),
+            ).fetchall()
+        return [EvidenceSelectionState.model_validate_json(row["state_json"]) for row in rows]
 
     def get_for_session(
         self,
