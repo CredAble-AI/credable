@@ -5,7 +5,11 @@ from typing import Literal
 from pydantic import Field, model_validator
 
 from app.schemas.base import ApiModel
-from app.schemas.customer import CustomerSubject
+from app.schemas.customer import (
+    BorrowerBusinessRoleType,
+    BusinessLegalForm,
+    CustomerSubject,
+)
 
 
 class CustomerSessionStatus(StrEnum):
@@ -14,6 +18,7 @@ class CustomerSessionStatus(StrEnum):
 
 class DemoProfile(ApiModel):
     demo_profile_id: str = Field(min_length=1)
+    business_borrower_type: BusinessLegalForm | None = None
     display_name: str = Field(min_length=1)
     description: str = Field(min_length=1)
 
@@ -40,13 +45,36 @@ class CustomerSessionState(ApiModel):
 
 class DemoProfileDefinition(ApiModel):
     demo_profile_id: str = Field(min_length=1)
+    business_borrower_type: BusinessLegalForm
     display_name: str = Field(min_length=1)
     description: str = Field(min_length=1)
     customer_subject: CustomerSubject
 
+    @model_validator(mode="after")
+    def validate_business_borrower_scope(self) -> "DemoProfileDefinition":
+        subject = self.customer_subject
+        business = subject.primary_business
+        role = subject.business_role
+        if business is None or role is None:
+            raise ValueError("registered primaryBusiness and businessRole are required")
+        if subject.borrower.borrower_type.value != self.business_borrower_type.value:
+            raise ValueError("borrowerType must match businessBorrowerType")
+        if business.legal_form != self.business_borrower_type:
+            raise ValueError("primaryBusiness legalForm must match businessBorrowerType")
+
+        expected_role = (
+            BorrowerBusinessRoleType.OWNER
+            if self.business_borrower_type == BusinessLegalForm.SOLE_PROPRIETOR
+            else BorrowerBusinessRoleType.BORROWER_ENTITY
+        )
+        if role.role_type != expected_role:
+            raise ValueError("businessRole roleType must match businessBorrowerType")
+        return self
+
     def to_profile(self) -> DemoProfile:
         return DemoProfile(
             demo_profile_id=self.demo_profile_id,
+            business_borrower_type=self.business_borrower_type,
             display_name=self.display_name,
             description=self.description,
         )
@@ -64,7 +92,17 @@ class DemoProfileCatalogResponse(ApiModel):
 
 
 class DemoSessionCreateRequest(ApiModel):
-    demo_profile_id: str = Field(min_length=1)
+    demo_profile_id: str | None = Field(default=None, min_length=1)
+    business_borrower_type: BusinessLegalForm | None = None
+
+    @model_validator(mode="after")
+    def validate_single_demo_selector(self) -> "DemoSessionCreateRequest":
+        selectors = (self.demo_profile_id is not None) + (self.business_borrower_type is not None)
+        if selectors != 1:
+            raise ValueError(
+                "exactly one of demoProfileId or businessBorrowerType must be provided"
+            )
+        return self
 
 
 class DemoSessionCreateResponse(ApiModel):

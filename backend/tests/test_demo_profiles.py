@@ -9,17 +9,19 @@ def test_list_demo_profiles_returns_supported_session_profiles(
     assert response.status_code == 200
     assert response.headers["X-Request-ID"].startswith("req_")
     assert response.json() == {
-        "dataVersion": "demo-profiles-v2",
+        "dataVersion": "demo-profiles-v3",
         "profiles": [
             {
                 "demoProfileId": "small-business",
-                "displayName": "소상공인 Demo",
-                "description": "소상공인 고객 흐름을 확인하기 위한 합성 Demo Profile",
+                "businessBorrowerType": "SOLE_PROPRIETOR",
+                "displayName": "개인사업자",
+                "description": "개업 초기 소상공인을 예시로 한 개인사업자 합성 Demo 사례",
             },
             {
                 "demoProfileId": "startup",
-                "displayName": "스타트업 Demo",
-                "description": "스타트업 고객 흐름을 확인하기 위한 합성 Demo Profile",
+                "businessBorrowerType": "CORPORATION",
+                "displayName": "법인사업자",
+                "description": "설립 초기 스타트업을 예시로 한 법인사업자 합성 Demo 사례",
             },
         ],
         "demoOnly": True,
