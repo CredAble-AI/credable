@@ -11,6 +11,7 @@ class AuditStage(StrEnum):
     DATA_SOURCE_REFRESHED = "DATA_SOURCE_REFRESHED"
     ASSESSMENT_RUN = "ASSESSMENT_RUN"
     POLICY_BOUNDARY_CHECKED = "POLICY_BOUNDARY_CHECKED"
+    EVIDENCE_SELECTED = "EVIDENCE_SELECTED"
     PRODUCT_CATALOG_REFRESHED = "PRODUCT_CATALOG_REFRESHED"
     PRODUCT_CONDITIONS_QUERIED = "PRODUCT_CONDITIONS_QUERIED"
 
@@ -28,7 +29,7 @@ class SessionAuditEvent(ApiModel):
     actor: AuditActor
     input_version: str
     input_snapshot_hash: str
-    output_summary: dict[str, str | bool | int]
+    output_summary: dict[str, str | bool | int | float]
     data_version: str | None = None
     model_version: str | None = None
     policy_version: str | None = None

@@ -25,6 +25,9 @@ class Settings(BaseModel):
     demo_policy_boundaries_path: Path = (
         BACKEND_ROOT / "app" / "data" / "demo_policy_boundaries.json"
     )
+    demo_evidence_candidates_path: Path = (
+        BACKEND_ROOT / "app" / "data" / "demo_evidence_candidates.json"
+    )
     demo_products_path: Path = BACKEND_ROOT / "app" / "data" / "demo_products.json"
     demo_product_conditions_path: Path = (
         BACKEND_ROOT / "app" / "data" / "demo_product_conditions.json"

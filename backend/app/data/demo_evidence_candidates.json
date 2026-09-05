@@ -1,0 +1,41 @@
+{
+  "dataVersion": "demo-evidence-candidates-v1",
+  "selectionPolicyVersion": "demo-active-evidence-selection-v1",
+  "candidates": [
+    {
+      "evidenceType": "CUSTOMER_SUBMITTED_RECENT_REVENUE_SUMMARY",
+      "displayName": "최근 매출·입금 요약",
+      "description": "최근 매출 발생과 실제 입금 흐름을 확인할 수 있는 고객 제출 자료",
+      "sourceType": "CUSTOMER_SUBMITTED",
+      "boundaryCodes": ["DEMO_BOUNDARY_1_2"],
+      "boundaryResolutionValue": 0.9,
+      "qualityReliability": 0.9,
+      "customerEffort": 0.15,
+      "privacySensitivity": 0.08,
+      "acquisitionDelay": 0.05,
+      "acquisitionCost": 0.03,
+      "rationaleCodes": [
+        "DEMO_RESOLVE_BOUNDARY_1_2",
+        "DEMO_MINIMUM_SINGLE_REQUEST"
+      ]
+    },
+    {
+      "evidenceType": "EXTERNAL_CONNECTED_SETTLEMENT_SUMMARY",
+      "displayName": "외부 정산 입금 요약",
+      "description": "고객 동의로 연결 가능한 외부 정산과 실제 입금 흐름의 요약",
+      "sourceType": "EXTERNAL_CONNECTED",
+      "boundaryCodes": ["DEMO_BOUNDARY_1_2"],
+      "boundaryResolutionValue": 0.85,
+      "qualityReliability": 0.85,
+      "customerEffort": 0.18,
+      "privacySensitivity": 0.1,
+      "acquisitionDelay": 0.12,
+      "acquisitionCost": 0.08,
+      "rationaleCodes": [
+        "DEMO_RESOLVE_BOUNDARY_1_2",
+        "DEMO_CROSS_CHECK_SETTLEMENT"
+      ]
+    }
+  ],
+  "demoOnly": true
+}
