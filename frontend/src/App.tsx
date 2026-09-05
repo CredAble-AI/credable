@@ -2,6 +2,7 @@ import { useEffect, useRef } from 'react'
 import { Link, Route, Routes } from 'react-router-dom'
 import './App.css'
 import Header from './components/Header'
+import RouteAnnouncement from './components/RouteAnnouncement'
 import AssessmentPage from './pages/AssessmentPage'
 import ApplicationHandoffPage from './pages/ApplicationHandoffPage'
 import ConsentPage from './pages/ConsentPage'
@@ -108,6 +109,6 @@ function LandingPage() {
 }
 
 function App() {
-  return <Routes><Route path="/" element={<LandingPage />} /><Route path="/start" element={<CustomerStartPage />} /><Route path="/consent" element={<ConsentPage />} /><Route path="/data-connection" element={<DataConnectionPage />} /><Route path="/assessment" element={<AssessmentPage />} /><Route path="/evidence" element={<EvidenceSelectionPage />} /><Route path="/products" element={<ProductComparisonPage />} /><Route path="/products/:productId" element={<ProductDetailPage />} /><Route path="/products/:productId/apply" element={<ApplicationHandoffPage />} /><Route path="*" element={<NotFoundPage />} /></Routes>
+  return <><RouteAnnouncement /><Routes><Route path="/" element={<LandingPage />} /><Route path="/start" element={<CustomerStartPage />} /><Route path="/consent" element={<ConsentPage />} /><Route path="/data-connection" element={<DataConnectionPage />} /><Route path="/assessment" element={<AssessmentPage />} /><Route path="/evidence" element={<EvidenceSelectionPage />} /><Route path="/products" element={<ProductComparisonPage />} /><Route path="/products/:productId" element={<ProductDetailPage />} /><Route path="/products/:productId/apply" element={<ApplicationHandoffPage />} /><Route path="*" element={<NotFoundPage />} /></Routes></>
 }
 export default App
