@@ -1,0 +1,29 @@
+{
+  "dataVersion": "demo-evidence-quality-v1",
+  "qualityPolicyVersion": "demo-evidence-quality-policy-v1",
+  "results": [
+    {
+      "evidenceType": "CUSTOMER_SUBMITTED_RECENT_REVENUE_SUMMARY",
+      "checks": [
+        {"dimension": "PROVENANCE", "status": "PASSED", "rationaleCode": "DEMO_SOURCE_REFERENCE_PRESENT"},
+        {"dimension": "FRESHNESS", "status": "PASSED", "rationaleCode": "DEMO_FRESHNESS_POLICY_PASSED"},
+        {"dimension": "AUTHENTICITY", "status": "PASSED", "rationaleCode": "DEMO_FIXTURE_AUTHENTICITY_PASSED"},
+        {"dimension": "COMPLETENESS", "status": "PASSED", "rationaleCode": "DEMO_REQUIRED_FIELDS_PRESENT"},
+        {"dimension": "CONSISTENCY", "status": "PASSED", "rationaleCode": "DEMO_INTERNAL_TOTALS_CONSISTENT"},
+        {"dimension": "MANIPULATION_RISK", "status": "PASSED", "rationaleCode": "DEMO_MANIPULATION_CHECK_PASSED"}
+      ]
+    },
+    {
+      "evidenceType": "EXTERNAL_CONNECTED_SETTLEMENT_SUMMARY",
+      "checks": [
+        {"dimension": "PROVENANCE", "status": "PASSED", "rationaleCode": "DEMO_SOURCE_REFERENCE_PRESENT"},
+        {"dimension": "FRESHNESS", "status": "FAILED", "rationaleCode": "DEMO_FRESHNESS_POLICY_FAILED"},
+        {"dimension": "AUTHENTICITY", "status": "NOT_VERIFIED", "rationaleCode": "DEMO_AUTHENTICITY_NOT_VERIFIED"},
+        {"dimension": "COMPLETENESS", "status": "PASSED", "rationaleCode": "DEMO_REQUIRED_FIELDS_PRESENT"},
+        {"dimension": "CONSISTENCY", "status": "PASSED", "rationaleCode": "DEMO_INTERNAL_TOTALS_CONSISTENT"},
+        {"dimension": "MANIPULATION_RISK", "status": "PASSED", "rationaleCode": "DEMO_MANIPULATION_CHECK_PASSED"}
+      ]
+    }
+  ],
+  "demoOnly": true
+}

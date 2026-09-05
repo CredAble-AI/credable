@@ -20,6 +20,14 @@ class EvidenceSubmissionRepository(ABC):
         """Return an Evidence submission by its identifier."""
 
     @abstractmethod
+    def get_for_session(
+        self,
+        session_id: str,
+        submission_id: str,
+    ) -> EvidenceSubmissionState | None:
+        """Return an Evidence submission only when it belongs to the session."""
+
+    @abstractmethod
     def get_by_selection_id(self, selection_id: str) -> EvidenceSubmissionState | None:
         """Return an existing submission for the same Evidence selection."""
 
@@ -91,6 +99,22 @@ class SqliteEvidenceSubmissionRepository(EvidenceSubmissionRepository):
             row = connection.execute(
                 "SELECT state_json FROM evidence_submissions WHERE submission_id = ?",
                 (submission_id,),
+            ).fetchone()
+        return EvidenceSubmissionState.model_validate_json(row["state_json"]) if row else None
+
+    def get_for_session(
+        self,
+        session_id: str,
+        submission_id: str,
+    ) -> EvidenceSubmissionState | None:
+        with self._connect() as connection:
+            row = connection.execute(
+                """
+                SELECT state_json
+                FROM evidence_submissions
+                WHERE session_id = ? AND submission_id = ?
+                """,
+                (session_id, submission_id),
             ).fetchone()
         return EvidenceSubmissionState.model_validate_json(row["state_json"]) if row else None
 

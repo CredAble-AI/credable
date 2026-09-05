@@ -20,6 +20,7 @@ from app.core.errors import ApiDomainError
 from app.repositories.assessment_repository import SqliteAssessmentRepository
 from app.repositories.consent_repository import SqliteConsentRepository
 from app.repositories.data_source_repository import SqliteDataSourceRepository
+from app.repositories.evidence_quality_repository import SqliteEvidenceQualityRepository
 from app.repositories.evidence_selection_repository import SqliteEvidenceSelectionRepository
 from app.repositories.evidence_submission_repository import SqliteEvidenceSubmissionRepository
 from app.repositories.policy_boundary_repository import SqlitePolicyBoundaryRepository
@@ -32,6 +33,10 @@ from app.services.assessment_service import AssessmentService
 from app.services.comparison_service import ProductComparisonService
 from app.services.consent_service import ConsentService, DemoConsentScopeCatalog
 from app.services.data_source_service import DataSourceService
+from app.services.evidence_quality_service import (
+    DemoEvidenceQualityCatalog,
+    EvidenceQualityService,
+)
 from app.services.evidence_selection_service import (
     DemoEvidenceCandidateCatalog,
     EvidenceSelectionService,
@@ -138,6 +143,18 @@ def build_evidence_submission_service(
     )
 
 
+def build_evidence_quality_service(
+    session_service: CustomerSessionService,
+    evidence_submission_service: EvidenceSubmissionService,
+) -> EvidenceQualityService:
+    return EvidenceQualityService(
+        repository=SqliteEvidenceQualityRepository(settings.database_path),
+        submission_repository=evidence_submission_service.repository,
+        session_service=session_service,
+        catalog=DemoEvidenceQualityCatalog(settings.demo_evidence_quality_path),
+    )
+
+
 def build_product_condition_service(
     session_service: CustomerSessionService,
     product_catalog_service: ProductCatalogService,
@@ -162,6 +179,7 @@ def create_app(
     policy_boundary_service: PolicyBoundaryService | None = None,
     evidence_selection_service: EvidenceSelectionService | None = None,
     evidence_submission_service: EvidenceSubmissionService | None = None,
+    evidence_quality_service: EvidenceQualityService | None = None,
     product_catalog_service: ProductCatalogService | None = None,
     product_condition_service: ProductConditionService | None = None,
     admin_authenticator: AdminApiKeyAuthenticator | None = None,
@@ -195,6 +213,10 @@ def create_app(
             resolved_evidence_selection_service,
         )
     )
+    resolved_evidence_quality_service = evidence_quality_service or build_evidence_quality_service(
+        resolved_session_service,
+        resolved_evidence_submission_service,
+    )
     resolved_product_catalog_service = product_catalog_service or build_product_catalog_service(
         resolved_session_service
     )
@@ -224,6 +246,7 @@ def create_app(
         resolved_policy_boundary_service.initialize()
         resolved_evidence_selection_service.initialize()
         resolved_evidence_submission_service.initialize()
+        resolved_evidence_quality_service.initialize()
         resolved_product_catalog_service.initialize()
         resolved_product_condition_service.initialize()
         yield
@@ -243,6 +266,7 @@ def create_app(
     application.state.policy_boundary_service = resolved_policy_boundary_service
     application.state.evidence_selection_service = resolved_evidence_selection_service
     application.state.evidence_submission_service = resolved_evidence_submission_service
+    application.state.evidence_quality_service = resolved_evidence_quality_service
     application.state.product_catalog_service = resolved_product_catalog_service
     application.state.product_condition_service = resolved_product_condition_service
     application.state.product_comparison_service = resolved_product_comparison_service
