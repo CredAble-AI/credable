@@ -4,7 +4,7 @@ import { normalizeSessionError } from '../api/sessionClient'
 import Header from '../components/Header'
 import { sessionProvider } from '../hooks/useCustomerSession'
 import type { ApiError } from '../types/api'
-import type { DemoProfile } from '../types/customerSession'
+import type { BusinessBorrowerType, DemoProfile } from '../types/customerSession'
 import './CustomerStartPage.css'
 
 function CustomerStartPage() {
@@ -12,7 +12,7 @@ function CustomerStartPage() {
   const [profiles, setProfiles] = useState<DemoProfile[]>([])
   const [profilesLoading, setProfilesLoading] = useState(true)
   const [profilesError, setProfilesError] = useState<ApiError | null>(null)
-  const [selected, setSelected] = useState<string | null>(null)
+  const [selected, setSelected] = useState<BusinessBorrowerType | null>(null)
   const [error, setError] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const sequenceRef = useRef(0)
@@ -41,7 +41,7 @@ function CustomerStartPage() {
 
   const continueToConsent = async () => {
     if (!selected) {
-      setError('계속하려면 Demo 프로필을 하나 선택해주세요.')
+      setError('개인사업자 또는 법인사업자를 선택해주세요.')
       return
     }
     setSubmitting(true)
@@ -64,38 +64,38 @@ function CustomerStartPage() {
           <div className="flow-heading">
             <p className="flow-kicker">NEW CUSTOMER SESSION</p>
             <span className="demo-badge"><i aria-hidden="true" />Demo Only</span>
-            <h1>어떤 Demo로 시작할까요?</h1>
-            <p>아래 프로필은 서비스 흐름을 확인하기 위한 대표 사례입니다. 실제 이용 대상은 특정 고객 유형으로 제한되지 않습니다.</p>
+            <h1>대출 계약의 주체를 선택해주세요</h1>
+            <p>CredAble은 사업자금 대출을 탐색하는 등록 사업자를 위한 서비스입니다. 선택한 사업자 유형에 맞는 합성 사례로 평가 흐름을 확인합니다.</p>
           </div>
 
-          {profilesLoading && <p role="status" aria-live="polite">Demo 프로필을 불러오고 있습니다.</p>}
+          {profilesLoading && <p role="status" aria-live="polite">사업자 유형을 불러오고 있습니다.</p>}
           {profilesError && (
             <div className="flow-actions">
               <p className="flow-error" role="alert">{profilesError.message}</p>
               <button className="button button--secondary" type="button" onClick={() => void loadProfiles()}>다시 시도</button>
             </div>
           )}
-          {!profilesLoading && !profilesError && profiles.length === 0 && <p role="status">현재 선택할 수 있는 Demo 프로필이 없습니다.</p>}
+          {!profilesLoading && !profilesError && profiles.length === 0 && <p role="status">현재 선택할 수 있는 사업자 유형이 없습니다.</p>}
 
           {!profilesLoading && !profilesError && profiles.length > 0 && (
-            <fieldset className="profile-grid">
-              <legend className="sr-only">Demo 프로필 선택</legend>
+            <fieldset className="borrower-grid">
+              <legend className="sr-only">대출 계약 주체 선택</legend>
               {profiles.map((profile) => {
-                const isSelected = selected === profile.demoProfileId
+                const isSelected = selected === profile.businessBorrowerType
                 return (
-                  <label className={`profile-card${isSelected ? ' profile-card--selected' : ''}`} key={profile.demoProfileId}>
+                  <label className={`borrower-card${isSelected ? ' borrower-card--selected' : ''}`} key={profile.businessBorrowerType}>
                     <input
                       type="radio"
-                      name="demo-profile"
-                      value={profile.demoProfileId}
+                      name="business-borrower-type"
+                      value={profile.businessBorrowerType}
                       checked={isSelected}
-                      onChange={() => { setSelected(profile.demoProfileId); setError('') }}
+                      onChange={() => { setSelected(profile.businessBorrowerType); setError('') }}
                     />
-                    <span className="profile-card__marker" aria-hidden="true">{isSelected ? '✓' : ''}</span>
-                    <span className="profile-card__tag">Synthetic profile</span>
+                    <span className="borrower-card__marker" aria-hidden="true">{isSelected ? '✓' : ''}</span>
+                    <span className="borrower-card__tag">합성 Demo 사례</span>
                     <h2>{profile.displayName}</h2>
                     <p>{profile.description}</p>
-                    <small>합성 데이터 · 실제 정보를 사용하지 않습니다.</small>
+                    <small>등록 사업자 대상 · 실제 고객 정보를 사용하지 않습니다.</small>
                   </label>
                 )
               })}
@@ -103,6 +103,7 @@ function CustomerStartPage() {
           )}
 
           <div className="flow-actions">
+            <p className="borrower-scope-note">개인 생활자금 대출과 사업자등록 전 예비창업자는 현재 지원하지 않습니다.</p>
             <p className="flow-error" role="alert" aria-live="polite">{error}</p>
             <button className="button button--primary" type="button" onClick={() => void continueToConsent()} disabled={submitting || profilesLoading}>{submitting ? '세션을 만드는 중…' : '계속하기'}</button>
           </div>
