@@ -18,7 +18,7 @@
         "retrievalStatus": "RETRIEVED",
         "verificationStatus": "VERIFIED",
         "observedAt": "2026-08-31T23:59:59+09:00",
-        "dataVersion": "synthetic-bank-data-v1"
+        "dataVersion": "synthetic-credit-information-v1"
       }
     },
     {
@@ -58,7 +58,7 @@
         "retrievalStatus": "RETRIEVED",
         "verificationStatus": "VERIFIED",
         "observedAt": "2026-08-31T23:59:59+09:00",
-        "dataVersion": "synthetic-demo-v1"
+        "dataVersion": "synthetic-credit-information-v1"
       }
     },
     {
