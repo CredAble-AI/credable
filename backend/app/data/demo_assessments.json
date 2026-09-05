@@ -9,7 +9,19 @@
       "demoProfileId": "small-business",
       "result": {
         "status": "COMPLETED",
-        "modelVersion": "demo-small-business-assessment-v1"
+        "modelVersion": "demo-small-business-assessment-v1",
+        "uncertainty": {
+          "pointEstimate": null,
+          "lowerBound": null,
+          "upperBound": null,
+          "gradeSet": [
+            "DEMO_GRADE_B",
+            "DEMO_GRADE_C"
+          ],
+          "calibrationMode": "RULE_TABLE",
+          "calibrationVersion": "demo-uncertainty-rule-table-v1",
+          "demoOnly": true
+        }
       }
     },
     {

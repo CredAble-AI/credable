@@ -18,6 +18,42 @@ class AssessmentStatus(StrEnum):
     FAILED = "FAILED"
 
 
+class CalibrationMode(StrEnum):
+    RULE_TABLE = "RULE_TABLE"
+    CONFORMAL_CALIBRATED = "CONFORMAL_CALIBRATED"
+
+
+class AssessmentUncertainty(ApiModel):
+    point_estimate: float | None = None
+    lower_bound: float | None = None
+    upper_bound: float | None = None
+    grade_set: list[str] = Field(default_factory=list)
+    calibration_mode: CalibrationMode
+    calibration_version: str = Field(min_length=1)
+    demo_only: Literal[True] = True
+
+    @model_validator(mode="after")
+    def validate_uncertainty(self) -> "AssessmentUncertainty":
+        has_lower = self.lower_bound is not None
+        has_upper = self.upper_bound is not None
+        if has_lower != has_upper:
+            raise ValueError("uncertainty interval requires both bounds")
+        if has_lower and has_upper:
+            if self.lower_bound > self.upper_bound:
+                raise ValueError("lowerBound cannot exceed upperBound")
+            if self.point_estimate is not None and not (
+                self.lower_bound <= self.point_estimate <= self.upper_bound
+            ):
+                raise ValueError("pointEstimate must be within the uncertainty interval")
+        if not has_lower and not self.grade_set:
+            raise ValueError("uncertainty requires an interval or gradeSet")
+        if any(not grade.strip() for grade in self.grade_set):
+            raise ValueError("gradeSet values cannot be blank")
+        if len(self.grade_set) != len(set(self.grade_set)):
+            raise ValueError("gradeSet values must be unique")
+        return self
+
+
 class AssessmentInputSnapshot(ApiModel):
     session_id: str = Field(min_length=1)
     demo_profile_id: str = Field(min_length=1)
@@ -29,6 +65,7 @@ class AdapterAssessmentResult(ApiModel):
     status: AssessmentStatus
     model_version: str | None = None
     reason_code: str | None = None
+    uncertainty: AssessmentUncertainty | None = None
 
     @model_validator(mode="after")
     def validate_result(self) -> "AdapterAssessmentResult":
@@ -37,8 +74,12 @@ class AdapterAssessmentResult(ApiModel):
         if self.status == AssessmentStatus.COMPLETED:
             if self.model_version is None:
                 raise ValueError("COMPLETED assessment requires modelVersion")
+            if self.uncertainty is None:
+                raise ValueError("COMPLETED assessment requires uncertainty")
         elif not self.reason_code:
             raise ValueError("incomplete assessment requires reasonCode")
+        elif self.uncertainty is not None:
+            raise ValueError("incomplete assessment cannot expose uncertainty")
         return self
 
 
@@ -70,6 +111,7 @@ class AssessmentState(ApiModel):
     input_snapshot_id: str | None = None
     model_version: str | None = None
     reason_code: str | None = None
+    uncertainty: AssessmentUncertainty | None = None
     demo_only: Literal[True] = True
 
     @model_validator(mode="after")
@@ -86,14 +128,20 @@ class AssessmentState(ApiModel):
                 raise ValueError("NOT_RUN assessment cannot have execution metadata")
             if self.model_version is not None or self.reason_code is not None:
                 raise ValueError("NOT_RUN assessment cannot have a result")
+            if self.uncertainty is not None:
+                raise ValueError("NOT_RUN assessment cannot have uncertainty")
             return self
         if any(value is None for value in execution_fields):
             raise ValueError("executed assessment requires execution metadata")
         if self.status == AssessmentStatus.COMPLETED:
             if self.model_version is None:
                 raise ValueError("COMPLETED assessment requires modelVersion")
+            if self.uncertainty is None:
+                raise ValueError("COMPLETED assessment requires uncertainty")
         elif not self.reason_code:
             raise ValueError("incomplete assessment requires reasonCode")
+        elif self.uncertainty is not None:
+            raise ValueError("incomplete assessment cannot expose uncertainty")
         return self
 
 
