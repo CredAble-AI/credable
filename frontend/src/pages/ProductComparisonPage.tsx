@@ -65,11 +65,10 @@ function ProductComparisonPage() {
   const controllerRef = useRef<AbortController | null>(null)
   const sequenceRef = useRef(0)
   const busyRef = useRef(false)
-  const requiredComplete = session ? Object.values(session.consents.required).every(Boolean) : false
 
-  useEffect(() => { if (sessionLoading) return; if (!session) navigate('/start', { replace: true }); else if (!requiredComplete) navigate('/consent', { replace: true }) }, [navigate, requiredComplete, session, sessionLoading])
+  useEffect(() => { if (!sessionLoading && !session) navigate('/start', { replace: true }) }, [navigate, session, sessionLoading])
   const load = useCallback(async (refresh = false) => {
-    if (!session || !requiredComplete || busyRef.current) return
+    if (!session || busyRef.current) return
     busyRef.current = true
     controllerRef.current?.abort()
     const controller = new AbortController(); controllerRef.current = controller
@@ -84,8 +83,8 @@ function ProductComparisonPage() {
       if (sequence === sequenceRef.current) { setResult(next); setSortField('CATALOG_ORDER'); setDirection('NONE') }
     } catch (caught) { if (!controller.signal.aborted && sequence === sequenceRef.current) setError(normalizeProductError(caught)) }
     finally { if (sequence === sequenceRef.current) setLoading(false); busyRef.current = false }
-  }, [navigate, requiredComplete, session])
-  useEffect(() => { if (session && requiredComplete) queueMicrotask(() => void load()); return () => { sequenceRef.current += 1; controllerRef.current?.abort() } }, [load, requiredComplete, session])
+  }, [navigate, session])
+  useEffect(() => { if (session) queueMicrotask(() => void load()); return () => { sequenceRef.current += 1; controllerRef.current?.abort() } }, [load, session])
 
   const sortOptions = useMemo<{ field: SortSelection; label: string }[]>(() => [
     { field: 'CATALOG_ORDER', label: '기본 순서' },
@@ -102,7 +101,7 @@ function ProductComparisonPage() {
     }).map(({ item }) => item)
   }, [direction, result, sortField])
   const changeField = (field: SortSelection) => { setSortField(field); setDirection(field === 'CATALOG_ORDER' ? 'NONE' : 'ASC') }
-  if (sessionLoading || !session || !requiredComplete) return null
+  if (sessionLoading || !session) return null
   return <div className="workspace-shell customer-flow"><Header /><main className="products-page"><div className="container products-page__inner">
     <nav className="product-steps" aria-label="진행 단계"><span>시작</span><span>동의</span><span>데이터 연결</span><span>보완 평가</span><strong aria-current="step">상품 비교</strong></nav>
     <header className="products-heading"><div>{isMockMode && <span className="products-badge">Mock mode · Demo Only</span>}<p className="flow-kicker">OWN-BANK PRODUCT COMPARISON</p><h1>자사 대출상품 조건을 비교합니다</h1><p>현재 확인 가능한 상품 조건을 같은 기준으로 보여드립니다. 특정 상품을 권하거나 자동으로 선택하지 않으며, 정렬 기준과 상품은 고객이 직접 선택합니다.</p></div><aside><span>현재 Demo 프로필</span><strong>{session.demoProfile.displayName}</strong><small>합성 상품·조건이며 실제 승인 결과가 아닙니다.</small></aside></header>

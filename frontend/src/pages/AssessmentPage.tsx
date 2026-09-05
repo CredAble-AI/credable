@@ -1,19 +1,15 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { liveAssessmentProvider, normalizeAssessmentError } from '../api/assessmentClient'
-import { liveDataConnectionProvider } from '../api/dataConnectionClient'
 import Header from '../components/Header'
 import { isMockMode, selectProvider } from '../config/providerMode'
 import { useCustomerSession } from '../hooks/useCustomerSession'
 import { mockAssessmentProvider } from '../mocks/assessmentProvider'
-import { mockDataConnectionProvider } from '../mocks/dataConnectionProvider'
 import type { AssessmentRequest, AssessmentResult, AssessmentStatus } from '../types/assessment'
 import type { ApiError } from '../types/api'
-import type { DataConnectionRequest } from '../types/dataConnection'
 import './AssessmentPage.css'
 
 const provider = selectProvider(mockAssessmentProvider, liveAssessmentProvider)
-const dataConnectionProvider = selectProvider(mockDataConnectionProvider, liveDataConnectionProvider)
 const statusCopy: Record<AssessmentStatus, { label: string; icon: string }> = {
   NOT_RUN: { label: '평가 준비 중', icon: '…' },
   MODEL_NOT_CONFIGURED: { label: '평가 방식 미구성', icon: '○' },
@@ -32,23 +28,18 @@ function AssessmentPage() {
   const [phase, setPhase] = useState<'loading' | 'running' | 'idle'>('loading')
   const controllerRef = useRef<AbortController | null>(null)
   const requestSequence = useRef(0)
-  const requiredComplete = session ? Object.values(session.consents.required).every(Boolean) : false
   const requestRef = useRef<AssessmentRequest | null>(null)
-  const connectionRequestRef = useRef<DataConnectionRequest | null>(null)
   useEffect(() => {
     requestRef.current = session ? { sessionId: session.sessionId, profileType: session.selectedProfileType } : null
-    connectionRequestRef.current = session ? { sessionId: session.sessionId, profileType: session.selectedProfileType, consents: session.consents } : null
   }, [session])
 
   useEffect(() => {
-    if (sessionLoading) return
-    if (!session) navigate('/start', { replace: true })
-    else if (!requiredComplete) navigate('/consent', { replace: true })
-  }, [navigate, requiredComplete, session, sessionLoading])
+    if (!sessionLoading && !session) navigate('/start', { replace: true })
+  }, [navigate, session, sessionLoading])
 
   const load = useCallback(async (forceRun = false) => {
     const request = requestRef.current
-    if (!request || !requiredComplete || phase === 'running') return
+    if (!request || phase === 'running') return
     controllerRef.current?.abort()
     const controller = new AbortController()
     controllerRef.current = controller
@@ -56,19 +47,6 @@ function AssessmentPage() {
     setError(null)
     setPhase(forceRun ? 'running' : 'loading')
     try {
-      const connection = connectionRequestRef.current
-      if (!connection) return
-      let readiness
-      try {
-        readiness = await dataConnectionProvider.list(connection, controller.signal)
-      } catch {
-        if (!controller.signal.aborted) navigate('/data-connection', { replace: true })
-        return
-      }
-      if (readiness.canProceed !== true) {
-        navigate('/data-connection', { replace: true })
-        return
-      }
       let next = forceRun ? await provider.run(request, controller.signal) : await provider.get(request, controller.signal)
       if (next.sessionId !== request.sessionId) throw { code: 'ASSESSMENT_SESSION_MISMATCH', message: '현재 세션의 평가 결과를 확인할 수 없습니다.', retryable: true } satisfies ApiError
       if (!forceRun && next.assessment.status === 'NOT_RUN') {
@@ -82,16 +60,16 @@ function AssessmentPage() {
     } finally {
       if (sequence === requestSequence.current) setPhase('idle')
     }
-  }, [navigate, phase, requiredComplete])
+  }, [phase])
 
   useEffect(() => {
-    if (requestRef.current && requiredComplete) void load()
+    if (requestRef.current) void load()
     return () => controllerRef.current?.abort()
-    // Fires once the session finishes loading; subsequent phase/requiredComplete changes are handled by explicit reloads.
+    // Fires once the session finishes loading; subsequent phase changes are handled by explicit reloads.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [session])
 
-  if (sessionLoading || !session || !requiredComplete) return null
+  if (sessionLoading || !session) return null
   const state = result?.assessment
   const copy = state ? statusCopy[state.status] : null
   const incomplete = state && state.status !== 'COMPLETED'
