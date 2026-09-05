@@ -159,6 +159,7 @@ class AcceptedEvidenceSnapshot(ApiModel):
     submission_id: str = Field(min_length=1)
     selection_id: str = Field(min_length=1)
     boundary_check_id: str = Field(min_length=1)
+    resolution_id: str | None = Field(default=None, min_length=1)
     evidence_type: str = Field(min_length=1)
     source_type: ConsentSourceType
     observed_at: datetime
@@ -183,7 +184,39 @@ class SupplementalAssessmentInputSnapshot(ApiModel):
     baseline_uncertainty: AssessmentUncertainty
     data_sources: list[DataSourceState]
     accepted_evidence: AcceptedEvidenceSnapshot
+    accepted_evidence_set: list[AcceptedEvidenceSnapshot] = Field(default_factory=list)
     demo_only: Literal[True] = True
+
+    @model_validator(mode="before")
+    @classmethod
+    def restore_legacy_evidence_set(cls, data: object) -> object:
+        if not isinstance(data, dict):
+            return data
+        if "acceptedEvidenceSet" in data or "accepted_evidence_set" in data:
+            return data
+        accepted_evidence = data.get("acceptedEvidence", data.get("accepted_evidence"))
+        if accepted_evidence is None:
+            return data
+        restored = dict(data)
+        restored["acceptedEvidenceSet"] = [accepted_evidence]
+        return restored
+
+    @model_validator(mode="after")
+    def validate_accepted_evidence_set(self) -> "SupplementalAssessmentInputSnapshot":
+        if not self.accepted_evidence_set:
+            raise ValueError("acceptedEvidenceSet cannot be empty")
+        if self.accepted_evidence_set[-1] != self.accepted_evidence:
+            raise ValueError("acceptedEvidence must be the latest acceptedEvidenceSet item")
+        submission_ids = [item.submission_id for item in self.accepted_evidence_set]
+        quality_check_ids = [item.quality_check_id for item in self.accepted_evidence_set]
+        evidence_types = [item.evidence_type for item in self.accepted_evidence_set]
+        if len(submission_ids) != len(set(submission_ids)):
+            raise ValueError("acceptedEvidenceSet submissionId values must be unique")
+        if len(quality_check_ids) != len(set(quality_check_ids)):
+            raise ValueError("acceptedEvidenceSet qualityCheckId values must be unique")
+        if len(evidence_types) != len(set(evidence_types)):
+            raise ValueError("acceptedEvidenceSet evidenceType values must be unique")
+        return self
 
 
 class SupplementalAssessmentState(ApiModel):
@@ -197,6 +230,7 @@ class SupplementalAssessmentState(ApiModel):
     model_version: str | None = None
     reason_code: str | None = None
     uncertainty: AssessmentUncertainty | None = None
+    accepted_evidence_count: int = Field(default=1, ge=1)
     demo_only: Literal[True] = True
 
     @model_validator(mode="after")
@@ -272,8 +306,25 @@ class AssessmentComparisonResponse(ApiModel):
 
 class DemoSupplementalAssessmentDefinition(ApiModel):
     demo_profile_id: str = Field(min_length=1)
-    evidence_type: str = Field(min_length=1)
+    evidence_type: str | None = Field(default=None, min_length=1)
+    evidence_types: list[str] = Field(default_factory=list)
     result: AdapterAssessmentResult
+
+    @model_validator(mode="after")
+    def validate_evidence_input(self) -> "DemoSupplementalAssessmentDefinition":
+        if self.evidence_type is None and not self.evidence_types:
+            raise ValueError("supplemental assessment requires Evidence input")
+        if self.evidence_type is not None and self.evidence_types:
+            raise ValueError("use either evidenceType or evidenceTypes")
+        if len(self.evidence_types) != len(set(self.evidence_types)):
+            raise ValueError("evidenceTypes values must be unique")
+        if any(not evidence_type.strip() for evidence_type in self.evidence_types):
+            raise ValueError("evidenceTypes values cannot be blank")
+        return self
+
+    def evidence_type_key(self) -> tuple[str, ...]:
+        values = self.evidence_types or [self.evidence_type]
+        return tuple(sorted(value for value in values if value is not None))
 
 
 class DemoSupplementalAssessmentCatalogData(ApiModel):
@@ -283,7 +334,7 @@ class DemoSupplementalAssessmentCatalogData(ApiModel):
 
     @model_validator(mode="after")
     def validate_unique_inputs(self) -> "DemoSupplementalAssessmentCatalogData":
-        inputs = [(item.demo_profile_id, item.evidence_type) for item in self.assessments]
+        inputs = [(item.demo_profile_id, item.evidence_type_key()) for item in self.assessments]
         if len(inputs) != len(set(inputs)):
             raise ValueError("supplemental assessment input pairs must be unique")
         return self

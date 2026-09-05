@@ -16,6 +16,14 @@ class EvidenceSelectionRepository(ABC):
         """Return the latest evidence selection for a session."""
 
     @abstractmethod
+    def get_for_session(
+        self,
+        session_id: str,
+        selection_id: str,
+    ) -> EvidenceSelectionState | None:
+        """Return an Evidence selection only when it belongs to the session."""
+
+    @abstractmethod
     def get_by_boundary_check_id(
         self,
         boundary_check_id: str,
@@ -129,6 +137,22 @@ class SqliteEvidenceSelectionRepository(EvidenceSelectionRepository):
                 LIMIT 1
                 """,
                 (session_id,),
+            ).fetchone()
+        return EvidenceSelectionState.model_validate_json(row["state_json"]) if row else None
+
+    def get_for_session(
+        self,
+        session_id: str,
+        selection_id: str,
+    ) -> EvidenceSelectionState | None:
+        with self._connect() as connection:
+            row = connection.execute(
+                """
+                SELECT state_json
+                FROM evidence_selections
+                WHERE session_id = ? AND selection_id = ?
+                """,
+                (session_id, selection_id),
             ).fetchone()
         return EvidenceSelectionState.model_validate_json(row["state_json"]) if row else None
 
