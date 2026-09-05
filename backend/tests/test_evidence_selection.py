@@ -198,6 +198,20 @@ def test_ambiguous_boundary_selects_one_minimum_evidence(
             "DEMO_RESOLVE_BOUNDARY_1_2",
             "DEMO_MINIMUM_SINGLE_REQUEST",
         ],
+        "consentScope": {
+            "scopeVersion": "demo-recent-revenue-consent-v1",
+            "purposeCode": "SUPPLEMENTAL_CREDIT_ASSESSMENT",
+            "purposeDescription": "기존 평가의 불확실성을 확인하기 위한 보완평가에 사용",
+            "dataCategories": [
+                "BUSINESS_IDENTITY",
+                "MONTHLY_SALES",
+                "MONTHLY_DEPOSITS",
+                "PERIOD_TOTALS",
+            ],
+            "periodStart": "2026-03-01",
+            "periodEnd": "2026-08-31",
+            "required": True,
+        },
         "demoOnly": True,
     }
     assert evidence_selection_repository.count_selections(session_id) == 1
@@ -342,8 +356,27 @@ def test_more_evidence_resolution_selects_next_unsubmitted_candidate(
     assert selection["selectedEvidence"]["evidenceType"] == (
         "EXTERNAL_CONNECTED_SETTLEMENT_SUMMARY"
     )
+    assert selection["selectedEvidence"]["consentScope"]["scopeVersion"] == (
+        "demo-settlement-connection-consent-v1"
+    )
     assert selection["evaluatedCandidateCount"] == 1
     assert evidence_selection_repository.count_selections(session_id) == 2
+
+    consent = client.get(
+        f"/v1/sessions/{session_id}/evidence/selections/{selection['selectionId']}/consent"
+    )
+    assert consent.status_code == 200
+    assert consent.json()["consent"]["sourceType"] == "EXTERNAL_CONNECTED"
+    assert consent.json()["consent"]["status"] == "PENDING"
+    option = client.get(
+        f"/v1/sessions/{session_id}/evidence/selections/"
+        f"{selection['selectionId']}/submission-option"
+    )
+    assert option.status_code == 200
+    assert option.json()["collectionMode"] == "DEMO_CONNECTION"
+    assert option.json()["submissionRequirement"]["status"] == "CONSENT_REQUIRED"
+    assert option.json()["demoFile"] is None
+    assert option.json()["uploadPolicy"] is None
 
     event = session_repository.list_audit_events(session_id)[-1]
     assert event.stage == AuditStage.EVIDENCE_SELECTED

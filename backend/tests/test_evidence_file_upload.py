@@ -6,13 +6,13 @@ from pathlib import Path
 import pytest
 from fastapi.testclient import TestClient
 
-from app.adapters.assessment_adapter import DemoAssessmentAdapter
+from app.adapters.assessment_adapter import DemoAssessmentAdapter, DemoSupplementalAssessmentAdapter
 from app.adapters.data_source_adapter import DemoDataSourceAdapter
 from app.core.config import settings
 from app.repositories.evidence_submission_repository import SqliteEvidenceSubmissionRepository
 from app.repositories.session_repository import SqliteCustomerSessionRepository
 from app.schemas.consent import ConsentSourceType
-from app.services.assessment_service import AssessmentService
+from app.services.assessment_service import AssessmentService, SupplementalAssessmentService
 from app.services.data_source_service import DataSourceService
 from app.services.evidence_quality_service import EvidenceQualityService
 from app.services.evidence_submission_service import DemoEvidenceFileCatalog
@@ -49,9 +49,13 @@ def prepare_selection(
     return selection
 
 
-def grant_customer_submitted_consent(client: TestClient, session_id: str) -> None:
+def grant_evidence_consent(
+    client: TestClient,
+    session_id: str,
+    selection_id: str,
+) -> None:
     response = client.post(
-        f"/v1/sessions/{session_id}/consents/{ConsentSourceType.CUSTOMER_SUBMITTED.value}/grant"
+        f"/v1/sessions/{session_id}/evidence/selections/{selection_id}/consent/grant"
     )
     assert response.status_code == 200
 
@@ -89,7 +93,9 @@ def test_submission_option_reflects_current_consent_and_server_file(
     )
 
     before = client.get(endpoint)
-    grant_customer_submitted_consent(client, session_id)
+    client.post(
+        f"/v1/sessions/{session_id}/consents/{ConsentSourceType.CUSTOMER_SUBMITTED.value}/grant"
+    )
     after = client.get(endpoint)
 
     assert before.status_code == 200
@@ -97,7 +103,7 @@ def test_submission_option_reflects_current_consent_and_server_file(
     assert option["collectionMode"] == "DEMO_FILE_UPLOAD"
     assert option["submissionRequirement"] == {
         "status": "CONSENT_REQUIRED",
-        "reasonCode": "EVIDENCE_SOURCE_CONSENT_REQUIRED",
+        "reasonCode": "EVIDENCE_SELECTION_CONSENT_REQUIRED",
         "consentSourceType": "CUSTOMER_SUBMITTED",
     }
     assert option["demoFile"]["demoFileId"] == "demo_recent_revenue_summary_v1"
@@ -109,8 +115,11 @@ def test_submission_option_reflects_current_consent_and_server_file(
         "allowedExtensions": [".pdf"],
         "maxSizeBytes": 5 * 1024 * 1024,
     }
-    assert after.json()["submissionRequirement"]["status"] == "READY"
-    assert after.json()["submissionRequirement"]["reasonCode"] is None
+    assert after.json()["submissionRequirement"]["status"] == "CONSENT_REQUIRED"
+    grant_evidence_consent(client, session_id, selection["selectionId"])
+    ready = client.get(endpoint).json()["submissionRequirement"]
+    assert ready["status"] == "READY"
+    assert ready["reasonCode"] is None
 
 
 def test_other_session_cannot_access_selection_file_contract(
@@ -143,6 +152,7 @@ def test_demo_pdf_download_uses_safe_attachment_headers(
 ) -> None:
     session_id = create_session(client)
     selection = prepare_selection(client, session_id, data_source_service, assessment_service)
+    grant_evidence_consent(client, session_id, selection["selectionId"])
 
     response = client.get(
         f"/v1/sessions/{session_id}/evidence/selections/"
@@ -154,6 +164,23 @@ def test_demo_pdf_download_uses_safe_attachment_headers(
     assert response.headers["content-disposition"].startswith("attachment;")
     assert response.content == demo_pdf_path().read_bytes()
     assert response.content.startswith(b"%PDF-")
+
+
+def test_demo_pdf_download_requires_selection_scoped_consent(
+    client: TestClient,
+    data_source_service: DataSourceService,
+    assessment_service: AssessmentService,
+) -> None:
+    session_id = create_session(client)
+    selection = prepare_selection(client, session_id, data_source_service, assessment_service)
+
+    response = client.get(
+        f"/v1/sessions/{session_id}/evidence/selections/"
+        f"{selection['selectionId']}/demo-file/download"
+    )
+
+    assert response.status_code == 409
+    assert response.json()["error"]["code"] == "EVIDENCE_CONSENT_REQUIRED"
 
 
 def test_upload_requires_current_customer_submitted_consent(
@@ -184,7 +211,7 @@ def test_valid_demo_pdf_upload_preserves_only_verified_metadata(
 ) -> None:
     session_id = create_session(client)
     selection = prepare_selection(client, session_id, data_source_service, assessment_service)
-    grant_customer_submitted_consent(client, session_id)
+    grant_evidence_consent(client, session_id, selection["selectionId"])
     pdf_content = demo_pdf_path().read_bytes()
 
     response = upload(client, session_id, selection["selectionId"], pdf_content)
@@ -192,6 +219,8 @@ def test_valid_demo_pdf_upload_preserves_only_verified_metadata(
     assert response.status_code == 200
     submission = response.json()["submission"]
     assert submission["submissionMode"] == "DEMO_FILE_UPLOAD"
+    assert submission["evidenceConsentId"].startswith("evc_")
+    assert submission["consentScopeVersion"] == "demo-recent-revenue-consent-v1"
     assert submission["uploadedFile"] == {
         "demoFileId": "demo_recent_revenue_summary_v1",
         "fileName": "최근_매출_입금_요약서_DEMO.pdf",
@@ -233,7 +262,7 @@ def test_upload_rejects_invalid_file_or_unissued_pdf(
 ) -> None:
     session_id = create_session(client)
     selection = prepare_selection(client, session_id, data_source_service, assessment_service)
-    grant_customer_submitted_consent(client, session_id)
+    grant_evidence_consent(client, session_id, selection["selectionId"])
     content = {
         "official": demo_pdf_path().read_bytes(),
         "invalid_magic": b"not a pdf",
@@ -262,7 +291,7 @@ def test_upload_is_idempotent_for_same_hash_and_conflicts_for_changed_file(
 ) -> None:
     session_id = create_session(client)
     selection = prepare_selection(client, session_id, data_source_service, assessment_service)
-    grant_customer_submitted_consent(client, session_id)
+    grant_evidence_consent(client, session_id, selection["selectionId"])
     content = demo_pdf_path().read_bytes()
 
     first = upload(client, session_id, selection["selectionId"], content)
@@ -289,7 +318,7 @@ def test_uploaded_binary_quality_comes_from_hash_and_manifest_validation(
 ) -> None:
     session_id = create_session(client)
     selection = prepare_selection(client, session_id, data_source_service, assessment_service)
-    grant_customer_submitted_consent(client, session_id)
+    grant_evidence_consent(client, session_id, selection["selectionId"])
     submission = upload(
         client,
         session_id,
@@ -317,6 +346,101 @@ def test_uploaded_binary_quality_comes_from_hash_and_manifest_validation(
     assert quality["eligibleForReassessment"] is True
 
 
+def test_withdrawn_evidence_consent_blocks_new_quality_check(
+    client: TestClient,
+    data_source_service: DataSourceService,
+    assessment_service: AssessmentService,
+) -> None:
+    session_id = create_session(client)
+    selection = prepare_selection(client, session_id, data_source_service, assessment_service)
+    selection_id = selection["selectionId"]
+    grant_evidence_consent(client, session_id, selection_id)
+    submission = upload(
+        client,
+        session_id,
+        selection_id,
+        demo_pdf_path().read_bytes(),
+    ).json()["submission"]
+    client.post(f"/v1/sessions/{session_id}/evidence/selections/{selection_id}/consent/withdraw")
+
+    response = client.post(
+        f"/v1/sessions/{session_id}/evidence/submissions/{submission['submissionId']}/quality"
+    )
+
+    assert response.status_code == 409
+    assert response.json()["error"]["code"] == "EVIDENCE_CONSENT_NOT_ACTIVE"
+
+
+def test_withdrawn_evidence_consent_blocks_new_supplemental_assessment(
+    client: TestClient,
+    data_source_service: DataSourceService,
+    assessment_service: AssessmentService,
+) -> None:
+    session_id = create_session(client)
+    selection = prepare_selection(client, session_id, data_source_service, assessment_service)
+    selection_id = selection["selectionId"]
+    grant_evidence_consent(client, session_id, selection_id)
+    submission = upload(
+        client,
+        session_id,
+        selection_id,
+        demo_pdf_path().read_bytes(),
+    ).json()["submission"]
+    quality = client.post(
+        f"/v1/sessions/{session_id}/evidence/submissions/{submission['submissionId']}/quality"
+    )
+    assert quality.status_code == 200
+    assert quality.json()["quality"]["status"] == "ACCEPTED"
+    withdrawn = client.post(
+        f"/v1/sessions/{session_id}/evidence/selections/{selection_id}/consent/withdraw"
+    )
+    assert withdrawn.status_code == 200
+
+    response = client.post(
+        f"/v1/sessions/{session_id}/assessment/supplemental/run",
+        json={"submissionId": submission["submissionId"]},
+    )
+
+    assert response.status_code == 409
+    assert response.json()["error"]["code"] == "EVIDENCE_CONSENT_NOT_ACTIVE"
+
+
+def test_withdrawal_preserves_already_created_supplemental_snapshot(
+    client: TestClient,
+    data_source_service: DataSourceService,
+    assessment_service: AssessmentService,
+    supplemental_assessment_service: SupplementalAssessmentService,
+) -> None:
+    session_id = create_session(client)
+    selection = prepare_selection(client, session_id, data_source_service, assessment_service)
+    selection_id = selection["selectionId"]
+    grant_evidence_consent(client, session_id, selection_id)
+    submission = upload(
+        client,
+        session_id,
+        selection_id,
+        demo_pdf_path().read_bytes(),
+    ).json()["submission"]
+    quality = client.post(
+        f"/v1/sessions/{session_id}/evidence/submissions/{submission['submissionId']}/quality"
+    )
+    assert quality.status_code == 200
+    supplemental_assessment_service.adapter = DemoSupplementalAssessmentAdapter(
+        settings.demo_supplemental_assessments_path
+    )
+    endpoint = f"/v1/sessions/{session_id}/assessment/supplemental/run"
+    first = client.post(endpoint, json={"submissionId": submission["submissionId"]})
+    assert first.status_code == 200
+
+    client.post(f"/v1/sessions/{session_id}/evidence/selections/{selection_id}/consent/withdraw")
+    repeated = client.post(endpoint, json={"submissionId": submission["submissionId"]})
+    latest = client.get(f"/v1/sessions/{session_id}/assessment/supplemental")
+
+    assert repeated.status_code == 200
+    assert repeated.json() == first.json()
+    assert latest.json() == first.json()
+
+
 def test_inconsistent_server_manifest_rejects_uploaded_binary_quality(
     client: TestClient,
     data_source_service: DataSourceService,
@@ -326,7 +450,7 @@ def test_inconsistent_server_manifest_rejects_uploaded_binary_quality(
 ) -> None:
     session_id = create_session(client)
     selection = prepare_selection(client, session_id, data_source_service, assessment_service)
-    grant_customer_submitted_consent(client, session_id)
+    grant_evidence_consent(client, session_id, selection["selectionId"])
     submission = upload(
         client,
         session_id,
@@ -367,7 +491,7 @@ def test_changed_submission_snapshot_is_not_eligible_for_reassessment(
 ) -> None:
     session_id = create_session(client)
     selection = prepare_selection(client, session_id, data_source_service, assessment_service)
-    grant_customer_submitted_consent(client, session_id)
+    grant_evidence_consent(client, session_id, selection["selectionId"])
     submission = upload(
         client,
         session_id,
@@ -380,7 +504,7 @@ def test_changed_submission_snapshot_is_not_eligible_for_reassessment(
             (submission["submissionId"],),
         ).fetchone()
         state = json.loads(row[0])
-        state["selectionId"] = "evs_tampered"
+        state["dataVersion"] = "tampered-data-version"
         connection.execute(
             "UPDATE evidence_submissions SET state_json = ? WHERE submission_id = ?",
             (json.dumps(state, ensure_ascii=False), submission["submissionId"]),
