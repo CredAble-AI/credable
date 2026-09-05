@@ -6,10 +6,12 @@ from pydantic import Field, model_validator
 
 from app.schemas.base import ApiModel
 from app.schemas.consent import ConsentSourceType
+from app.schemas.evidence_file import UploadedEvidenceFile
 
 
 class EvidenceSubmissionMode(StrEnum):
     DEMO_FIXTURE_REFERENCE = "DEMO_FIXTURE_REFERENCE"
+    DEMO_FILE_UPLOAD = "DEMO_FILE_UPLOAD"
 
 
 class EvidenceSubmissionStatus(StrEnum):
@@ -32,6 +34,7 @@ class EvidenceSubmissionState(ApiModel):
     observed_at: datetime
     submission_snapshot_hash: str = Field(pattern=r"^[0-9a-f]{64}$")
     data_version: str = Field(min_length=1)
+    uploaded_file: UploadedEvidenceFile | None = None
     demo_only: Literal[True] = True
 
     @model_validator(mode="after")

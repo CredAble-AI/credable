@@ -70,6 +70,7 @@ from app.services.evidence_selection_service import (
     EvidenceSelectionService,
 )
 from app.services.evidence_submission_service import (
+    DemoEvidenceFileCatalog,
     DemoEvidenceSubmissionCatalog,
     EvidenceSubmissionService,
 )
@@ -277,12 +278,15 @@ def build_evidence_selection_service(
 def build_evidence_submission_service(
     session_service: CustomerSessionService,
     evidence_selection_service: EvidenceSelectionService,
+    consent_service: ConsentService,
 ) -> EvidenceSubmissionService:
     return EvidenceSubmissionService(
         repository=evidence_selection_service.submission_repository,
         session_service=session_service,
         selection_service=evidence_selection_service,
+        consent_service=consent_service,
         catalog=DemoEvidenceSubmissionCatalog(settings.demo_evidence_submissions_path),
+        file_catalog=DemoEvidenceFileCatalog(settings.demo_evidence_files_path),
     )
 
 
@@ -295,6 +299,7 @@ def build_evidence_quality_service(
         submission_repository=evidence_submission_service.repository,
         session_service=session_service,
         catalog=DemoEvidenceQualityCatalog(settings.demo_evidence_quality_path),
+        file_catalog=evidence_submission_service.file_catalog,
     )
 
 
@@ -449,6 +454,7 @@ def create_app(
         or build_evidence_submission_service(
             resolved_session_service,
             resolved_evidence_selection_service,
+            resolved_consent_service,
         )
     )
     resolved_evidence_quality_service = evidence_quality_service or build_evidence_quality_service(

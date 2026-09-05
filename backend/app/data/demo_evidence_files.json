@@ -1,0 +1,57 @@
+{
+  "dataVersion": "demo-evidence-files-v1",
+  "files": [
+    {
+      "demoFileId": "demo_recent_revenue_summary_v1",
+      "evidenceType": "CUSTOMER_SUBMITTED_RECENT_REVENUE_SUMMARY",
+      "sourceType": "CUSTOMER_SUBMITTED",
+      "collectionMode": "DEMO_FILE_UPLOAD",
+      "displayName": "최근 매출·입금 요약 Demo 자료",
+      "description": "합성 매출과 입금 내역으로 구성된 Demo PDF",
+      "fileName": "최근_매출_입금_요약서_DEMO.pdf",
+      "contentType": "application/pdf",
+      "relativePath": "demo_files/recent_revenue_summary_v1.pdf",
+      "sizeBytes": 40771,
+      "sha256": "dcb17cca7569a46073f3b23e1e5eb0a0fbc0e7707995be056b557cb81bf6128d",
+      "observedAt": "2026-08-31T00:00:00Z",
+      "qualityReferenceAt": "2026-09-06T00:00:00Z",
+      "dataVersion": "demo-recent-revenue-summary-v1",
+      "qualityPolicyVersion": "demo-binary-evidence-quality-policy-v1",
+      "requiredManifestFields": [
+        "businessName",
+        "periodStart",
+        "periodEnd",
+        "generatedOn",
+        "demoNotice",
+        "monthlySummaries",
+        "totals"
+      ],
+      "manifest": {
+        "businessName": "도담상점(합성)",
+        "periodStart": "2026-03-01",
+        "periodEnd": "2026-08-31",
+        "generatedOn": "2026-09-06",
+        "demoNotice": "합성 Demo 자료 · 실제 제출용 아님",
+        "monthlySummaries": [
+          {"month": "2026-03", "salesAmount": 42000000, "depositAmount": 40500000, "differenceAmount": 1500000},
+          {"month": "2026-04", "salesAmount": 45000000, "depositAmount": 44000000, "differenceAmount": 1000000},
+          {"month": "2026-05", "salesAmount": 47500000, "depositAmount": 46800000, "differenceAmount": 700000},
+          {"month": "2026-06", "salesAmount": 49000000, "depositAmount": 48600000, "differenceAmount": 400000},
+          {"month": "2026-07", "salesAmount": 51000000, "depositAmount": 50400000, "differenceAmount": 600000},
+          {"month": "2026-08", "salesAmount": 53000000, "depositAmount": 52500000, "differenceAmount": 500000}
+        ],
+        "totals": {
+          "salesAmount": 287500000,
+          "depositAmount": 282800000,
+          "differenceAmount": 4700000
+        }
+      },
+      "uploadPolicy": {
+        "allowedContentTypes": ["application/pdf"],
+        "allowedExtensions": [".pdf"],
+        "maxSizeBytes": 5242880
+      }
+    }
+  ],
+  "demoOnly": true
+}

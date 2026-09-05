@@ -302,12 +302,25 @@ Demo 후보 순서는 `경계 해소값 × 예상 품질 신뢰도 - 고객 노�
 
 ## Demo Evidence 제출 상태 API
 
-선택된 Evidence는 원문 파일 대신 Demo Fixture 참조를 사용해 제출 상태만 등록합니다. 서버는
-클라이언트가 보낸 Evidence 유형을 신뢰하지 않고 최신 `selectionId`에서 유형과 출처를 다시
-확인합니다.
+선택 결과의 `collectionMode`가 `DEMO_FILE_UPLOAD`이면 서버가 제공하는 합성 PDF를 내려받아
+실제로 업로드할 수 있습니다. `DEMO_CONNECTION`과 `UNAVAILABLE`도 서버가 반환하므로
+Frontend가 Evidence 유형을 보고 수집 방식을 하드코딩하지 않습니다. 서버는 최신
+`selectionId`에서 Evidence 유형·출처·수집 방식을 다시 확인하고 클라이언트 판단값을 신뢰하지
+않습니다.
 
 ```bash
 curl http://127.0.0.1:8000/v1/sessions/<sessionId>/evidence/submissions/latest
+
+curl \
+  http://127.0.0.1:8000/v1/sessions/<sessionId>/evidence/selections/<selectionId>/submission-option
+
+curl -OJ \
+  http://127.0.0.1:8000/v1/sessions/<sessionId>/evidence/selections/<selectionId>/demo-file/download
+
+curl -X POST \
+  http://127.0.0.1:8000/v1/sessions/<sessionId>/evidence/submissions/upload \
+  -F 'selectionId=<selectionId>' \
+  -F 'file=@최근_매출_입금_요약서_DEMO.pdf;type=application/pdf'
 
 curl -X POST \
   http://127.0.0.1:8000/v1/sessions/<sessionId>/evidence/submissions \
@@ -315,14 +328,16 @@ curl -X POST \
   -d '{"selectionId":"<selectionId>","submissionMode":"DEMO_FIXTURE_REFERENCE"}'
 ```
 
-응답과 DB에는 제출 ID·Evidence 유형·출처·관측시점·데이터 버전·Snapshot Hash만 저장합니다.
-Fixture의 내부 참조 문자열이나 원본 금융자료는 저장·응답·Audit에 포함하지 않습니다. 같은
-`selectionId`를 다시 제출하면 기존 상태를 반환해 중복 제출과 중복 Audit을 만들지 않습니다.
+제출 옵션 API는 현재 동의를 매번 다시 확인해 `READY`, `CONSENT_REQUIRED`, `UNAVAILABLE` 중
+하나를 반환하고 Demo 파일 메타데이터와 허용 형식·최대 5MB 정책을 함께 제공합니다. 파일
+다운로드는 동의를 자동 부여하지 않으며, 업로드 시 `CUSTOMER_SUBMITTED` 동의가 현재
+`GRANTED`가 아니면 `EVIDENCE_CONSENT_REQUIRED`로 차단합니다.
 
-실제 파일 업로드는 허용하지 않습니다. 지원 파일 형식·용량, 암호화 저장, 악성파일 검사,
-보존·삭제 기간과 접근권한은 은행 보안·개인정보 정책 결정 후 별도 Adapter와 저장소로
-구현해야 합니다. 다음 단계의 품질 검증은 현재 등록된 메타데이터와 별도 Demo 품질 Fixture를
-사용합니다.
+업로드는 확장자·MIME·`%PDF-` magic bytes·5MB 제한을 확인한 뒤 실제 binary의 SHA-256을
+계산해 서버가 발급한 PDF manifest의 해시와 비교합니다. 원본 binary와 PDF 본문은 DB·Audit·
+로그에 저장하지 않고 서버가 확정한 파일명·크기·MIME·해시·문서 ID만 저장합니다. 같은
+`selectionId`와 같은 해시는 기존 제출을 반환하며 다른 해시는 `EVIDENCE_ALREADY_SUBMITTED`로
+차단합니다. 기존 `DEMO_FIXTURE_REFERENCE` JSON API는 호환성을 위해 유지합니다.
 
 ## Demo Evidence 품질 검증 API
 
@@ -338,11 +353,16 @@ curl -X POST \
   http://127.0.0.1:8000/v1/sessions/<sessionId>/evidence/submissions/<submissionId>/quality
 ```
 
-현재 결과는 합성 Demo Fixture에 명시된 상태와 설명 코드이며 실제 문서 판독, 서명·발급처
-검증이나 금융기관 품질 임계값을 구현한 것이 아닙니다. 같은 `submissionId`를 다시 검증하면
-저장된 결과를 반환해 중복 판정과 중복 Audit을 만들지 않습니다. 판정에는 제출 Snapshot
-Hash, 데이터 버전, 품질 정책 버전을 보존하며 원본 Evidence나 내부 임계값은 응답과 Audit에
-포함하지 않습니다.
+`DEMO_FILE_UPLOAD` 제출은 Evidence 유형만으로 고정 결과를 고르지 않습니다. 업로드 때 계산한
+실제 파일 해시와 서버 발급 문서 ID를 manifest에 다시 연결한 뒤 출처, 기준시점, 필수 항목,
+월별 매출·입금 차이와 전체 합계를 검증해 여섯 차원으로 변환합니다. 해시·manifest·제출
+Snapshot 중 하나라도 일치하지 않으면 재평가 입력 자격을 주지 않습니다. 원본을 폐기한 뒤에도
+서버가 저장한 해시와 manifest로 같은 결과를 재현할 수 있습니다.
+
+기존 `DEMO_FIXTURE_REFERENCE` 제출은 하위 호환을 위해 기존 품질 Fixture를 사용합니다. 같은
+`submissionId`를 다시 검증하면 저장된 결과를 반환해 중복 판정과 중복 Audit을 만들지 않습니다.
+이번 binary 검증은 서버가 직접 발급한 합성 Demo PDF에 대한 실제 검증이며 임의의 실물
+금융문서 진위 판별, 운영 수준 OCR 또는 악성파일 검사를 의미하지 않습니다.
 
 실제 운영 규칙은 은행이 인정하는 발급처, 유효기간, 필수 필드, 교차검증 원천과 조작 탐지
 방식이 확정된 뒤 Adapter로 교체해야 합니다. 품질 검증을 통과하지 못한 Evidence는 다음

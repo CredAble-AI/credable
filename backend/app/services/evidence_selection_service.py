@@ -341,6 +341,7 @@ class EvidenceSelectionService:
                 display_name=definition.display_name,
                 description=definition.description,
                 source_type=definition.source_type,
+                collection_mode=definition.collection_mode,
                 availability=self._availability(source_state),
                 rationale_codes=definition.rationale_codes,
             ),
