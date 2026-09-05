@@ -12,6 +12,7 @@ from app.services.consent_service import ConsentService
 from app.services.credit_exposure_service import CreditExposureService
 from app.services.credit_history_service import CreditHistoryService
 from app.services.data_source_service import DataSourceService
+from app.services.evidence_consent_service import EvidenceConsentService
 from app.services.evidence_quality_service import EvidenceQualityService
 from app.services.evidence_selection_service import EvidenceSelectionService
 from app.services.evidence_submission_service import EvidenceSubmissionService
@@ -58,6 +59,7 @@ async def get_readiness(request: Request) -> ReadinessResponse:
     evidence_selection_service: EvidenceSelectionService = (
         request.app.state.evidence_selection_service
     )
+    evidence_consent_service: EvidenceConsentService = request.app.state.evidence_consent_service
     evidence_submission_service: EvidenceSubmissionService = (
         request.app.state.evidence_submission_service
     )
@@ -81,6 +83,7 @@ async def get_readiness(request: Request) -> ReadinessResponse:
         **policy_boundary_service.readiness(),
         **evidence_resolution_service.readiness(),
         **evidence_selection_service.readiness(),
+        **evidence_consent_service.readiness(),
         **evidence_submission_service.readiness(),
         **evidence_quality_service.readiness(),
         **product_catalog_service.readiness(),

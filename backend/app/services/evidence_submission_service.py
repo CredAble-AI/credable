@@ -7,7 +7,7 @@ from uuid import uuid4
 from app.core.errors import ApiDomainError, ResourceConflictError, ResourceNotFoundError
 from app.repositories.evidence_submission_repository import EvidenceSubmissionRepository
 from app.schemas.audit import AuditActor, AuditStage, SessionAuditEvent
-from app.schemas.consent import ConsentStatus
+from app.schemas.evidence_consent import EvidenceConsentState
 from app.schemas.evidence_file import (
     DemoEvidenceFileCatalogData,
     DemoEvidenceFileDefinition,
@@ -28,7 +28,7 @@ from app.schemas.evidence_submission import (
     EvidenceSubmissionState,
     EvidenceSubmissionStatus,
 )
-from app.services.consent_service import ConsentService
+from app.services.evidence_consent_service import EvidenceConsentService
 from app.services.evidence_selection_service import EvidenceSelectionService
 from app.services.session_service import CustomerSessionService
 
@@ -116,14 +116,14 @@ class EvidenceSubmissionService:
         repository: EvidenceSubmissionRepository,
         session_service: CustomerSessionService,
         selection_service: EvidenceSelectionService,
-        consent_service: ConsentService,
+        evidence_consent_service: EvidenceConsentService,
         catalog: DemoEvidenceSubmissionCatalog,
         file_catalog: DemoEvidenceFileCatalog,
     ) -> None:
         self.repository = repository
         self.session_service = session_service
         self.selection_service = selection_service
-        self.consent_service = consent_service
+        self.evidence_consent_service = evidence_consent_service
         self.catalog = catalog
         self.file_catalog = file_catalog
 
@@ -164,13 +164,16 @@ class EvidenceSubmissionService:
         requirement_status = EvidenceSubmissionRequirementStatus.UNAVAILABLE
         reason_code = "EVIDENCE_COLLECTION_UNAVAILABLE"
         if collection_mode != EvidenceCollectionMode.UNAVAILABLE:
-            consent = self.consent_service.repository.get_consent(session_id, selected.source_type)
-            if consent is not None and consent.status == ConsentStatus.GRANTED:
+            consent_granted = self.evidence_consent_service.is_currently_granted(
+                session_id,
+                selection_id,
+            )
+            if consent_granted:
                 requirement_status = EvidenceSubmissionRequirementStatus.READY
                 reason_code = None
             else:
                 requirement_status = EvidenceSubmissionRequirementStatus.CONSENT_REQUIRED
-                reason_code = "EVIDENCE_SOURCE_CONSENT_REQUIRED"
+                reason_code = "EVIDENCE_SELECTION_CONSENT_REQUIRED"
 
         demo_file = None
         upload_policy = None
@@ -210,6 +213,7 @@ class EvidenceSubmissionService:
     ) -> tuple[Path, DemoEvidenceFileDefinition]:
         selection = self._require_current_selection(session_id, selection_id)
         definition = self._require_demo_file_definition(selection)
+        self._require_consent(session_id, selection_id)
         if not self.file_catalog.asset_matches_manifest(definition):
             raise ResourceConflictError(
                 code="DEMO_EVIDENCE_FILE_NOT_CONFIGURED",
@@ -220,7 +224,7 @@ class EvidenceSubmissionService:
     def upload_limit(self, session_id: str, selection_id: str) -> int:
         selection = self._require_current_selection(session_id, selection_id)
         definition = self._require_demo_file_definition(selection)
-        self._require_consent(session_id, definition)
+        self._require_consent(session_id, selection_id)
         return definition.upload_policy.max_size_bytes
 
     def submit_demo_file(
@@ -235,7 +239,7 @@ class EvidenceSubmissionService:
     ) -> EvidenceSubmissionResponse:
         selection = self._require_current_selection(session_id, selection_id)
         definition = self._require_demo_file_definition(selection)
-        self._require_consent(session_id, definition)
+        consent = self._require_consent(session_id, selection_id)
         self._validate_uploaded_file(
             definition=definition,
             file_name=file_name,
@@ -275,6 +279,7 @@ class EvidenceSubmissionService:
             definition=self.catalog.get(definition.evidence_type),
             request_id=request_id,
             uploaded_file=uploaded_file,
+            evidence_consent=consent,
         )
 
     def submit_demo(
@@ -311,6 +316,7 @@ class EvidenceSubmissionService:
             definition=definition,
             request_id=request_id,
             uploaded_file=None,
+            evidence_consent=None,
         )
 
     def _save_submission(
@@ -322,6 +328,7 @@ class EvidenceSubmissionService:
         definition: DemoEvidenceSubmissionDefinition | None,
         request_id: str,
         uploaded_file: UploadedEvidenceFile | None,
+        evidence_consent: EvidenceConsentState | None,
     ) -> EvidenceSubmissionResponse:
         if definition is None or selection.selected_evidence is None:
             raise ResourceConflictError(
@@ -340,6 +347,10 @@ class EvidenceSubmissionService:
         }
         if uploaded_file is not None:
             snapshot["uploadedFile"] = uploaded_file.model_dump(mode="json", by_alias=True)
+            if evidence_consent is None:
+                raise ValueError("file upload requires selection-scoped Evidence consent")
+            snapshot["evidenceConsentId"] = evidence_consent.evidence_consent_id
+            snapshot["consentScopeVersion"] = evidence_consent.scope_version
         else:
             snapshot["sourceReference"] = definition.source_reference
         serialized = json.dumps(
@@ -361,6 +372,12 @@ class EvidenceSubmissionService:
             submission_snapshot_hash=snapshot_hash,
             data_version=definition.data_version,
             uploaded_file=uploaded_file,
+            evidence_consent_id=(
+                evidence_consent.evidence_consent_id if evidence_consent is not None else None
+            ),
+            consent_scope_version=(
+                evidence_consent.scope_version if evidence_consent is not None else None
+            ),
         )
         output_summary: dict[str, str | bool | int | float] = {
             "submissionStatus": state.status.value,
@@ -372,6 +389,8 @@ class EvidenceSubmissionService:
         if uploaded_file is not None:
             output_summary["demoFileId"] = uploaded_file.demo_file_id
             output_summary["uploadedFileSha256"] = uploaded_file.sha256
+            output_summary["evidenceConsentId"] = state.evidence_consent_id or "missing"
+            output_summary["consentScopeVersion"] = state.consent_scope_version or "missing"
         audit_event = SessionAuditEvent(
             event_id=f"evt_{uuid4().hex}",
             session_id=session_id,
@@ -443,14 +462,12 @@ class EvidenceSubmissionService:
     def _require_consent(
         self,
         session_id: str,
-        definition: DemoEvidenceFileDefinition,
-    ) -> None:
-        consent = self.consent_service.repository.get_consent(session_id, definition.source_type)
-        if consent is None or consent.status != ConsentStatus.GRANTED:
-            raise ResourceConflictError(
-                code="EVIDENCE_CONSENT_REQUIRED",
-                message="선택된 자료를 제출하려면 데이터 이용 동의가 필요합니다.",
-            )
+        selection_id: str,
+    ) -> EvidenceConsentState:
+        return self.evidence_consent_service.require_granted(
+            session_id,
+            selection_id,
+        )
 
     def _validate_uploaded_file(
         self,

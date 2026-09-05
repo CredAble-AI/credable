@@ -35,6 +35,8 @@ class EvidenceSubmissionState(ApiModel):
     submission_snapshot_hash: str = Field(pattern=r"^[0-9a-f]{64}$")
     data_version: str = Field(min_length=1)
     uploaded_file: UploadedEvidenceFile | None = None
+    evidence_consent_id: str | None = Field(default=None, min_length=1)
+    consent_scope_version: str | None = Field(default=None, min_length=1)
     demo_only: Literal[True] = True
 
     @model_validator(mode="after")

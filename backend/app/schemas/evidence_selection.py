@@ -6,6 +6,7 @@ from pydantic import Field, model_validator
 
 from app.schemas.base import ApiModel
 from app.schemas.consent import ConsentSourceType
+from app.schemas.evidence_consent import EvidenceConsentScopeDefinition
 from app.schemas.evidence_file import EvidenceCollectionMode
 
 
@@ -37,6 +38,7 @@ class EvidenceCandidateDefinition(ApiModel):
     acquisition_delay: float = Field(ge=0, le=1)
     acquisition_cost: float = Field(ge=0, le=1)
     rationale_codes: list[str] = Field(min_length=1)
+    consent_scope: EvidenceConsentScopeDefinition
 
     @model_validator(mode="after")
     def validate_unique_codes(self) -> "EvidenceCandidateDefinition":
@@ -55,6 +57,7 @@ class SelectedEvidenceCandidate(ApiModel):
     collection_mode: EvidenceCollectionMode | None = None
     availability: EvidenceAvailability
     rationale_codes: list[str] = Field(min_length=1)
+    consent_scope: EvidenceConsentScopeDefinition | None = None
     demo_only: Literal[True] = True
 
 

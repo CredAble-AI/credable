@@ -26,6 +26,7 @@ from app.repositories.consent_repository import SqliteConsentRepository
 from app.repositories.credit_exposure_repository import SqliteCreditExposureRepository
 from app.repositories.credit_history_repository import SqliteCreditHistoryRepository
 from app.repositories.data_source_repository import SqliteDataSourceRepository
+from app.repositories.evidence_consent_repository import SqliteEvidenceConsentRepository
 from app.repositories.evidence_quality_repository import SqliteEvidenceQualityRepository
 from app.repositories.evidence_selection_repository import SqliteEvidenceSelectionRepository
 from app.repositories.evidence_submission_repository import SqliteEvidenceSubmissionRepository
@@ -61,6 +62,7 @@ from app.services.credit_history_service import (
 )
 from app.services.data_source_service import DataSourceService
 from app.services.evidence_burden_service import AdminEvidenceBurdenService
+from app.services.evidence_consent_service import EvidenceConsentService
 from app.services.evidence_quality_service import (
     DemoEvidenceQualityCatalog,
     EvidenceQualityService,
@@ -278,25 +280,39 @@ def build_evidence_selection_service(
 def build_evidence_submission_service(
     session_service: CustomerSessionService,
     evidence_selection_service: EvidenceSelectionService,
-    consent_service: ConsentService,
+    evidence_consent_service: EvidenceConsentService,
+    file_catalog: DemoEvidenceFileCatalog,
 ) -> EvidenceSubmissionService:
     return EvidenceSubmissionService(
         repository=evidence_selection_service.submission_repository,
         session_service=session_service,
         selection_service=evidence_selection_service,
-        consent_service=consent_service,
+        evidence_consent_service=evidence_consent_service,
         catalog=DemoEvidenceSubmissionCatalog(settings.demo_evidence_submissions_path),
-        file_catalog=DemoEvidenceFileCatalog(settings.demo_evidence_files_path),
+        file_catalog=file_catalog,
+    )
+
+
+def build_evidence_consent_service(
+    session_service: CustomerSessionService,
+    evidence_selection_service: EvidenceSelectionService,
+) -> EvidenceConsentService:
+    return EvidenceConsentService(
+        repository=SqliteEvidenceConsentRepository(settings.database_path),
+        session_service=session_service,
+        selection_repository=evidence_selection_service.repository,
     )
 
 
 def build_evidence_quality_service(
     session_service: CustomerSessionService,
     evidence_submission_service: EvidenceSubmissionService,
+    evidence_consent_service: EvidenceConsentService,
 ) -> EvidenceQualityService:
     return EvidenceQualityService(
         repository=SqliteEvidenceQualityRepository(settings.database_path),
         submission_repository=evidence_submission_service.repository,
+        evidence_consent_repository=evidence_consent_service.repository,
         session_service=session_service,
         catalog=DemoEvidenceQualityCatalog(settings.demo_evidence_quality_path),
         file_catalog=evidence_submission_service.file_catalog,
@@ -309,6 +325,7 @@ def build_supplemental_assessment_service(
     policy_boundary_service: PolicyBoundaryService,
     evidence_selection_service: EvidenceSelectionService,
     evidence_submission_service: EvidenceSubmissionService,
+    evidence_consent_service: EvidenceConsentService,
     evidence_quality_service: EvidenceQualityService,
     model_registry_service: ModelRegistryService,
 ) -> SupplementalAssessmentService:
@@ -317,6 +334,7 @@ def build_supplemental_assessment_service(
         session_service=session_service,
         quality_repository=evidence_quality_service.repository,
         submission_repository=evidence_submission_service.repository,
+        evidence_consent_repository=evidence_consent_service.repository,
         selection_repository=evidence_selection_service.repository,
         boundary_repository=policy_boundary_service.repository,
         adapter=DemoSupplementalAssessmentAdapter(settings.demo_supplemental_assessments_path),
@@ -374,6 +392,7 @@ def create_app(
     assessment_service: AssessmentService | None = None,
     policy_boundary_service: PolicyBoundaryService | None = None,
     evidence_selection_service: EvidenceSelectionService | None = None,
+    evidence_consent_service: EvidenceConsentService | None = None,
     evidence_submission_service: EvidenceSubmissionService | None = None,
     evidence_quality_service: EvidenceQualityService | None = None,
     supplemental_assessment_service: SupplementalAssessmentService | None = None,
@@ -449,17 +468,36 @@ def create_app(
             resolved_data_source_service,
         )
     )
+    resolved_evidence_file_catalog = (
+        evidence_submission_service.file_catalog
+        if evidence_submission_service is not None
+        else DemoEvidenceFileCatalog(settings.demo_evidence_files_path)
+    )
+    resolved_evidence_consent_service = (
+        evidence_consent_service
+        or (
+            evidence_submission_service.evidence_consent_service
+            if evidence_submission_service is not None
+            else None
+        )
+        or build_evidence_consent_service(
+            resolved_session_service,
+            resolved_evidence_selection_service,
+        )
+    )
     resolved_evidence_submission_service = (
         evidence_submission_service
         or build_evidence_submission_service(
             resolved_session_service,
             resolved_evidence_selection_service,
-            resolved_consent_service,
+            resolved_evidence_consent_service,
+            resolved_evidence_file_catalog,
         )
     )
     resolved_evidence_quality_service = evidence_quality_service or build_evidence_quality_service(
         resolved_session_service,
         resolved_evidence_submission_service,
+        resolved_evidence_consent_service,
     )
     resolved_supplemental_assessment_service = (
         supplemental_assessment_service
@@ -469,6 +507,7 @@ def create_app(
             resolved_policy_boundary_service,
             resolved_evidence_selection_service,
             resolved_evidence_submission_service,
+            resolved_evidence_consent_service,
             resolved_evidence_quality_service,
             resolved_model_registry_service,
         )
@@ -533,6 +572,7 @@ def create_app(
         resolved_assessment_service.initialize()
         resolved_policy_boundary_service.initialize()
         resolved_evidence_selection_service.initialize()
+        resolved_evidence_consent_service.initialize()
         resolved_evidence_submission_service.initialize()
         resolved_evidence_quality_service.initialize()
         resolved_supplemental_assessment_service.initialize()
@@ -563,6 +603,7 @@ def create_app(
     application.state.assessment_service = resolved_assessment_service
     application.state.policy_boundary_service = resolved_policy_boundary_service
     application.state.evidence_selection_service = resolved_evidence_selection_service
+    application.state.evidence_consent_service = resolved_evidence_consent_service
     application.state.evidence_submission_service = resolved_evidence_submission_service
     application.state.evidence_quality_service = resolved_evidence_quality_service
     application.state.supplemental_assessment_service = resolved_supplemental_assessment_service
