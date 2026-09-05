@@ -39,6 +39,14 @@ def test_ready_returns_current_dependency_checks(client: TestClient) -> None:
                 "status": "ok",
             },
             {
+                "name": "credit_history_repository",
+                "status": "ok",
+            },
+            {
+                "name": "credit_history_catalog",
+                "status": "ok",
+            },
+            {
                 "name": "consent_repository",
                 "status": "ok",
             },

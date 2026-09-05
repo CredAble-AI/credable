@@ -5,6 +5,7 @@ from fastapi.testclient import TestClient
 from app.adapters.data_source_adapter import DataSourceAdapter, DemoDataSourceAdapter
 from app.core.config import settings
 from app.repositories.bank_data_repository import SqliteBankDataRepository
+from app.repositories.credit_history_repository import SqliteCreditHistoryRepository
 from app.repositories.data_source_repository import SqliteDataSourceRepository
 from app.repositories.session_repository import SqliteCustomerSessionRepository
 from app.schemas.audit import AuditStage
@@ -144,6 +145,7 @@ def test_demo_data_sources_match_small_business_frontend_fixture(
     client: TestClient,
     data_source_service: DataSourceService,
     bank_data_repository: SqliteBankDataRepository,
+    credit_history_repository: SqliteCreditHistoryRepository,
 ) -> None:
     session_id = create_session(client)
     for source_type in ConsentSourceType:
@@ -167,6 +169,10 @@ def test_demo_data_sources_match_small_business_frontend_fixture(
     assert bank_snapshot is not None
     assert bank_snapshot.data_version == versions["BANK_INTERNAL"]
     assert len(bank_snapshot.transactions) == 12
+    credit_snapshot = credit_history_repository.get_snapshot(session_id)
+    assert credit_snapshot is not None
+    assert credit_snapshot.data_version == versions["BANK_INTERNAL"]
+    assert len(credit_snapshot.credit_assessments) == 1
 
 
 def test_demo_data_sources_keep_startup_stale_and_failed_states_separate(
