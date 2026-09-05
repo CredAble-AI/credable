@@ -13,16 +13,16 @@ import ProductComparisonPage from './pages/ProductComparisonPage'
 import ProductDetailPage from './pages/ProductDetailPage'
 
 const principles = [
-  { number: '01', title: '은행이 제공하는 기준평가', body: '은행이 보유하거나 고객 동의를 받아 확인한 데이터를 바탕으로 진행합니다.' },
-  { number: '02', title: '명확한 데이터 이용 범위', body: '필수와 선택 항목을 구분하고 고객이 동의한 범위만 연결합니다.' },
-  { number: '03', title: '같은 기준의 조건 비교', body: 'Backend가 확정한 자사 대출상품별 확인 가능한 조건을 같은 기준으로 보여줍니다.' },
+  { number: '01', title: '기존 평가를 먼저 확인', body: '은행의 기존 평가와 고객이 동의한 범위의 정보를 바탕으로 정책 경계 상태를 확인합니다.' },
+  { number: '02', title: '필요한 증빙만 요청', body: '기존 정보로 충분하면 추가 자료를 요구하지 않고, 불확실성이 남은 경우에만 최소 증빙 한 건을 요청합니다.' },
+  { number: '03', title: '검증된 결과를 그대로 설명', body: '품질 검증을 통과한 정보만 재평가에 사용하며, 프론트와 AI는 금융 판단을 만들거나 변경하지 않습니다.' },
 ]
 
 const steps = [
   ['01', '사업자 유형 선택', '개인사업자 또는 법인사업자를 선택해 세션을 시작합니다.'],
-  ['02', '이용 범위 동의', '필수 데이터와 선택 데이터를 명확히 나누어 확인합니다.'],
-  ['03', '금융 데이터 연결', '고객이 동의한 범위의 데이터를 안전하게 연결합니다.'],
-  ['04', '상품 조건 확인', 'Backend가 확정한 확인 가능한 조건을 같은 기준으로 비교합니다.'],
+  ['02', '기존 평가 확인', '은행이 보유하거나 고객 동의를 받아 확인한 데이터로 기준평가를 불러옵니다.'],
+  ['03', '정책 경계 확인', 'Backend가 확정한 안정·불확실·정책상 중단 상태와 이유를 보여줍니다.'],
+  ['04', '최소 증빙 재확인', '필요한 경우에만 증빙 한 건의 품질을 검증하고 반영 전후 결과를 설명합니다.'],
 ]
 
 function BrandScene() {
@@ -83,9 +83,9 @@ function BrandScene() {
         <img src="/brand/credable-mark-3d.png" width="1280" height="1280" alt="CredAble 3D 로고" />
       </div>
       <div className="brand-reflection" aria-hidden="true" />
-      <div className="evidence-chip chip-one"><span aria-hidden="true">✓</span><div><small>Bank data</small><strong>Connected</strong></div></div>
-      <div className="evidence-chip chip-two"><span aria-hidden="true">✓</span><div><small>Consent</small><strong>In scope</strong></div></div>
-      <div className="evidence-chip chip-three"><span aria-hidden="true">→</span><div><small>Product terms</small><strong>Comparable view</strong></div></div>
+      <div className="evidence-chip chip-one"><span aria-hidden="true">✓</span><div><small>Baseline</small><strong>Existing data</strong></div></div>
+      <div className="evidence-chip chip-two"><span aria-hidden="true">✓</span><div><small>Policy boundary</small><strong>Server confirmed</strong></div></div>
+      <div className="evidence-chip chip-three"><span aria-hidden="true">→</span><div><small>Minimum evidence</small><strong>One at a time</strong></div></div>
     </div>
   )
 }
@@ -96,11 +96,11 @@ function LandingPage() {
       <Header />
       <main>
         <section className="hero" id="intro"><div className="container hero__grid">
-          <div className="hero__content"><p className="eyebrow">Bank-powered baseline assessment</p><h1>사업자 데이터를 모아<br /><span>대출 조건을 비교합니다</span></h1><p className="hero__description">CredAble은 사업자금 대출을 탐색하는 등록 개인사업자와 법인사업자를 대상으로, 은행이 보유하거나 고객 동의를 받아 확인한 데이터를 바탕으로 기준평가를 수행합니다.</p><div className="hero__actions"><Link className="button button--primary" to="/start">평가·상품조건 조회 시작</Link><a className="button button--secondary" href="#principles">서비스 알아보기</a></div><p className="demo-note"><span aria-hidden="true">ⓘ</span> Demo Only · 조회 결과는 실제 승인이나 최종 대출 조건을 의미하지 않습니다.</p></div>
+          <div className="hero__content"><p className="eyebrow">Uncertainty-based second look</p><h1>더 묻지 않고<br /><span>최소 증빙만 확인합니다</span></h1><p className="hero__description">CredAble은 사업자금 대출을 탐색하는 등록 개인사업자와 법인사업자를 대상으로, 기존 평가의 불확실성이 남은 경우에만 최소 증빙을 요청하고 검증된 정보로 재확인을 돕습니다.</p><div className="hero__actions"><Link className="button button--primary" to="/start">Demo 평가 시작</Link><a className="button button--secondary" href="#principles">서비스 원칙 보기</a></div><p className="demo-note"><span aria-hidden="true">ⓘ</span> Demo Only · 조회 결과는 실제 승인·부결이나 최종 대출 조건을 의미하지 않습니다.</p></div>
           <BrandScene />
         </div></section>
-        <section className="principles" id="principles" aria-labelledby="principles-title"><div className="container"><p className="section-label">OUR PRINCIPLES</p><h2 id="principles-title">데이터의 범위는 투명하게,<br />조건은 같은 기준으로</h2><div className="principle-grid">{principles.map((item) => <article className="principle-card" key={item.number}><span>{item.number}</span><h3>{item.title}</h3><p>{item.body}</p></article>)}</div></div></section>
-        <section className="process" id="process" aria-labelledby="process-title"><div className="container process__heading"><p className="section-label">HOW IT WORKS</p><h2 id="process-title">동의한 데이터를 연결하고<br /><span>확인 가능한 조건을 비교합니다</span></h2><p>세션 시작부터 조건 확인까지, 고객이 확인한 범위를 중심으로 이어집니다.</p></div><div className="container step-grid">{steps.map(([number, title, body]) => <article className="step-card" key={number}><span className="step-number">{number}</span><h3>{title}</h3><p>{body}</p></article>)}</div></section>
+        <section className="principles" id="principles" aria-labelledby="principles-title"><div className="container"><p className="section-label">OUR PRINCIPLES</p><h2 id="principles-title">기존 평가를 존중하고,<br />필요한 정보만 확인합니다</h2><div className="principle-grid">{principles.map((item) => <article className="principle-card" key={item.number}><span>{item.number}</span><h3>{item.title}</h3><p>{item.body}</p></article>)}</div></div></section>
+        <section className="process" id="process" aria-labelledby="process-title"><div className="container process__heading"><p className="section-label">HOW IT WORKS</p><h2 id="process-title">기준평가에서 정책 경계를 확인하고<br /><span>최소 증빙으로 다시 살펴봅니다</span></h2><p>경로가 안정되면 추가 수집을 멈추고, 불확실성이나 이상 징후가 남으면 심사역 검토가 필요함을 안내합니다.</p></div><div className="container step-grid">{steps.map(([number, title, body]) => <article className="step-card" key={number}><span className="step-number">{number}</span><h3>{title}</h3><p>{body}</p></article>)}</div></section>
       </main>
       <footer><div className="container footer__inner"><strong>CredAble</strong><span>Demo Only · Bank-powered complementary assessment</span></div></footer>
     </div>
