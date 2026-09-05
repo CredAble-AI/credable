@@ -24,6 +24,9 @@ class Settings(BaseModel):
     demo_bank_data_path: Path = BACKEND_ROOT / "app" / "data" / "demo_bank_data.json"
     demo_credit_history_path: Path = BACKEND_ROOT / "app" / "data" / "demo_credit_history.json"
     demo_loan_history_path: Path = BACKEND_ROOT / "app" / "data" / "demo_loan_history.json"
+    demo_credit_exposures_path: Path = (
+        BACKEND_ROOT / "app" / "data" / "demo_credit_exposures.json"
+    )
     demo_assessments_path: Path = BACKEND_ROOT / "app" / "data" / "demo_assessments.json"
     demo_supplemental_assessments_path: Path = (
         BACKEND_ROOT / "app" / "data" / "demo_supplemental_assessments.json"
