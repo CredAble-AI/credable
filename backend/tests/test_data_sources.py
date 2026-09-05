@@ -7,6 +7,7 @@ from app.core.config import settings
 from app.repositories.bank_data_repository import SqliteBankDataRepository
 from app.repositories.credit_history_repository import SqliteCreditHistoryRepository
 from app.repositories.data_source_repository import SqliteDataSourceRepository
+from app.repositories.loan_history_repository import SqliteLoanHistoryRepository
 from app.repositories.session_repository import SqliteCustomerSessionRepository
 from app.schemas.audit import AuditStage
 from app.schemas.consent import ConsentSourceType
@@ -146,6 +147,7 @@ def test_demo_data_sources_match_small_business_frontend_fixture(
     data_source_service: DataSourceService,
     bank_data_repository: SqliteBankDataRepository,
     credit_history_repository: SqliteCreditHistoryRepository,
+    loan_history_repository: SqliteLoanHistoryRepository,
 ) -> None:
     session_id = create_session(client)
     for source_type in ConsentSourceType:
@@ -173,6 +175,11 @@ def test_demo_data_sources_match_small_business_frontend_fixture(
     assert credit_snapshot is not None
     assert credit_snapshot.data_version == versions["BANK_INTERNAL"]
     assert len(credit_snapshot.credit_assessments) == 1
+    loan_snapshot = loan_history_repository.get_snapshot(session_id)
+    assert loan_snapshot is not None
+    assert loan_snapshot.data_version == versions["BANK_INTERNAL"]
+    assert len(loan_snapshot.loan_accounts) == 1
+    assert len(loan_snapshot.repayment_events) == 2
 
 
 def test_demo_data_sources_keep_startup_stale_and_failed_states_separate(

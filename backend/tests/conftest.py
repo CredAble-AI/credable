@@ -21,6 +21,7 @@ from app.repositories.data_source_repository import SqliteDataSourceRepository
 from app.repositories.evidence_quality_repository import SqliteEvidenceQualityRepository
 from app.repositories.evidence_selection_repository import SqliteEvidenceSelectionRepository
 from app.repositories.evidence_submission_repository import SqliteEvidenceSubmissionRepository
+from app.repositories.loan_history_repository import SqliteLoanHistoryRepository
 from app.repositories.policy_boundary_repository import SqlitePolicyBoundaryRepository
 from app.repositories.product_catalog_repository import SqliteProductCatalogRepository
 from app.repositories.product_condition_repository import SqliteProductConditionRepository
@@ -49,6 +50,7 @@ from app.services.evidence_submission_service import (
     DemoEvidenceSubmissionCatalog,
     EvidenceSubmissionService,
 )
+from app.services.loan_history_service import DemoLoanHistoryCatalogService, LoanHistoryService
 from app.services.policy_boundary_service import (
     DemoPolicyBoundaryCatalog,
     EvidenceResolutionService,
@@ -126,6 +128,23 @@ def credit_history_service(
 
 
 @pytest.fixture
+def loan_history_repository(tmp_path) -> SqliteLoanHistoryRepository:
+    return SqliteLoanHistoryRepository(tmp_path / "test.db")
+
+
+@pytest.fixture
+def loan_history_service(
+    loan_history_repository: SqliteLoanHistoryRepository,
+    session_service: CustomerSessionService,
+) -> LoanHistoryService:
+    return LoanHistoryService(
+        repository=loan_history_repository,
+        session_service=session_service,
+        catalog=DemoLoanHistoryCatalogService(settings.demo_loan_history_path),
+    )
+
+
+@pytest.fixture
 def data_source_repository(tmp_path) -> SqliteDataSourceRepository:
     return SqliteDataSourceRepository(tmp_path / "test.db")
 
@@ -137,13 +156,18 @@ def data_source_service(
     session_service: CustomerSessionService,
     bank_data_service: BankDataService,
     credit_history_service: CreditHistoryService,
+    loan_history_service: LoanHistoryService,
 ) -> DataSourceService:
     return DataSourceService(
         repository=data_source_repository,
         consent_service=consent_service,
         session_service=session_service,
         adapter=EmptyDemoDataSourceAdapter(),
-        bank_internal_materializers=(bank_data_service, credit_history_service),
+        bank_internal_materializers=(
+            bank_data_service,
+            credit_history_service,
+            loan_history_service,
+        ),
     )
 
 
@@ -341,6 +365,7 @@ def client(
     session_service: CustomerSessionService,
     bank_data_service: BankDataService,
     credit_history_service: CreditHistoryService,
+    loan_history_service: LoanHistoryService,
     consent_service: ConsentService,
     data_source_service: DataSourceService,
     assessment_service: AssessmentService,
@@ -359,6 +384,7 @@ def client(
             session_service=session_service,
             bank_data_service=bank_data_service,
             credit_history_service=credit_history_service,
+            loan_history_service=loan_history_service,
             consent_service=consent_service,
             data_source_service=data_source_service,
             assessment_service=assessment_service,
