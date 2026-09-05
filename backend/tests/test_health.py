@@ -79,6 +79,10 @@ def test_ready_returns_current_dependency_checks(client: TestClient) -> None:
                 "status": "ok",
             },
             {
+                "name": "feature_snapshot_repository",
+                "status": "ok",
+            },
+            {
                 "name": "assessment_repository",
                 "status": "ok",
             },

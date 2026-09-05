@@ -29,6 +29,7 @@ from app.repositories.data_source_repository import SqliteDataSourceRepository
 from app.repositories.evidence_quality_repository import SqliteEvidenceQualityRepository
 from app.repositories.evidence_selection_repository import SqliteEvidenceSelectionRepository
 from app.repositories.evidence_submission_repository import SqliteEvidenceSubmissionRepository
+from app.repositories.feature_snapshot_repository import SqliteFeatureSnapshotRepository
 from app.repositories.loan_history_repository import SqliteLoanHistoryRepository
 from app.repositories.policy_boundary_repository import SqlitePolicyBoundaryRepository
 from app.repositories.product_catalog_repository import SqliteProductCatalogRepository
@@ -72,6 +73,7 @@ from app.services.evidence_submission_service import (
     DemoEvidenceSubmissionCatalog,
     EvidenceSubmissionService,
 )
+from app.services.feature_snapshot_service import FeatureSnapshotService
 from app.services.loan_history_service import DemoLoanHistoryCatalogService, LoanHistoryService
 from app.services.policy_boundary_service import (
     DemoPolicyBoundaryCatalog,
@@ -194,6 +196,7 @@ def build_assessment_service(
     session_service: CustomerSessionService,
     data_source_service: DataSourceService,
     data_lineage_service: AssessmentDataLineageService,
+    feature_snapshot_service: FeatureSnapshotService,
 ) -> AssessmentService:
     return AssessmentService(
         repository=SqliteAssessmentRepository(settings.database_path),
@@ -201,6 +204,24 @@ def build_assessment_service(
         data_source_service=data_source_service,
         adapter=DemoAssessmentAdapter(settings.demo_assessments_path),
         data_lineage_service=data_lineage_service,
+        feature_snapshot_service=feature_snapshot_service,
+    )
+
+
+def build_feature_snapshot_service(
+    data_lineage_service: AssessmentDataLineageService,
+    bank_data_service: BankDataService,
+    credit_history_service: CreditHistoryService,
+    loan_history_service: LoanHistoryService,
+    credit_exposure_service: CreditExposureService,
+) -> FeatureSnapshotService:
+    return FeatureSnapshotService(
+        repository=SqliteFeatureSnapshotRepository(settings.database_path),
+        data_lineage_service=data_lineage_service,
+        bank_data_repository=bank_data_service.repository,
+        credit_history_repository=credit_history_service.repository,
+        loan_history_repository=loan_history_service.repository,
+        credit_exposure_repository=credit_exposure_service.repository,
     )
 
 
@@ -356,8 +377,8 @@ def create_app(
     resolved_loan_history_service = loan_history_service or build_loan_history_service(
         resolved_session_service
     )
-    resolved_credit_exposure_service = (
-        credit_exposure_service or build_credit_exposure_service(resolved_session_service)
+    resolved_credit_exposure_service = credit_exposure_service or build_credit_exposure_service(
+        resolved_session_service
     )
     resolved_consent_service = consent_service or build_consent_service(resolved_session_service)
     resolved_data_source_service = data_source_service or build_data_source_service(
@@ -374,11 +395,26 @@ def create_app(
         resolved_loan_history_service,
         resolved_credit_exposure_service,
     )
+    resolved_feature_snapshot_service = (
+        assessment_service.feature_snapshot_service
+        if assessment_service is not None
+        and assessment_service.feature_snapshot_service is not None
+        else build_feature_snapshot_service(
+            resolved_assessment_data_lineage_service,
+            resolved_bank_data_service,
+            resolved_credit_history_service,
+            resolved_loan_history_service,
+            resolved_credit_exposure_service,
+        )
+    )
     resolved_assessment_service = assessment_service or build_assessment_service(
         resolved_session_service,
         resolved_data_source_service,
         resolved_assessment_data_lineage_service,
+        resolved_feature_snapshot_service,
     )
+    if resolved_assessment_service.feature_snapshot_service is None:
+        resolved_assessment_service.feature_snapshot_service = resolved_feature_snapshot_service
     resolved_policy_boundary_service = policy_boundary_service or build_policy_boundary_service(
         resolved_session_service,
         resolved_assessment_service,
@@ -466,6 +502,7 @@ def create_app(
         resolved_credit_exposure_service.initialize()
         resolved_consent_service.initialize()
         resolved_data_source_service.initialize()
+        resolved_feature_snapshot_service.initialize()
         resolved_assessment_service.initialize()
         resolved_policy_boundary_service.initialize()
         resolved_evidence_selection_service.initialize()
@@ -493,9 +530,8 @@ def create_app(
     application.state.credit_exposure_service = resolved_credit_exposure_service
     application.state.consent_service = resolved_consent_service
     application.state.data_source_service = resolved_data_source_service
-    application.state.assessment_data_lineage_service = (
-        resolved_assessment_data_lineage_service
-    )
+    application.state.assessment_data_lineage_service = resolved_assessment_data_lineage_service
+    application.state.feature_snapshot_service = resolved_feature_snapshot_service
     application.state.assessment_service = resolved_assessment_service
     application.state.policy_boundary_service = resolved_policy_boundary_service
     application.state.evidence_selection_service = resolved_evidence_selection_service

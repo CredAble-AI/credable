@@ -46,6 +46,21 @@ class AssessmentDataSnapshotReference(ApiModel):
         return self
 
 
+class AssessmentFeatureSnapshotReference(ApiModel):
+    feature_snapshot_id: str = Field(min_length=1)
+    feature_set_version: str = Field(min_length=1)
+    calculated_at: datetime
+    source_lineage_hash: str = Field(pattern=r"^[0-9a-f]{64}$")
+    snapshot_hash: str = Field(pattern=r"^[0-9a-f]{64}$")
+    demo_only: Literal[True] = True
+
+    @model_validator(mode="after")
+    def validate_timestamp(self) -> "AssessmentFeatureSnapshotReference":
+        if self.calculated_at.tzinfo is None:
+            raise ValueError("calculatedAt must include a timezone")
+        return self
+
+
 class AssessmentUncertainty(ApiModel):
     point_estimate: float | None = None
     lower_bound: float | None = None
@@ -82,6 +97,7 @@ class AssessmentInputSnapshot(ApiModel):
     demo_profile_id: str = Field(min_length=1)
     data_sources: list[DataSourceState]
     source_snapshots: list[AssessmentDataSnapshotReference] = Field(default_factory=list)
+    feature_snapshot: AssessmentFeatureSnapshotReference | None = None
     demo_only: Literal[True] = True
 
     @model_validator(mode="after")
@@ -215,6 +231,7 @@ class SupplementalAssessmentInputSnapshot(ApiModel):
     baseline_uncertainty: AssessmentUncertainty
     data_sources: list[DataSourceState]
     source_snapshots: list[AssessmentDataSnapshotReference] = Field(default_factory=list)
+    feature_snapshot: AssessmentFeatureSnapshotReference | None = None
     accepted_evidence: AcceptedEvidenceSnapshot
     accepted_evidence_set: list[AcceptedEvidenceSnapshot] = Field(default_factory=list)
     demo_only: Literal[True] = True
