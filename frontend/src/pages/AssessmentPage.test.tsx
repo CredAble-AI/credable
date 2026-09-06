@@ -88,9 +88,23 @@ const ambiguous: PolicyBoundaryCheckResponse = {
   },
 }
 
+const stable: PolicyBoundaryCheckResponse = {
+  ...ambiguous,
+  boundaryCheck: {
+    ...ambiguous.boundaryCheck!,
+    decision: {
+      status: 'STABLE',
+      possibleRoutes: ['DEMO_PATH_1'],
+      crossedBoundaryCodes: [],
+      stopReason: 'PATH_STABLE',
+      underwriterRequired: false,
+    },
+  },
+}
+
 const renderPage = () => render(
   <MemoryRouter initialEntries={['/assessment']}>
-    <Routes><Route path="/assessment" element={<AssessmentPage />} /><Route path="/evidence" element={<h1>Evidence 선택 화면</h1>} /></Routes>
+    <Routes><Route path="/assessment" element={<AssessmentPage />} /><Route path="/evidence" element={<h1>Evidence 선택 화면</h1>} /><Route path="/products" element={<h1>상품 비교 화면</h1>} /></Routes>
   </MemoryRouter>,
 )
 
@@ -170,5 +184,15 @@ describe('AssessmentPage', () => {
 
     fireEvent.click(screen.getByRole('button', { name: '정책 경계 확인' }))
     await waitFor(() => expect(policyBoundaryProvider.check).toHaveBeenCalledTimes(1))
+  })
+
+  it('links a stable server boundary directly to product conditions', async () => {
+    vi.mocked(assessmentProvider.get).mockResolvedValue(completed)
+    vi.mocked(policyBoundaryProvider.get).mockResolvedValue(stable)
+    renderPage()
+
+    expect(await screen.findByRole('heading', { name: '단일 경로 확인' })).toBeInTheDocument()
+    expect(screen.getByText('추가 Evidence 없이 자사 상품 조건을 확인할 수 있습니다.')).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: '자사 상품 조건 확인' })).toHaveAttribute('href', '/products')
   })
 })

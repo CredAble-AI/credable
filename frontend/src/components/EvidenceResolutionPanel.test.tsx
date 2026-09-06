@@ -30,6 +30,7 @@ describe('EvidenceResolutionPanel', () => {
     await waitFor(() => expect(evidenceResolutionProvider.resolve).toHaveBeenCalledWith('ses_demo', { comparisonId: 'acp_demo', supplementalAssessmentId: 'sam_demo' }, expect.any(AbortSignal)))
     expect(await screen.findByRole('heading', { name: '추가 Evidence 수집을 종료했습니다' })).toBeInTheDocument()
     expect(screen.getByText('PATH_STABLE')).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: '자사 상품 조건 확인' })).toHaveAttribute('href', '/products')
     expect(screen.queryByRole('link', { name: '다음 Evidence 한 건 확인' })).not.toBeInTheDocument()
   })
 
