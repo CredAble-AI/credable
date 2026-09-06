@@ -1,5 +1,5 @@
 import type { ApiError } from '../types/api'
-import type { ProductComparisonResponse, ProductComparisonResult, ProductRequest } from '../types/product'
+import type { ProductCatalogResponse, ProductComparisonResponse, ProductComparisonResult, ProductConditionQueryResponse, ProductRequest } from '../types/product'
 
 export interface ProductProvider {
   get(request: ProductRequest, signal: AbortSignal): Promise<ProductComparisonResult>
@@ -11,8 +11,8 @@ export const normalizeProductError = (error: unknown): ApiError => {
   return { code: 'PRODUCT_REQUEST_FAILED', message: '상품 조건을 확인하지 못했습니다.', retryable: true }
 }
 
-const apiRequest = async <T,>(url: string, signal: AbortSignal): Promise<T> => {
-  const response = await fetch(url, { method: 'GET', signal })
+const apiRequest = async <T,>(url: string, signal: AbortSignal, method = 'GET'): Promise<T> => {
+  const response = await fetch(url, { method, signal })
   if (!response.ok) {
     const body = await response.json().catch(() => null) as { error?: ApiError } | null
     throw body?.error ?? { code: 'PRODUCT_REQUEST_FAILED', message: '상품 조건 요청에 실패했습니다.', requestId: response.headers.get('x-request-id') ?? undefined, retryable: response.status >= 500 } satisfies ApiError
@@ -49,8 +49,16 @@ const load = async (request: ProductRequest, signal: AbortSignal): Promise<Produ
   return toResult(request, response)
 }
 
+const refresh = async (request: ProductRequest, signal: AbortSignal): Promise<ProductComparisonResult> => {
+  const sessionUrl = `/v1/sessions/${encodeURIComponent(request.sessionId)}`
+  const catalog = await apiRequest<ProductCatalogResponse>(`${sessionUrl}/products/refresh`, signal, 'POST')
+  if (catalog.sessionId !== request.sessionId || catalog.catalog.demoOnly !== true) throw { code: 'PRODUCT_CATALOG_RESPONSE_INVALID', message: '현재 세션의 상품 카탈로그 응답을 확인할 수 없습니다.', retryable: false } satisfies ApiError
+  const conditions = await apiRequest<ProductConditionQueryResponse>(`${sessionUrl}/product-conditions/query`, signal, 'POST')
+  if (conditions.sessionId !== request.sessionId || conditions.query.demoOnly !== true) throw { code: 'PRODUCT_CONDITION_RESPONSE_INVALID', message: '현재 세션의 상품 조건 응답을 확인할 수 없습니다.', retryable: false } satisfies ApiError
+  return load(request, signal)
+}
+
 export const liveProductProvider: ProductProvider = {
   get(request, signal) { return load(request, signal) },
-  // GET /v1/sessions/{sessionId}/comparison has no dedicated refresh action; refresh re-issues the same GET.
-  refresh(request, signal) { return load(request, signal) },
+  refresh(request, signal) { return refresh(request, signal) },
 }
