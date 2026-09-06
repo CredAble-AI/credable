@@ -16,6 +16,8 @@ vi.mock('../hooks/useAssessmentState', () => ({
 }))
 vi.mock('../hooks/useCustomerSession', () => ({ useCustomerSession: vi.fn() }))
 vi.mock('../hooks/useEvidenceSelectionState', () => ({ evidenceSelectionProvider: { get: vi.fn(), selectNext: vi.fn() } }))
+vi.mock('../components/AssessmentExplanationPanel', () => ({ default: () => <div>평가 결과 안내 패널</div> }))
+vi.mock('../components/AssessmentReviewPanel', () => ({ default: () => <div>평가 결과 재확인 패널</div> }))
 
 const session: CustomerSession = {
   sessionId: 'ses_demo',
@@ -103,6 +105,22 @@ const stable: PolicyBoundaryCheckResponse = {
       crossedBoundaryCodes: [],
       stopReason: 'PATH_STABLE',
       underwriterRequired: false,
+    },
+  },
+}
+
+const policyBlocked: PolicyBoundaryCheckResponse = {
+  ...ambiguous,
+  boundaryCheck: {
+    ...ambiguous.boundaryCheck!,
+    decision: {
+      status: 'POLICY_BLOCKED',
+      possibleRoutes: [],
+      crossedBoundaryCodes: [],
+      stopReason: 'DEMO_POLICY_RESTRICTION_ACTIVE_DELINQUENCY',
+      underwriterRequired: false,
+      restrictionCode: 'DEMO_POLICY_RESTRICTION_ACTIVE_DELINQUENCY',
+      followUpCodes: ['DEMO_FOLLOW_UP_RESOLVE_DELINQUENCY', 'DEMO_FOLLOW_UP_BRANCH_CONSULTATION'],
     },
   },
 }
@@ -221,5 +239,30 @@ describe('AssessmentPage', () => {
     expect(screen.getByText('추가 자료 없이 자사 상품 조건을 확인할 수 있습니다.')).toBeInTheDocument()
     expect(screen.getByRole('link', { name: '자사 상품 조건 확인' })).toHaveAttribute('href', '/products')
     expect(evidenceSelectionProvider.get).not.toHaveBeenCalled()
+  })
+
+  it('explains a confirmed policy restriction with its follow-up steps', async () => {
+    vi.mocked(assessmentProvider.get).mockResolvedValue(completed)
+    vi.mocked(policyBoundaryProvider.get).mockResolvedValue(policyBlocked)
+    renderPage()
+
+    expect(await screen.findByRole('heading', { name: '대출정책상 제한 확인' })).toBeInTheDocument()
+    expect(screen.getByText('현재 진행 중인 연체가 확인되어 사업자금 대출정책상 신규 취급이 제한되는 상태입니다.')).toBeInTheDocument()
+    expect(screen.getByText('연체가 해소된 뒤 다시 조회하면 그 시점의 정보로 새로 확인합니다.')).toBeInTheDocument()
+    expect(screen.getByText('영업점이나 담당자 상담을 통해 다른 방법이 있는지 확인할 수 있습니다.')).toBeInTheDocument()
+    expect(evidenceSelectionProvider.get).not.toHaveBeenCalled()
+  })
+
+  it.each([
+    ['stable', () => stable],
+    ['policy blocked', () => policyBlocked],
+    ['ambiguous', () => ambiguous],
+  ])('offers the explanation and the review request on a %s boundary', async (_label, boundary) => {
+    vi.mocked(assessmentProvider.get).mockResolvedValue(completed)
+    vi.mocked(policyBoundaryProvider.get).mockResolvedValue(boundary())
+    renderPage()
+
+    expect(await screen.findByText('평가 결과 안내 패널')).toBeInTheDocument()
+    expect(screen.getByText('평가 결과 재확인 패널')).toBeInTheDocument()
   })
 })

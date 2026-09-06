@@ -40,7 +40,8 @@ describe('EvidenceResolutionPanel', () => {
     expect(await screen.findByRole('heading', { name: '자료 한 건을 더 확인할 수 있습니다' })).toBeInTheDocument()
     expect(screen.getByRole('link', { name: '다음 자료 한 건 확인' })).toHaveAttribute('href', '/evidence?selectNext=1')
     expect(screen.getByText('결과 범위를 더 명확히 하기 위해 다음으로 필요한 자료 한 건을 안내합니다.')).toBeInTheDocument()
-    expect(screen.queryByText('평가 결과 재확인')).not.toBeInTheDocument()
+    // 재확인 요청은 결과가 확정되기 전에도 제공한다.
+    expect(screen.getByText('평가 결과 재확인')).toBeInTheDocument()
   })
 
   it('shows human review without offering another Evidence request', async () => {
@@ -51,7 +52,7 @@ describe('EvidenceResolutionPanel', () => {
     expect(screen.getByText('자동 확인을 중단하고 담당자가 직접 살펴보는 단계로 전환했습니다.')).toBeInTheDocument()
     expect(screen.queryByRole('link', { name: '다음 자료 한 건 확인' })).not.toBeInTheDocument()
     expect(screen.getByRole('link', { name: '담당자 확인 현황 보기' })).toHaveAttribute('href', '/admin/reviews')
-    expect(screen.queryByText('평가 결과 재확인')).not.toBeInTheDocument()
+    expect(screen.getByText('평가 결과 재확인')).toBeInTheDocument()
   })
 
   it('ignores a previous resolution and resolves the current comparison', async () => {

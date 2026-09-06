@@ -3,6 +3,8 @@ import { Link, useNavigate } from 'react-router-dom'
 import { normalizeAssessmentError } from '../api/assessmentClient'
 import { normalizeEvidenceSelectionError } from '../api/evidenceSelectionClient'
 import { normalizePolicyBoundaryError } from '../api/policyBoundaryClient'
+import AssessmentExplanationPanel from '../components/AssessmentExplanationPanel'
+import AssessmentReviewPanel from '../components/AssessmentReviewPanel'
 import CustomerTechnicalDetails from '../components/CustomerTechnicalDetails'
 import Header from '../components/Header'
 import { assessmentProvider, policyBoundaryProvider } from '../hooks/useAssessmentState'
@@ -331,6 +333,8 @@ function AssessmentPage() {
       <div className="assessment-detail-grid"><UncertaintyPanel state={state} /></div>
       <CustomerTechnicalDetails><dl><div><dt>처리 상태</dt><dd><code>{state.status}</code></dd></div><div><dt>결과 계산 시점</dt><dd>{formatDate(state.calculatedAt)}</dd></div><div><dt>평가 ID</dt><dd><code>{state.assessmentId ?? '확인되지 않음'}</code></dd></div><div><dt>입력 데이터 묶음</dt><dd><code>{state.inputSnapshotId ?? '확인되지 않음'}</code></dd></div><div><dt>모델 버전</dt><dd><code>{state.modelVersion ?? '확인되지 않음'}</code></dd></div><div><dt>상태 코드</dt><dd><code>{state.reasonCode ?? '없음'}</code></dd></div></dl></CustomerTechnicalDetails>
       {boundary && <BoundaryPanel boundary={boundary} selection={selection} />}
+      {boundary && <AssessmentExplanationPanel key={boundary.boundaryCheckId} sessionId={session.sessionId} />}
+      {boundary && state.status === 'COMPLETED' && <AssessmentReviewPanel sessionId={session.sessionId} />}
     </>}
 
     <section className="assessment-actions"><div><strong>{boundary ? (boundary.decision.restrictionCode ? restrictedBoundaryCopy.label : boundaryCopy[boundary.decision.status].label) : state?.status === 'COMPLETED' ? '정책 경계를 확인해주세요' : '기존 평가 상태를 먼저 확인해주세요'}</strong><p>{actionCopy}</p>{boundary?.decision.status === 'STABLE' && <small>추가 자료 없이 자사 상품 조건을 확인할 수 있습니다.</small>}{boundary?.decision.status === 'AMBIGUOUS' && <small>요청 자료와 제출 버튼은 위 카드에서 바로 확인할 수 있습니다.</small>}</div><div><Link className="button button--secondary" to="/data-connection">연결 정보 확인</Link>{state?.status === 'NOT_RUN' && <button className="button button--primary" type="button" onClick={() => void runAssessment()} disabled={phase !== 'idle'}>기존 평가 결과 불러오기</button>}{state && state.status !== 'NOT_RUN' && state.status !== 'COMPLETED' && <button className="button button--secondary" type="button" onClick={() => void runAssessment()} disabled={phase !== 'idle'}>기존 평가 다시 확인</button>}{state?.status === 'COMPLETED' && !boundary && <button className="button button--primary" type="button" onClick={() => void checkBoundary()} disabled={phase !== 'idle'}>정책 경계 확인</button>}{boundary?.decision.status === 'STABLE' && <Link className="button button--primary" to="/products">자사 상품 조건 확인</Link>}</div></section>
