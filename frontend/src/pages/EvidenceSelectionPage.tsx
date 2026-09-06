@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom'
 import { normalizeEvidenceSelectionError } from '../api/evidenceSelectionClient'
 import { normalizePolicyBoundaryError } from '../api/policyBoundaryClient'
 import Header from '../components/Header'
+import EvidenceFileSubmission from '../components/EvidenceFileSubmission'
 import { isMockMode } from '../config/providerMode'
 import { policyBoundaryProvider } from '../hooks/useAssessmentState'
 import { useCustomerSession } from '../hooks/useCustomerSession'
@@ -109,10 +110,11 @@ function EvidenceSelectionPage() {
     {selection && copy && <>
       <section className={`assessment-result evidence-status evidence-status--${selection.status.toLowerCase()}`}><div className="assessment-result__icon" aria-hidden="true">{selection.status === 'SELECTED' ? '✓' : 'i'}</div><div><span>{selection.status}</span><h2>{copy.label}</h2><p>{copy.description}</p>{selection.stopReason && <p>서버 상태 코드 <code>{selection.stopReason}</code></p>}</div></section>
       {selectedEvidence && availability && <section className="evidence-card" aria-labelledby="selected-evidence-title"><div className="evidence-card__top"><div><span>{sourceLabels[selectedEvidence.sourceType]}</span><h2 id="selected-evidence-title">{selectedEvidence.displayName}</h2></div><span className={`evidence-availability evidence-availability--${selectedEvidence.availability.toLowerCase()}`}>{availability.label}</span></div><p>{selectedEvidence.description}</p><p className="evidence-availability-note">{availability.description}</p><section><h3>선택 근거</h3><ul>{selectedEvidence.rationaleCodes.map((code) => <li key={code}><span>{rationaleCopy[code] ?? '서버가 제공한 선택 근거입니다.'}</span><code>{code}</code></li>)}</ul></section></section>}
+      {selectedEvidence && <EvidenceFileSubmission sessionId={session.sessionId} selectionId={selection.selectionId} evidenceType={selectedEvidence.evidenceType} />}
       <div className="assessment-detail-grid evidence-metadata"><section className="assessment-panel"><div className="assessment-panel__heading"><div><span>SELECTION SCOPE</span><h2>선택 범위</h2></div><span className="demo-chip">Demo Only</span></div><dl><div><dt>현재 반복 차수</dt><dd>{selection.iteration}</dd></div><div><dt>검토 후보 수</dt><dd>{selection.evaluatedCandidateCount}건</dd></div><div><dt>심사역 확인</dt><dd>{selection.underwriterRequired ? '필요' : '서버 응답상 필요 없음'}</dd></div><div><dt>선택 시점</dt><dd>{formatDate(selection.selectedAt)}</dd></div></dl><p>검토 후보 수는 서버가 비교한 후보 개수이며 순위나 추천 점수가 아닙니다.</p></section><section className="assessment-panel"><div className="assessment-panel__heading"><div><span>TRACEABILITY</span><h2>선택 메타데이터</h2></div></div><dl><div><dt>선택 ID</dt><dd>{selection.selectionId}</dd></div><div><dt>정책 경계 ID</dt><dd>{selection.boundaryCheckId}</dd></div><div><dt>보정 버전</dt><dd>{selection.calibrationVersion}</dd></div><div><dt>경계 정책 버전</dt><dd>{selection.boundaryPolicyVersion}</dd></div><div><dt>선택 정책 버전</dt><dd>{selection.selectionPolicyVersion}</dd></div></dl></section></div>
     </>}
 
-    <section className="assessment-actions"><div><strong>{selection?.status === 'SELECTED' ? '선택된 한 건을 확인했습니다' : '서버 선택 상태를 확인해주세요'}</strong><p>{selection?.status === 'SELECTED' ? '현재 단계에서는 서버가 선택한 자료와 이용 가능 상태를 확인합니다.' : '선택 결과가 없거나 자동 처리가 중단된 경우 Evidence를 임의로 고르지 않습니다.'}</p></div><div><Link className="button button--secondary" to="/assessment">기준평가로 돌아가기</Link></div></section>
+    <section className="assessment-actions"><div><strong>{selection?.status === 'SELECTED' ? '선택된 한 건을 제출해주세요' : '서버 선택 상태를 확인해주세요'}</strong><p>{selection?.status === 'SELECTED' ? '서버가 제공한 Demo 자료를 내려받아 같은 파일을 제출하면 백엔드가 실제 파일을 검증합니다.' : '선택 결과가 없거나 자동 처리가 중단된 경우 Evidence를 임의로 고르지 않습니다.'}</p></div><div><Link className="button button--secondary" to="/assessment">기준평가로 돌아가기</Link></div></section>
   </div></main></div>
 }
 

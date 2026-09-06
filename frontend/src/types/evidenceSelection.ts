@@ -1,4 +1,5 @@
 import type { ConsentSourceType } from './consent'
+import type { EvidenceCollectionMode } from './evidenceSubmission'
 
 export type EvidenceAvailability = 'AVAILABLE' | 'REQUESTABLE' | 'CONSENT_REQUIRED' | 'UNAVAILABLE'
 export type EvidenceSelectionStatus = 'SELECTED' | 'NOT_REQUIRED' | 'POLICY_BLOCKED' | 'HUMAN_REVIEW'
@@ -8,6 +9,7 @@ export interface SelectedEvidenceCandidate {
   displayName: string
   description: string
   sourceType: ConsentSourceType
+  collectionMode: EvidenceCollectionMode | null
   availability: EvidenceAvailability
   rationaleCodes: string[]
   demoOnly: true
