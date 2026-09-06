@@ -76,8 +76,10 @@
       "demoProfileId": "startup",
       "sourceType": "EXTERNAL_CONNECTED",
       "result": {
-        "retrievalStatus": "FAILED",
-        "reasonCode": "DEMO_PARTNER_UNAVAILABLE"
+        "retrievalStatus": "RETRIEVED",
+        "verificationStatus": "VERIFIED",
+        "observedAt": "2026-08-31T23:59:59+09:00",
+        "dataVersion": "synthetic-demo-v1"
       }
     }
   ]

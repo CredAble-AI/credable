@@ -193,7 +193,7 @@ def test_demo_data_sources_match_small_business_frontend_fixture(
     assert len(exposure_snapshot.exposures) == 1
 
 
-def test_demo_data_sources_keep_startup_stale_and_failed_states_separate(
+def test_demo_data_sources_keep_startup_stale_and_connected_states_separate(
     client: TestClient,
     data_source_service: DataSourceService,
     credit_exposure_repository: SqliteCreditExposureRepository,
@@ -211,11 +211,11 @@ def test_demo_data_sources_keep_startup_stale_and_failed_states_separate(
     assert sources["CUSTOMER_SUBMITTED"]["retrievalStatus"] == "RETRIEVED"
     assert sources["CUSTOMER_SUBMITTED"]["verificationStatus"] == "STALE"
     assert sources["CUSTOMER_SUBMITTED"]["reasonCode"] == "DEMO_OBSERVATION_STALE"
-    assert sources["EXTERNAL_CONNECTED"]["retrievalStatus"] == "FAILED"
-    assert sources["EXTERNAL_CONNECTED"]["verificationStatus"] == "NOT_STARTED"
-    assert sources["EXTERNAL_CONNECTED"]["reasonCode"] == "DEMO_PARTNER_UNAVAILABLE"
-    assert sources["EXTERNAL_CONNECTED"]["observedAt"] is None
-    assert sources["EXTERNAL_CONNECTED"]["dataVersion"] is None
+    assert sources["EXTERNAL_CONNECTED"]["retrievalStatus"] == "RETRIEVED"
+    assert sources["EXTERNAL_CONNECTED"]["verificationStatus"] == "VERIFIED"
+    assert sources["EXTERNAL_CONNECTED"]["reasonCode"] is None
+    assert sources["EXTERNAL_CONNECTED"]["observedAt"] == "2026-08-31T23:59:59+09:00"
+    assert sources["EXTERNAL_CONNECTED"]["dataVersion"] == "synthetic-demo-v1"
     exposure_snapshot = credit_exposure_repository.get_snapshot(session_id)
     assert exposure_snapshot is not None
     assert exposure_snapshot.data_version == "synthetic-credit-information-v1"

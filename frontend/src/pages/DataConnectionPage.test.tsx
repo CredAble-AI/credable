@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { useCustomerSession } from '../hooks/useCustomerSession'
@@ -83,13 +83,13 @@ describe('DataConnectionPage', () => {
     expect(screen.getByText('연결 상태 · 동의 필요')).toBeInTheDocument()
     expect(screen.getByText('연결 상태 · 조회 가능한 데이터 없음')).toBeInTheDocument()
     expect(screen.getByText('연결 상태 · 조회 실패')).toBeInTheDocument()
-    expect(screen.getAllByText('시연 기술 정보 보기')).toHaveLength(4)
+    expect(screen.queryByText('시연 기술 정보 보기')).not.toBeInTheDocument()
     expect(screen.queryByText('은행 보유 · 필수')).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: /다시 조회/ })).not.toBeInTheDocument()
-    expect(screen.getByRole('link', { name: '기준평가 실행' })).toHaveAttribute('href', '/assessment')
+    expect(screen.getByRole('button', { name: '데이터 확인 후 기준평가 시작' })).toBeInTheDocument()
   })
 
-  it('refreshes all sources with POST-backed provider state', async () => {
+  it('refreshes all sources before moving to the assessment', async () => {
     vi.mocked(dataConnectionProvider.list).mockResolvedValue(response([source()]))
     vi.mocked(dataConnectionProvider.refresh).mockResolvedValue(response([source({
       retrievalStatus: 'RETRIEVED',
@@ -101,13 +101,10 @@ describe('DataConnectionPage', () => {
     renderPage()
 
     await screen.findByText('연결 상태 · 조회 전')
-    fireEvent.click(screen.getByRole('button', { name: '전체 출처 새로고침' }))
+    fireEvent.click(screen.getByRole('button', { name: '데이터 확인 후 기준평가 시작' }))
 
     await waitFor(() => expect(dataConnectionProvider.refresh).toHaveBeenCalledWith('ses_demo', expect.any(AbortSignal)))
-    const card = screen.getByRole('heading', { level: 3, name: '은행 내부 데이터' }).closest('article')
-    expect(card).not.toBeNull()
-    expect(within(card as HTMLElement).getByText('연결 상태 · 조회 완료')).toBeInTheDocument()
-    expect(within(card as HTMLElement).getByText('synthetic-bank-data-v1')).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { level: 1, name: '기준평가 화면' })).toBeInTheDocument()
   })
 
   it('shows a retry action for retryable list errors', async () => {
@@ -122,6 +119,6 @@ describe('DataConnectionPage', () => {
     expect(await screen.findByRole('alert')).toHaveTextContent('데이터 출처를 불러오지 못했습니다.')
     expect(screen.getByText(/Request ID: req_demo/)).toBeInTheDocument()
     expect(screen.getByRole('button', { name: '다시 확인' })).toBeInTheDocument()
-    expect(screen.queryByRole('link', { name: '기준평가 실행' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: '데이터 확인 후 기준평가 시작' })).not.toBeInTheDocument()
   })
 })

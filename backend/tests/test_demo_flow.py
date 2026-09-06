@@ -150,7 +150,8 @@ def test_startup_demo_flow_keeps_unavailable_values_empty(
 
     data_sources = {item["sourceType"]: item for item in data_response.json()["dataSources"]}
     assert data_sources["CUSTOMER_SUBMITTED"]["verificationStatus"] == "STALE"
-    assert data_sources["EXTERNAL_CONNECTED"]["retrievalStatus"] == "FAILED"
+    assert data_sources["EXTERNAL_CONNECTED"]["retrievalStatus"] == "RETRIEVED"
+    assert data_sources["EXTERNAL_CONNECTED"]["verificationStatus"] == "VERIFIED"
     assert assessment_response.json()["assessment"]["status"] == "INSUFFICIENT_DATA"
     assert (
         assessment_response.json()["assessment"]["reasonCode"] == "DEMO_VERIFIED_DATA_INSUFFICIENT"

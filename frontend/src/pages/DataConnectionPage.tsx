@@ -75,6 +75,7 @@ function SourceCard({ source, busy, error, onRetry }: {
 function DataConnectionPage() {
   const navigate = useNavigate()
   const { session, loading: sessionLoading } = useCustomerSession()
+  const sessionId = session?.sessionId
   const [result, setResult] = useState<DataSourceListResponse | null>(null)
   const [error, setError] = useState<ApiError | null>(null)
   const [itemErrors, setItemErrors] = useState<Partial<Record<ConsentSourceType, ApiError>>>({})
@@ -87,8 +88,8 @@ function DataConnectionPage() {
     if (!sessionLoading && !session) navigate('/start', { replace: true })
   }, [navigate, session, sessionLoading])
 
-  const load = useCallback(async (refresh = false) => {
-    if (!session) return
+  const load = useCallback(async (refresh = false): Promise<DataSourceListResponse | null> => {
+    if (!sessionId) return null
     controllerRef.current?.abort()
     const controller = new AbortController()
     controllerRef.current = controller
@@ -98,23 +99,30 @@ function DataConnectionPage() {
     setItemErrors({})
     try {
       const next = await (refresh
-        ? dataConnectionProvider.refresh(session.sessionId, controller.signal)
-        : dataConnectionProvider.list(session.sessionId, controller.signal))
+        ? dataConnectionProvider.refresh(sessionId, controller.signal)
+        : dataConnectionProvider.list(sessionId, controller.signal))
       if (sequence === requestSequence.current) setResult(next)
+      return next
     } catch (caught) {
       if (!controller.signal.aborted && sequence === requestSequence.current) setError(normalizeDataConnectionError(caught))
+      return null
     } finally {
       if (sequence === requestSequence.current) setIsLoading(false)
     }
-  }, [session])
+  }, [sessionId])
+
+  const continueToAssessment = async () => {
+    const refreshed = await load(true)
+    if (refreshed) navigate('/assessment')
+  }
 
   useEffect(() => {
-    if (session) queueMicrotask(() => void load())
+    if (sessionId) queueMicrotask(() => void load())
     return () => {
       requestSequence.current += 1
       controllerRef.current?.abort()
     }
-  }, [load, session])
+  }, [load, sessionId])
 
   const retrySource = async (sourceType: ConsentSourceType) => {
     if (!session || !dataConnectionProvider.retrySource || retrying) return
@@ -208,13 +216,12 @@ function DataConnectionPage() {
 
           <section className="connection-actions" aria-label="데이터 연결 다음 작업">
             <div>
-              <strong>{result ? '데이터 출처 상태를 확인했습니다' : '데이터 출처 상태를 확인해주세요'}</strong>
-              <p>준비된 정보를 바탕으로 다음 단계에서 기준평가를 진행합니다.</p>
+              <strong>{result ? '다음은 기준평가입니다' : '데이터 출처 상태를 확인해주세요'}</strong>
+              <p>최신 연결 상태를 한 번 확인한 뒤 기준평가 화면으로 이동합니다.</p>
             </div>
             <div className="connection-actions__buttons">
-              <Link className="button button--secondary" to="/consent">동의 범위 확인</Link>
-              <button className="button button--secondary" type="button" onClick={() => void load(true)} disabled={isLoading || Boolean(retrying)}>전체 출처 새로고침</button>
-              {result && !isLoading && !retrying && <Link className="button button--primary" to="/assessment">기준평가 실행</Link>}
+              <Link className="connection-actions__consent" to="/consent">동의 내용 수정</Link>
+              {result && <button className="button button--primary" type="button" onClick={() => void continueToAssessment()} disabled={isLoading || Boolean(retrying)}>{isLoading ? '데이터 확인 중…' : '데이터 확인 후 기준평가 시작'}</button>}
             </div>
           </section>
         </div>
