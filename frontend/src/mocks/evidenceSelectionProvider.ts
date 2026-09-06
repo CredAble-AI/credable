@@ -30,6 +30,7 @@ export const mockEvidenceSelectionProvider: EvidenceSelectionProvider = {
           collectionMode: 'UNAVAILABLE',
           availability: 'CONSENT_REQUIRED',
           rationaleCodes: ['DEMO_RESOLVE_BOUNDARY_1_2', 'DEMO_MINIMUM_SINGLE_REQUEST'],
+          consentScope: { scopeVersion: 'demo-recent-revenue-consent-v1', purposeCode: 'SUPPLEMENTAL_CREDIT_ASSESSMENT', purposeDescription: '기존 평가의 불확실성을 확인하기 위한 보완평가에 사용', dataCategories: ['BUSINESS_IDENTITY', 'MONTHLY_SALES', 'MONTHLY_DEPOSITS', 'PERIOD_TOTALS'], periodStart: '2026-03-01', periodEnd: '2026-08-31', required: true },
           demoOnly: true,
         },
         evaluatedCandidateCount: 2,

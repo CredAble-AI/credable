@@ -8,6 +8,7 @@ import EvidenceFileSubmission from './EvidenceFileSubmission'
 vi.mock('../hooks/useEvidenceSubmissionState', () => ({
   evidenceSubmissionProvider: { getOption: vi.fn(), getLatest: vi.fn(), upload: vi.fn() },
 }))
+vi.mock('./EvidenceConsentPanel', () => ({ default: () => <div>선택 증빙 이용 동의</div> }))
 
 const option = (status: 'READY' | 'CONSENT_REQUIRED' = 'READY'): EvidenceSubmissionOption => ({
   sessionId: 'ses_demo', selectionId: 'evs_demo', evidenceType: 'RECENT_REVENUE', collectionMode: 'DEMO_FILE_UPLOAD', demoOnly: true,
@@ -49,8 +50,9 @@ describe('EvidenceFileSubmission', () => {
     vi.mocked(evidenceSubmissionProvider.getOption).mockResolvedValue(option('CONSENT_REQUIRED'))
     renderComponent()
 
-    expect(await screen.findByRole('link', { name: '동의 범위 확인' })).toHaveAttribute('href', '/consent')
-    expect(screen.getByRole('link', { name: 'Demo 증빙 PDF 내려받기' })).toBeInTheDocument()
+    expect(await screen.findByText('선택 증빙 이용 동의')).toBeInTheDocument()
+    expect(screen.getByText('동의 후 다운로드')).toHaveAttribute('aria-disabled', 'true')
+    expect(screen.queryByRole('link', { name: 'Demo 증빙 PDF 내려받기' })).not.toBeInTheDocument()
     expect(screen.queryByLabelText('제출할 PDF 선택')).not.toBeInTheDocument()
     expect(evidenceSubmissionProvider.upload).not.toHaveBeenCalled()
   })

@@ -1,9 +1,9 @@
 import { useCallback, useEffect, useId, useRef, useState } from 'react'
-import { Link } from 'react-router-dom'
 import { normalizeEvidenceSubmissionError } from '../api/evidenceSubmissionClient'
 import { evidenceSubmissionProvider } from '../hooks/useEvidenceSubmissionState'
 import type { ApiError } from '../types/api'
 import type { EvidenceSubmissionOption, EvidenceSubmissionState } from '../types/evidenceSubmission'
+import EvidenceConsentPanel from './EvidenceConsentPanel'
 
 interface EvidenceFileSubmissionProps {
   sessionId: string
@@ -115,9 +115,8 @@ function EvidenceFileSubmission({ sessionId, selectionId, evidenceType }: Eviden
     {error && <div className="evidence-submission__error" role="alert"><strong>{error.message}</strong><small>{error.code}{error.requestId ? ` · Request ID: ${error.requestId}` : ''}</small></div>}
 
     {option.collectionMode === 'DEMO_FILE_UPLOAD' && option.demoFile && option.uploadPolicy && <>
-      <div className="evidence-file-card"><div><strong>{option.demoFile.displayName}</strong><p>{option.demoFile.description}</p><small>{option.demoFile.fileName} · PDF · {formatBytes(option.demoFile.sizeBytes)}</small></div>{downloadPath ? <a className="button button--secondary" href={downloadPath} download={option.demoFile.fileName}>Demo 증빙 PDF 내려받기</a> : <span className="evidence-file-card__invalid" role="alert">안전한 다운로드 주소를 확인할 수 없습니다.</span>}</div>
-
-      {requirement.status === 'CONSENT_REQUIRED' && <div className="evidence-submission__notice"><div><strong>고객 제출 자료 동의가 필요합니다</strong><p>파일을 내려받을 수 있지만 제출 전에는 서버가 현재 동의 상태를 다시 확인합니다.</p></div><div><Link className="button button--secondary" to="/consent">동의 범위 확인</Link><button type="button" onClick={() => void load()}>제출 조건 다시 확인</button></div></div>}
+      <div className="evidence-file-card"><div><strong>{option.demoFile.displayName}</strong><p>{option.demoFile.description}</p><small>{option.demoFile.fileName} · PDF · {formatBytes(option.demoFile.sizeBytes)}</small></div>{requirement.status !== 'READY' ? <span className="button button--secondary" aria-disabled="true">동의 후 다운로드</span> : downloadPath ? <a className="button button--secondary" href={downloadPath} download={option.demoFile.fileName}>Demo 증빙 PDF 내려받기</a> : <span className="evidence-file-card__invalid" role="alert">안전한 다운로드 주소를 확인할 수 없습니다.</span>}</div>
+      <EvidenceConsentPanel sessionId={sessionId} selectionId={selectionId} evidenceType={evidenceType} onConsentChanged={load} />
 
       {requirement.status === 'UNAVAILABLE' && <div className="evidence-submission__notice evidence-submission__notice--blocked"><strong>현재 파일을 제출할 수 없습니다</strong><p>{requirement.reasonCode ?? '서버에서 제출 가능한 상태를 확인하지 못했습니다.'}</p></div>}
 
