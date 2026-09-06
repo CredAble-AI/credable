@@ -284,7 +284,7 @@ def test_human_review_resolution_is_exposed_in_underwriter_queue(
     assert review["triggerId"] == resolution["resolutionId"]
     assert review["reasonCodes"] == ["UNCERTAINTY_COMPARISON_NOT_RELIABLE"]
     assert review["dataVersion"] == supplemental["supplementalAssessmentId"]
-    assert review["policyVersion"] == "demo-policy-boundary-v1"
+    assert review["policyVersion"] == "demo-policy-boundary-v2"
 
 
 def test_underwriter_review_queue_supports_bounded_offset_paging(

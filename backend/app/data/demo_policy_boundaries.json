@@ -1,6 +1,6 @@
 {
-  "dataVersion": "demo-policy-boundaries-v1",
-  "policyVersion": "demo-policy-boundary-v1",
+  "dataVersion": "demo-policy-boundaries-v2",
+  "policyVersion": "demo-policy-boundary-v2",
   "gradeRoutes": [
     {
       "grade": "DEMO_GRADE_B",
@@ -16,6 +16,18 @@
       "leftRoute": "DEMO_PATH_1",
       "rightRoute": "DEMO_PATH_2",
       "boundaryCode": "DEMO_BOUNDARY_1_2"
+    }
+  ],
+  "policyRestrictions": [
+    {
+      "restrictionCode": "DEMO_POLICY_RESTRICTION_ACTIVE_DELINQUENCY",
+      "triggerReasonCodes": [
+        "DEMO_ACTIVE_DELINQUENCY_ON_RECORD"
+      ],
+      "followUpCodes": [
+        "DEMO_FOLLOW_UP_RESOLVE_DELINQUENCY",
+        "DEMO_FOLLOW_UP_BRANCH_CONSULTATION"
+      ]
     }
   ],
   "demoOnly": true

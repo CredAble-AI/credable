@@ -190,7 +190,7 @@ def test_ambiguous_boundary_selects_one_minimum_evidence(
     assert state["stopReason"] is None
     assert state["underwriterRequired"] is False
     assert state["calibrationVersion"] == "demo-uncertainty-rule-table-v1"
-    assert state["boundaryPolicyVersion"] == "demo-policy-boundary-v1"
+    assert state["boundaryPolicyVersion"] == "demo-policy-boundary-v2"
     assert state["selectionPolicyVersion"] == "demo-novel-evidence-selection-v4"
     assert state["sourceCreditAssessmentId"] == "bca_demo_001"
     assert state["informationGapCodes"] == [
@@ -592,7 +592,7 @@ def test_stopped_boundary_does_not_select_evidence(
         decision=decision,
         input_snapshot_id="dss_test",
         calibration_version="test-rule-v1",
-        policy_version="demo-policy-boundary-v1",
+        policy_version="demo-policy-boundary-v2",
     )
     monkeypatch.setattr(
         policy_boundary_service,

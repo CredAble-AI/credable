@@ -1,5 +1,6 @@
 import hashlib
 import json
+from collections.abc import Sequence
 from datetime import UTC, datetime
 from itertools import combinations
 from pathlib import Path
@@ -18,6 +19,7 @@ from app.schemas.policy_boundary import (
     BoundaryDecision,
     BoundaryStatus,
     DemoPolicyBoundaryCatalogData,
+    DemoPolicyRestriction,
     EvidenceResolutionNextAction,
     EvidenceResolutionResponse,
     EvidenceResolutionState,
@@ -35,21 +37,37 @@ class DemoPolicyBoundaryCatalog:
         self._catalog: DemoPolicyBoundaryCatalogData | None = None
         self._routes_by_grade: dict[str, str] = {}
         self._codes_by_route_pair: dict[frozenset[str], str] = {}
+        self._restrictions_by_reason: dict[str, DemoPolicyRestriction] = {}
 
     @property
     def policy_version(self) -> str:
         return self._load().policy_version
 
-    def evaluate(self, uncertainty: AssessmentUncertainty) -> BoundaryDecision:
+    def evaluate(
+        self,
+        uncertainty: AssessmentUncertainty,
+        restriction_reason_codes: Sequence[str] = (),
+    ) -> BoundaryDecision:
         self._load()
+        restriction = self._restriction_for(restriction_reason_codes)
+        if restriction is not None:
+            return BoundaryDecision(
+                status=BoundaryStatus.POLICY_BLOCKED,
+                possible_routes=[],
+                crossed_boundary_codes=[],
+                stop_reason=restriction.restriction_code,
+                underwriter_required=False,
+                restriction_code=restriction.restriction_code,
+                follow_up_codes=list(restriction.follow_up_codes),
+            )
         if not uncertainty.grade_set:
-            return self._blocked("DEMO_NUMERIC_POLICY_BOUNDARY_NOT_CONFIGURED")
+            return self._undecided("DEMO_NUMERIC_POLICY_BOUNDARY_NOT_CONFIGURED")
 
         routes: list[str] = []
         for grade in uncertainty.grade_set:
             route = self._routes_by_grade.get(grade)
             if route is None:
-                return self._blocked("DEMO_GRADE_POLICY_NOT_CONFIGURED")
+                return self._undecided("DEMO_GRADE_POLICY_NOT_CONFIGURED")
             if route not in routes:
                 routes.append(route)
 
@@ -66,7 +84,7 @@ class DemoPolicyBoundaryCatalog:
         for left_route, right_route in combinations(routes, 2):
             code = self._codes_by_route_pair.get(frozenset((left_route, right_route)))
             if code is None:
-                return self._blocked("DEMO_ROUTE_BOUNDARY_NOT_CONFIGURED")
+                return self._undecided("DEMO_ROUTE_BOUNDARY_NOT_CONFIGURED")
             crossed_codes.append(code)
         return BoundaryDecision(
             status=BoundaryStatus.AMBIGUOUS,
@@ -83,7 +101,18 @@ class DemoPolicyBoundaryCatalog:
             return False
         return True
 
-    def _blocked(self, reason: str) -> BoundaryDecision:
+    def _restriction_for(
+        self,
+        restriction_reason_codes: Sequence[str],
+    ) -> DemoPolicyRestriction | None:
+        for reason_code in restriction_reason_codes:
+            restriction = self._restrictions_by_reason.get(reason_code)
+            if restriction is not None:
+                return restriction
+        return None
+
+    def _undecided(self, reason: str) -> BoundaryDecision:
+        """The catalog cannot place this result, so an underwriter decides."""
         return BoundaryDecision(
             status=BoundaryStatus.POLICY_BLOCKED,
             possible_routes=[],
@@ -101,6 +130,11 @@ class DemoPolicyBoundaryCatalog:
             self._codes_by_route_pair = {
                 frozenset((item.left_route, item.right_route)): item.boundary_code
                 for item in self._catalog.boundaries
+            }
+            self._restrictions_by_reason = {
+                reason_code: restriction
+                for restriction in self._catalog.policy_restrictions
+                for reason_code in restriction.trigger_reason_codes
             }
         return self._catalog
 
@@ -143,7 +177,14 @@ class PolicyBoundaryService:
             )
 
         checked_at = datetime.now(UTC)
-        decision = self.catalog.evaluate(assessment.uncertainty)
+        decision = self.catalog.evaluate(
+            assessment.uncertainty,
+            (
+                assessment.source_assessment.reason_codes
+                if assessment.source_assessment is not None
+                else ()
+            ),
+        )
         state = PolicyBoundaryCheckState(
             boundary_check_id=f"pbc_{uuid4().hex}",
             assessment_id=assessment.assessment_id,
@@ -162,6 +203,9 @@ class PolicyBoundaryService:
         }
         if decision.stop_reason is not None:
             output_summary["stopReason"] = decision.stop_reason
+        if decision.restriction_code is not None:
+            output_summary["policyRestrictionCode"] = decision.restriction_code
+            output_summary["followUpCount"] = len(decision.follow_up_codes)
         audit_event = SessionAuditEvent(
             event_id=f"evt_{uuid4().hex}",
             session_id=session_id,

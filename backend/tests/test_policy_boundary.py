@@ -81,7 +81,7 @@ def test_demo_grade_set_crosses_configured_policy_boundary(
     assert state["assessmentId"] == assessment["assessmentId"]
     assert state["inputSnapshotId"] == assessment["inputSnapshotId"]
     assert state["calibrationVersion"] == "demo-uncertainty-rule-table-v1"
-    assert state["policyVersion"] == "demo-policy-boundary-v1"
+    assert state["policyVersion"] == "demo-policy-boundary-v2"
     assert state["demoOnly"] is True
     assert state["decision"] == {
         "status": "AMBIGUOUS",
@@ -89,11 +89,13 @@ def test_demo_grade_set_crosses_configured_policy_boundary(
         "crossedBoundaryCodes": ["DEMO_BOUNDARY_1_2"],
         "stopReason": None,
         "underwriterRequired": False,
+        "restrictionCode": None,
+        "followUpCodes": [],
     }
     assert policy_boundary_repository.count_checks(session_id) == 1
     event = session_repository.list_audit_events(session_id)[-1]
     assert event.stage == AuditStage.POLICY_BOUNDARY_CHECKED
-    assert event.policy_version == "demo-policy-boundary-v1"
+    assert event.policy_version == "demo-policy-boundary-v2"
     assert event.model_version == "demo-small-business-assessment-v1"
     assert event.output_summary == {
         "boundaryStatus": "AMBIGUOUS",
@@ -154,3 +156,56 @@ def test_catalog_stops_stable_and_unconfigured_paths() -> None:
     assert blocked.status == "POLICY_BLOCKED"
     assert blocked.stop_reason == "DEMO_GRADE_POLICY_NOT_CONFIGURED"
     assert blocked.underwriter_required is True
+
+
+def test_catalog_separates_a_confirmed_restriction_from_an_undecided_result() -> None:
+    catalog = DemoPolicyBoundaryCatalog(settings.demo_policy_boundaries_path)
+    ambiguous_range = AssessmentUncertainty(
+        grade_set=["DEMO_GRADE_B", "DEMO_GRADE_C"],
+        calibration_mode=CalibrationMode.RULE_TABLE,
+        calibration_version="test-rule-v1",
+    )
+
+    restricted = catalog.evaluate(
+        ambiguous_range,
+        ["DEMO_INFORMATION_GAP", "DEMO_ACTIVE_DELINQUENCY_ON_RECORD"],
+    )
+    undecided = catalog.evaluate(
+        AssessmentUncertainty(
+            grade_set=["UNKNOWN_DEMO_GRADE"],
+            calibration_mode=CalibrationMode.RULE_TABLE,
+            calibration_version="test-rule-v1",
+        )
+    )
+
+    # A confirmed lending-policy restriction outranks the boundary comparison and
+    # is answered with the reason plus next steps, not an underwriter handoff.
+    assert restricted.status == "POLICY_BLOCKED"
+    assert restricted.restriction_code == "DEMO_POLICY_RESTRICTION_ACTIVE_DELINQUENCY"
+    assert restricted.stop_reason == "DEMO_POLICY_RESTRICTION_ACTIVE_DELINQUENCY"
+    assert restricted.follow_up_codes == [
+        "DEMO_FOLLOW_UP_RESOLVE_DELINQUENCY",
+        "DEMO_FOLLOW_UP_BRANCH_CONSULTATION",
+    ]
+    assert restricted.underwriter_required is False
+    # A result the catalog cannot place is still an underwriter handoff.
+    assert undecided.status == "POLICY_BLOCKED"
+    assert undecided.restriction_code is None
+    assert undecided.follow_up_codes == []
+    assert undecided.underwriter_required is True
+
+
+def test_unrelated_reason_codes_do_not_trigger_a_policy_restriction() -> None:
+    catalog = DemoPolicyBoundaryCatalog(settings.demo_policy_boundaries_path)
+
+    decision = catalog.evaluate(
+        AssessmentUncertainty(
+            grade_set=["DEMO_GRADE_B", "DEMO_GRADE_C"],
+            calibration_mode=CalibrationMode.RULE_TABLE,
+            calibration_version="test-rule-v1",
+        ),
+        ["DEMO_INFORMATION_GAP", "DEMO_FINANCIAL_HISTORY_THIN"],
+    )
+
+    assert decision.status == "AMBIGUOUS"
+    assert decision.restriction_code is None

@@ -20,6 +20,8 @@ class BoundaryDecision(ApiModel):
     crossed_boundary_codes: list[str]
     stop_reason: str | None = None
     underwriter_required: bool
+    restriction_code: str | None = Field(default=None, min_length=1)
+    follow_up_codes: list[str] = Field(default_factory=list)
 
     @model_validator(mode="after")
     def validate_decision(self) -> "BoundaryDecision":
@@ -27,6 +29,8 @@ class BoundaryDecision(ApiModel):
             raise ValueError("possibleRoutes values must be unique")
         if len(self.crossed_boundary_codes) != len(set(self.crossed_boundary_codes)):
             raise ValueError("crossedBoundaryCodes values must be unique")
+        if len(self.follow_up_codes) != len(set(self.follow_up_codes)):
+            raise ValueError("followUpCodes values must be unique")
         if self.status == BoundaryStatus.STABLE:
             if len(self.possible_routes) != 1:
                 raise ValueError("STABLE decision requires one possible route")
@@ -39,8 +43,22 @@ class BoundaryDecision(ApiModel):
                 raise ValueError("AMBIGUOUS decision requires multiple routes and a boundary")
             if self.stop_reason is not None or self.underwriter_required:
                 raise ValueError("AMBIGUOUS decision must continue to evidence acquisition")
-        elif not self.stop_reason or not self.underwriter_required:
-            raise ValueError("POLICY_BLOCKED decision requires a stop reason and review")
+        elif not self.stop_reason:
+            raise ValueError("POLICY_BLOCKED decision requires a stop reason")
+        elif self.restriction_code is not None:
+            # A confirmed lending-policy restriction: the outcome is already
+            # decided, so the customer gets the reason and the next steps
+            # instead of being queued for an underwriter.
+            if self.restriction_code != self.stop_reason:
+                raise ValueError("policy restriction must be the stop reason")
+            if not self.follow_up_codes:
+                raise ValueError("policy restriction requires follow-up guidance")
+            if self.underwriter_required:
+                raise ValueError("confirmed policy restriction is not an underwriter handoff")
+        elif not self.underwriter_required or self.follow_up_codes:
+            # No restriction identified means the service could not decide,
+            # which always goes to an underwriter.
+            raise ValueError("undecided POLICY_BLOCKED decision requires underwriter review")
         return self
 
 
@@ -151,11 +169,28 @@ class DemoRouteBoundary(ApiModel):
         return self
 
 
+class DemoPolicyRestriction(ApiModel):
+    """A lending-policy limit that additional evidence cannot resolve."""
+
+    restriction_code: str = Field(min_length=1)
+    trigger_reason_codes: list[str] = Field(min_length=1)
+    follow_up_codes: list[str] = Field(min_length=1)
+
+    @model_validator(mode="after")
+    def validate_unique_codes(self) -> "DemoPolicyRestriction":
+        if len(self.trigger_reason_codes) != len(set(self.trigger_reason_codes)):
+            raise ValueError("triggerReasonCodes values must be unique")
+        if len(self.follow_up_codes) != len(set(self.follow_up_codes)):
+            raise ValueError("followUpCodes values must be unique")
+        return self
+
+
 class DemoPolicyBoundaryCatalogData(ApiModel):
     data_version: str = Field(min_length=1)
     policy_version: str = Field(min_length=1)
     grade_routes: list[DemoGradeRoute] = Field(min_length=1)
     boundaries: list[DemoRouteBoundary]
+    policy_restrictions: list[DemoPolicyRestriction] = Field(default_factory=list)
     demo_only: Literal[True] = True
 
     @model_validator(mode="after")
@@ -176,4 +211,7 @@ class DemoPolicyBoundaryCatalogData(ApiModel):
         required_pairs = {frozenset(pair) for pair in combinations(configured_routes, 2)}
         if pairs != required_pairs:
             raise ValueError("every configured route pair requires one boundary code")
+        restriction_codes = [item.restriction_code for item in self.policy_restrictions]
+        if len(restriction_codes) != len(set(restriction_codes)):
+            raise ValueError("policyRestrictions restrictionCode values must be unique")
         return self

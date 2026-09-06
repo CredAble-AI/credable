@@ -878,7 +878,7 @@ def test_stable_supplemental_boundary_stops_evidence_collection(
     assert resolution["possibleRoutes"] == ["DEMO_PATH_1"]
     assert resolution["crossedBoundaryCodes"] == []
     assert resolution["calibrationVersion"] == "demo-uncertainty-rule-table-v1"
-    assert resolution["boundaryPolicyVersion"] == "demo-policy-boundary-v1"
+    assert resolution["boundaryPolicyVersion"] == "demo-policy-boundary-v2"
     assert resolution["resolvedAt"].endswith("Z")
     assert resolution["demoOnly"] is True
     assert second.json() == first.json()
@@ -892,7 +892,7 @@ def test_stable_supplemental_boundary_stops_evidence_collection(
     assert len(event.input_snapshot_hash) == 64
     assert event.data_version == supplemental["inputSnapshotId"]
     assert event.model_version == supplemental["modelVersion"]
-    assert event.policy_version == "demo-policy-boundary-v1"
+    assert event.policy_version == "demo-policy-boundary-v2"
     assert event.output_summary == {
         "resolutionStatus": "RESOLVED",
         "nextAction": "SHOW_UPDATED_RESULTS",

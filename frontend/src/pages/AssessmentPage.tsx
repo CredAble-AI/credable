@@ -32,6 +32,14 @@ const boundaryCopy: Record<BoundaryStatus, { label: string; description: string 
   AMBIGUOUS: { label: '추가 자료 확인 필요', description: '현재 평가 범위가 정책 경계에 걸쳐 있어, 부족한 정보를 확인할 자료 한 건을 요청합니다.' },
   POLICY_BLOCKED: { label: '담당자 확인 필요', description: '자동으로 다음 단계를 정하지 않고 담당자의 확인이 필요한 상태입니다.' },
 }
+const restrictedBoundaryCopy = { label: '대출정책상 제한 확인', description: '은행의 사업자금 대출정책에서 확인된 제한이라 추가 자료로는 해소되지 않습니다. 자료를 요청하지 않고 제한 사유와 다음 절차를 안내합니다.' }
+const restrictionReasonCopy: Record<string, string> = {
+  DEMO_POLICY_RESTRICTION_ACTIVE_DELINQUENCY: '현재 진행 중인 연체가 확인되어 사업자금 대출정책상 신규 취급이 제한되는 상태입니다.',
+}
+const followUpCopy: Record<string, string> = {
+  DEMO_FOLLOW_UP_RESOLVE_DELINQUENCY: '연체가 해소된 뒤 다시 조회하면 그 시점의 정보로 새로 확인합니다.',
+  DEMO_FOLLOW_UP_BRANCH_CONSULTATION: '영업점이나 담당자 상담을 통해 다른 방법이 있는지 확인할 수 있습니다.',
+}
 
 const informationGapCopy: Record<string, string> = {
   DEMO_INFORMATION_GAP: '현재 평가에 필요한 일부 정보가 확인되지 않았습니다.',
@@ -100,19 +108,26 @@ function UncertaintyPanel({ state }: { state: AssessmentState }) {
 }
 
 function BoundaryPanel({ boundary, selection }: { boundary: PolicyBoundaryCheckState; selection: EvidenceSelectionState | null }) {
-  const copy = boundaryCopy[boundary.decision.status]
+  const restrictionCode = boundary.decision.restrictionCode ?? null
+  const followUpCodes = boundary.decision.followUpCodes ?? []
+  const copy = restrictionCode ? restrictedBoundaryCopy : boundaryCopy[boundary.decision.status]
   const evidence = selection?.selectedEvidence ?? null
   const gaps = selection?.informationGapCodes ?? []
   return <section className={`assessment-boundary assessment-boundary--${boundary.decision.status.toLowerCase()}`} aria-labelledby="boundary-title">
     <div className="assessment-panel__heading"><div><span>다음 단계</span><h2 id="boundary-title">{copy.label}</h2></div></div>
     <p>{copy.description}</p>
+    {restrictionCode && <div className="assessment-boundary__restriction">
+      <div><span>제한 사유</span><p>{restrictionReasonCopy[restrictionCode] ?? '은행의 대출정책에서 확인된 제한입니다.'}</p></div>
+      {followUpCodes.length > 0 && <div><span>가능한 다음 절차</span><ul>{followUpCodes.map((code) => <li key={code}>{followUpCopy[code] ?? '담당 창구에서 다음 절차를 확인할 수 있습니다.'}</li>)}</ul></div>}
+      <p className="assessment-boundary__assurance">이 상태는 신용이 낮다는 뜻도, 정보가 부족하다는 뜻도 아닙니다. 대출정책에서 확인된 제한이므로 추가 자료를 요청하지 않습니다.</p>
+    </div>}
     {boundary.decision.status === 'AMBIGUOUS' && <div className="assessment-boundary__reason">
       <div><span>정책 경계 판정</span><strong>현재 결과가 둘 이상의 처리 구간에 걸쳐 있습니다.</strong><p>최소한의 정보만 더 확인해 결과 범위를 좁힙니다.</p></div>
       <div><span>현재 부족한 정보</span>{gaps.length > 0 ? <ul>{gaps.map((code) => <li key={code}>{informationGapCopy[code] ?? '기존 평가에 반영되지 않은 추가 정보가 필요합니다.'}</li>)}</ul> : <p>요청할 정보를 선택하고 있습니다.</p>}</div>
     </div>}
     {boundary.decision.status === 'AMBIGUOUS' && evidence && <div className="assessment-request-card"><div><span>요청할 최소 증빙 1건</span><h3>{evidence.displayName}</h3><p>{evidence.description}</p></div><Link className="button button--primary" to="/evidence">요청 자료 제출하기</Link></div>}
     {boundary.decision.status === 'AMBIGUOUS' && !evidence && <p className="assessment-boundary__pending" role="status">부족한 정보를 확인할 최소 증빙을 선택하고 있습니다.</p>}
-    <CustomerTechnicalDetails><dl><div><dt>처리 상태</dt><dd><code>{boundary.decision.status}</code></dd></div><div><dt>가능 경로</dt><dd>{boundary.decision.possibleRoutes.length > 0 ? boundary.decision.possibleRoutes.join(', ') : '없음'}</dd></div><div><dt>정책 경계</dt><dd>{boundary.decision.crossedBoundaryCodes.length > 0 ? boundary.decision.crossedBoundaryCodes.join(', ') : '없음'}</dd></div><div><dt>중단 사유</dt><dd>{boundary.decision.stopReason ?? '없음'}</dd></div><div><dt>담당자 확인</dt><dd>{boundary.decision.underwriterRequired ? '필요' : '필요 없음'}</dd></div><div><dt>확인 시점</dt><dd>{formatDate(boundary.checkedAt)}</dd></div><div><dt>정책 버전</dt><dd><code>{boundary.policyVersion}</code></dd></div><div><dt>보정 버전</dt><dd><code>{boundary.calibrationVersion}</code></dd></div></dl></CustomerTechnicalDetails>
+    <CustomerTechnicalDetails><dl><div><dt>처리 상태</dt><dd><code>{boundary.decision.status}</code></dd></div><div><dt>가능 경로</dt><dd>{boundary.decision.possibleRoutes.length > 0 ? boundary.decision.possibleRoutes.join(', ') : '없음'}</dd></div><div><dt>정책 경계</dt><dd>{boundary.decision.crossedBoundaryCodes.length > 0 ? boundary.decision.crossedBoundaryCodes.join(', ') : '없음'}</dd></div><div><dt>중단 사유</dt><dd>{boundary.decision.stopReason ?? '없음'}</dd></div><div><dt>정책 제한 코드</dt><dd><code>{boundary.decision.restrictionCode ?? '없음'}</code></dd></div><div><dt>담당자 확인</dt><dd>{boundary.decision.underwriterRequired ? '필요' : '필요 없음'}</dd></div><div><dt>확인 시점</dt><dd>{formatDate(boundary.checkedAt)}</dd></div><div><dt>정책 버전</dt><dd><code>{boundary.policyVersion}</code></dd></div><div><dt>보정 버전</dt><dd><code>{boundary.calibrationVersion}</code></dd></div></dl></CustomerTechnicalDetails>
   </section>
 }
 
@@ -299,7 +314,8 @@ function AssessmentPage() {
     : state.status === 'NOT_RUN' ? '사용자가 확인을 선택하기 전에는 기존 은행 평가 결과를 불러오지 않습니다.'
       : state.status !== 'COMPLETED' ? '정책 경계는 은행의 기존 평가를 확인한 뒤 살펴볼 수 있습니다.'
         : !boundary ? '평가 결과에 따라 추가 자료가 필요한지 확인해주세요.'
-          : boundaryCopy[boundary.decision.status].description
+          : boundary.decision.restrictionCode ? restrictedBoundaryCopy.description
+            : boundaryCopy[boundary.decision.status].description
 
   return <div className="workspace-shell customer-flow"><Header /><main id="main-content" tabIndex={-1} className="assessment-page"><div className="container assessment-page__inner">
     <nav className="assessment-steps" aria-label="진행 단계"><span>시작</span><span>동의</span><span>데이터 연결</span><strong aria-current="step">기존 평가</strong><span>상품 비교</span></nav>
@@ -317,7 +333,7 @@ function AssessmentPage() {
       {boundary && <BoundaryPanel boundary={boundary} selection={selection} />}
     </>}
 
-    <section className="assessment-actions"><div><strong>{boundary ? boundaryCopy[boundary.decision.status].label : state?.status === 'COMPLETED' ? '정책 경계를 확인해주세요' : '기존 평가 상태를 먼저 확인해주세요'}</strong><p>{actionCopy}</p>{boundary?.decision.status === 'STABLE' && <small>추가 자료 없이 자사 상품 조건을 확인할 수 있습니다.</small>}{boundary?.decision.status === 'AMBIGUOUS' && <small>요청 자료와 제출 버튼은 위 카드에서 바로 확인할 수 있습니다.</small>}</div><div><Link className="button button--secondary" to="/data-connection">연결 정보 확인</Link>{state?.status === 'NOT_RUN' && <button className="button button--primary" type="button" onClick={() => void runAssessment()} disabled={phase !== 'idle'}>기존 평가 결과 불러오기</button>}{state && state.status !== 'NOT_RUN' && state.status !== 'COMPLETED' && <button className="button button--secondary" type="button" onClick={() => void runAssessment()} disabled={phase !== 'idle'}>기존 평가 다시 확인</button>}{state?.status === 'COMPLETED' && !boundary && <button className="button button--primary" type="button" onClick={() => void checkBoundary()} disabled={phase !== 'idle'}>정책 경계 확인</button>}{boundary?.decision.status === 'STABLE' && <Link className="button button--primary" to="/products">자사 상품 조건 확인</Link>}</div></section>
+    <section className="assessment-actions"><div><strong>{boundary ? (boundary.decision.restrictionCode ? restrictedBoundaryCopy.label : boundaryCopy[boundary.decision.status].label) : state?.status === 'COMPLETED' ? '정책 경계를 확인해주세요' : '기존 평가 상태를 먼저 확인해주세요'}</strong><p>{actionCopy}</p>{boundary?.decision.status === 'STABLE' && <small>추가 자료 없이 자사 상품 조건을 확인할 수 있습니다.</small>}{boundary?.decision.status === 'AMBIGUOUS' && <small>요청 자료와 제출 버튼은 위 카드에서 바로 확인할 수 있습니다.</small>}</div><div><Link className="button button--secondary" to="/data-connection">연결 정보 확인</Link>{state?.status === 'NOT_RUN' && <button className="button button--primary" type="button" onClick={() => void runAssessment()} disabled={phase !== 'idle'}>기존 평가 결과 불러오기</button>}{state && state.status !== 'NOT_RUN' && state.status !== 'COMPLETED' && <button className="button button--secondary" type="button" onClick={() => void runAssessment()} disabled={phase !== 'idle'}>기존 평가 다시 확인</button>}{state?.status === 'COMPLETED' && !boundary && <button className="button button--primary" type="button" onClick={() => void checkBoundary()} disabled={phase !== 'idle'}>정책 경계 확인</button>}{boundary?.decision.status === 'STABLE' && <Link className="button button--primary" to="/products">자사 상품 조건 확인</Link>}</div></section>
   </div></main></div>
 }
 
