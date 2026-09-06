@@ -30,7 +30,7 @@ const selected: EvidenceSelectionResponse = {
   sessionId: session.sessionId,
   selection: {
     selectionId: 'evs_demo', boundaryCheckId: 'pbc_demo', resolutionId: null, iteration: 1, status: 'SELECTED', evaluatedCandidateCount: 2, stopReason: null, underwriterRequired: false, selectedAt: '2026-09-06T01:02:00+09:00', calibrationVersion: 'demo-calibration-v1', boundaryPolicyVersion: 'demo-policy-v1', selectionPolicyVersion: 'demo-selection-v1', demoOnly: true,
-    selectedEvidence: { evidenceType: 'CUSTOMER_SUBMITTED_RECENT_REVENUE_SUMMARY', displayName: '최근 매출·입금 요약', description: '최근 매출 발생과 실제 입금 흐름을 확인할 수 있는 고객 제출 자료', sourceType: 'CUSTOMER_SUBMITTED', availability: 'CONSENT_REQUIRED', rationaleCodes: ['DEMO_RESOLVE_BOUNDARY_1_2', 'DEMO_MINIMUM_SINGLE_REQUEST'], demoOnly: true },
+    selectedEvidence: { evidenceType: 'CUSTOMER_SUBMITTED_RECENT_REVENUE_SUMMARY', displayName: '최근 매출·입금 요약', description: '최근 매출 발생과 실제 입금 흐름을 확인할 수 있는 고객 제출 자료', sourceType: 'CUSTOMER_SUBMITTED', collectionMode: 'DEMO_FILE_UPLOAD', availability: 'CONSENT_REQUIRED', rationaleCodes: ['DEMO_RESOLVE_BOUNDARY_1_2', 'DEMO_MINIMUM_SINGLE_REQUEST'], demoOnly: true },
   },
 }
 const renderPage = () => render(<MemoryRouter initialEntries={['/evidence']}><Routes><Route path="/evidence" element={<EvidenceSelectionPage />} /><Route path="/assessment" element={<h1>기준평가 화면</h1>} /></Routes></MemoryRouter>)
