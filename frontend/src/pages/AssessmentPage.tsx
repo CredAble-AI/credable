@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { normalizeAssessmentError } from '../api/assessmentClient'
 import { normalizePolicyBoundaryError } from '../api/policyBoundaryClient'
+import AssessmentExplanationPanel from '../components/AssessmentExplanationPanel'
 import AssessmentReviewPanel from '../components/AssessmentReviewPanel'
 import Header from '../components/Header'
 import { isMockMode } from '../config/providerMode'
@@ -237,6 +238,7 @@ function AssessmentPage() {
         <section className="assessment-panel assessment-panel--metadata" aria-labelledby="metadata-title"><div className="assessment-panel__heading"><div><span>TRACEABILITY</span><h2 id="metadata-title">평가 메타데이터</h2></div><span className="demo-chip">Demo Only</span></div><p className="assessment-panel__summary">평가 재현과 확인에 필요한 서버 추적 정보입니다.</p><dl><div className="assessment-metadata__status"><dt>처리 상태</dt><dd><strong>{copy.label}</strong><code>{state.status}</code></dd></div><div><dt>결과 계산 시점</dt><dd>{formatDate(state.calculatedAt)}</dd></div><div><dt>평가 ID</dt><dd>{state.assessmentId ?? '확인되지 않음'}</dd></div><div><dt>입력 Snapshot</dt><dd>{state.inputSnapshotId ?? '확인되지 않음'}</dd></div><div><dt>모델 버전</dt><dd>{state.modelVersion ?? '확인되지 않음'}</dd></div><div><dt>상태 코드</dt><dd>{state.reasonCode ?? '없음'}</dd></div></dl></section>
       </div>
       {boundary && <BoundaryPanel boundary={boundary} />}
+      {state.status === 'COMPLETED' && boundary && <AssessmentExplanationPanel key={`${state.assessmentId}-${boundary.boundaryCheckId}`} sessionId={session.sessionId} />}
       {state.status === 'COMPLETED' && <AssessmentReviewPanel sessionId={session.sessionId} />}
     </>}
 

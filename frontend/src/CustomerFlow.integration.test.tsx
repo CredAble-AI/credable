@@ -118,6 +118,8 @@ describe('customer journey integration', () => {
 
     fireEvent.click(await screen.findByRole('button', { name: '기준평가 실행' }))
     fireEvent.click(await screen.findByRole('button', { name: '정책 경계 확인' }))
+    fireEvent.click(await screen.findByRole('button', { name: '평가 결과 설명 생성' }))
+    expect(await screen.findByRole('heading', { level: 3, name: '정책 경계에 불확실성이 남아 있습니다' })).toBeInTheDocument()
     fireEvent.click(await screen.findByRole('link', { name: '다음 Evidence 확인' }))
 
     fireEvent.click(await screen.findByRole('button', { name: '다음 Evidence 확인' }))
@@ -145,6 +147,8 @@ describe('customer journey integration', () => {
     fireEvent.click(await screen.findByRole('button', { name: '다음 단계 확인' }))
 
     expect(await screen.findByRole('heading', { level: 5, name: '추가 Evidence 수집을 종료했습니다' })).toBeInTheDocument()
+    fireEvent.click(await screen.findByRole('button', { name: '평가 결과 설명 생성' }))
+    expect(await screen.findByRole('heading', { level: 3, name: '추가 증빙 수집이 종료됐습니다' })).toBeInTheDocument()
     fireEvent.click(screen.getByRole('link', { name: '자사 상품 조건 확인' }))
     expect(await screen.findByRole('heading', { level: 1, name: '자사 대출상품 조건을 비교합니다' })).toBeInTheDocument()
     const productLink = await screen.findByRole('link', { name: '사업 운영자금 플러스 상세 보기' }, { timeout: 3_000 })
