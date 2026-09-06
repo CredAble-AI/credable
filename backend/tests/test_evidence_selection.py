@@ -24,6 +24,10 @@ from app.schemas.policy_boundary import (
 )
 from app.services.assessment_service import AssessmentService, SupplementalAssessmentService
 from app.services.data_source_service import DataSourceService
+from app.services.evidence_quality_service import (
+    DemoEvidenceQualityCatalog,
+    EvidenceQualityService,
+)
 from app.services.evidence_selection_service import (
     DemoEvidenceCandidateCatalog,
     EvidenceSelectionService,
@@ -178,6 +182,7 @@ def test_ambiguous_boundary_selects_one_minimum_evidence(
     assert state["selectionId"].startswith("evs_")
     assert state["boundaryCheckId"] == boundary["boundaryCheckId"]
     assert state["resolutionId"] is None
+    assert state["rejectedQualityCheckId"] is None
     assert state["iteration"] == 1
     assert state["status"] == "SELECTED"
     assert state["evaluatedCandidateCount"] == 2
@@ -279,6 +284,126 @@ def test_same_boundary_check_does_not_create_duplicate_request(
     assert second == first
     assert latest == first
     assert evidence_selection_repository.count_selections(session_id) == 1
+
+
+def test_rejected_quality_selects_next_unsubmitted_candidate(
+    client: TestClient,
+    data_source_service: DataSourceService,
+    assessment_service: AssessmentService,
+    evidence_quality_service: EvidenceQualityService,
+    evidence_selection_repository: SqliteEvidenceSelectionRepository,
+    session_repository: SqliteCustomerSessionRepository,
+    tmp_path: Path,
+) -> None:
+    session_id = create_session(client)
+    boundary = prepare_ambiguous_boundary(
+        client,
+        session_id,
+        data_source_service,
+        assessment_service,
+    )
+    first_selection = client.post(f"/v1/sessions/{session_id}/evidence/next").json()["selection"]
+    submission_response = client.post(
+        f"/v1/sessions/{session_id}/evidence/submissions",
+        json={
+            "selectionId": first_selection["selectionId"],
+            "submissionMode": "DEMO_FIXTURE_REFERENCE",
+        },
+    )
+    assert submission_response.status_code == 200
+    submission = submission_response.json()["submission"]
+    quality_catalog = json.loads(settings.demo_evidence_quality_path.read_text(encoding="utf-8"))
+    freshness = next(
+        item for item in quality_catalog["results"][0]["checks"] if item["dimension"] == "FRESHNESS"
+    )
+    freshness.update(
+        status="NOT_VERIFIED",
+        rationaleCode="DEMO_FRESHNESS_NOT_VERIFIED",
+    )
+    catalog_path = tmp_path / "rejected-quality.json"
+    catalog_path.write_text(json.dumps(quality_catalog), encoding="utf-8")
+    evidence_quality_service.catalog = DemoEvidenceQualityCatalog(catalog_path)
+    quality_response = client.post(
+        f"/v1/sessions/{session_id}/evidence/submissions/{submission['submissionId']}/quality"
+    )
+    assert quality_response.status_code == 200
+    quality = quality_response.json()["quality"]
+    assert quality["status"] == "REJECTED"
+
+    first = client.post(f"/v1/sessions/{session_id}/evidence/next")
+    repeated = client.post(f"/v1/sessions/{session_id}/evidence/next")
+
+    assert first.status_code == 200
+    assert repeated.json() == first.json()
+    selection = first.json()["selection"]
+    assert selection["boundaryCheckId"] == boundary["boundaryCheckId"]
+    assert selection["resolutionId"] is None
+    assert selection["rejectedQualityCheckId"] == quality["qualityCheckId"]
+    assert selection["iteration"] == 2
+    assert selection["status"] == "SELECTED"
+    assert selection["selectedEvidence"]["evidenceType"] == (
+        "EXTERNAL_CONNECTED_SETTLEMENT_SUMMARY"
+    )
+    assert evidence_selection_repository.count_selections(session_id) == 2
+    event = session_repository.list_audit_events(session_id)[-1]
+    assert event.stage == AuditStage.EVIDENCE_SELECTED
+    assert event.input_version == quality["qualityCheckId"]
+    assert event.data_version == quality["dataVersion"]
+    assert event.output_summary["rejectedQualityCheckId"] == quality["qualityCheckId"]
+    assert event.output_summary["iteration"] == 2
+
+
+def test_rejected_quality_routes_to_review_when_no_candidate_remains(
+    client: TestClient,
+    data_source_service: DataSourceService,
+    assessment_service: AssessmentService,
+    evidence_quality_service: EvidenceQualityService,
+    evidence_selection_service: EvidenceSelectionService,
+    tmp_path: Path,
+) -> None:
+    single_candidate = json.loads(
+        settings.demo_evidence_candidates_path.read_text(encoding="utf-8")
+    )
+    single_candidate["candidates"] = single_candidate["candidates"][:1]
+    candidate_path = tmp_path / "single-candidate-recovery.json"
+    candidate_path.write_text(json.dumps(single_candidate), encoding="utf-8")
+    evidence_selection_service.catalog = DemoEvidenceCandidateCatalog(candidate_path)
+    session_id = create_session(client)
+    prepare_ambiguous_boundary(
+        client,
+        session_id,
+        data_source_service,
+        assessment_service,
+    )
+    selection = client.post(f"/v1/sessions/{session_id}/evidence/next").json()["selection"]
+    submission = client.post(
+        f"/v1/sessions/{session_id}/evidence/submissions",
+        json={
+            "selectionId": selection["selectionId"],
+            "submissionMode": "DEMO_FIXTURE_REFERENCE",
+        },
+    ).json()["submission"]
+    quality_catalog = json.loads(settings.demo_evidence_quality_path.read_text(encoding="utf-8"))
+    quality_catalog["results"][0]["checks"][1].update(
+        status="NOT_VERIFIED",
+        rationaleCode="DEMO_FRESHNESS_NOT_VERIFIED",
+    )
+    quality_path = tmp_path / "rejected-single-quality.json"
+    quality_path.write_text(json.dumps(quality_catalog), encoding="utf-8")
+    evidence_quality_service.catalog = DemoEvidenceQualityCatalog(quality_path)
+    quality = client.post(
+        f"/v1/sessions/{session_id}/evidence/submissions/{submission['submissionId']}/quality"
+    ).json()["quality"]
+    assert quality["status"] == "REJECTED"
+
+    response = client.post(f"/v1/sessions/{session_id}/evidence/next")
+
+    assert response.status_code == 200
+    recovered = response.json()["selection"]
+    assert recovered["rejectedQualityCheckId"] == quality["qualityCheckId"]
+    assert recovered["status"] == "HUMAN_REVIEW"
+    assert recovered["stopReason"] == "NO_NEW_USEFUL_EVIDENCE"
+    assert recovered["underwriterRequired"] is True
 
 
 def test_ambiguous_boundary_without_source_assessment_lineage_requires_review(
@@ -552,6 +677,50 @@ def test_more_evidence_resolution_selects_next_unsubmitted_candidate(
     assert event.output_summary["selectedEvidenceType"] == ("EXTERNAL_CONNECTED_SETTLEMENT_SUMMARY")
 
 
+def test_rejected_quality_after_resolution_uses_latest_lineage(
+    client: TestClient,
+    data_source_service: DataSourceService,
+    assessment_service: AssessmentService,
+    supplemental_assessment_service: SupplementalAssessmentService,
+    tmp_path: Path,
+) -> None:
+    session_id = create_session(client)
+    _, resolution = prepare_resolution(
+        client,
+        session_id,
+        data_source_service,
+        assessment_service,
+        supplemental_assessment_service,
+        tmp_path,
+        grade_set=["DEMO_GRADE_B", "DEMO_GRADE_C"],
+    )
+    second_selection = client.post(f"/v1/sessions/{session_id}/evidence/next").json()["selection"]
+    assert second_selection["resolutionId"] == resolution["resolutionId"]
+    submission = client.post(
+        f"/v1/sessions/{session_id}/evidence/submissions",
+        json={
+            "selectionId": second_selection["selectionId"],
+            "submissionMode": "DEMO_FIXTURE_REFERENCE",
+        },
+    ).json()["submission"]
+    quality_response = client.post(
+        f"/v1/sessions/{session_id}/evidence/submissions/{submission['submissionId']}/quality"
+    )
+    assert quality_response.status_code == 200
+    quality = quality_response.json()["quality"]
+    assert quality["status"] == "REJECTED"
+
+    response = client.post(f"/v1/sessions/{session_id}/evidence/next")
+
+    assert response.status_code == 200
+    selection = response.json()["selection"]
+    assert selection["resolutionId"] is None
+    assert selection["rejectedQualityCheckId"] == quality["qualityCheckId"]
+    assert selection["iteration"] == 3
+    assert selection["status"] == "HUMAN_REVIEW"
+    assert selection["stopReason"] == "NO_NEW_USEFUL_EVIDENCE"
+
+
 def test_closed_resolution_blocks_another_evidence_selection(
     client: TestClient,
     data_source_service: DataSourceService,
@@ -679,9 +848,11 @@ def test_repository_migrates_legacy_selection_table_without_data_loss(
     assert stored is not None
     assert stored.selection_id == "evs_legacy"
     assert stored.resolution_id is None
+    assert stored.rejected_quality_check_id is None
     with sqlite3.connect(database_path) as connection:
         columns = {
             row[1]
             for row in connection.execute("PRAGMA table_info(evidence_selections)").fetchall()
         }
     assert "resolution_id" in columns
+    assert "rejected_quality_check_id" in columns
