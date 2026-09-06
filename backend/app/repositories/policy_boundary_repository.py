@@ -3,7 +3,12 @@ from abc import ABC, abstractmethod
 from pathlib import Path
 
 from app.schemas.audit import SessionAuditEvent
-from app.schemas.policy_boundary import EvidenceResolutionState, PolicyBoundaryCheckState
+from app.schemas.policy_boundary import (
+    BoundaryStatus,
+    EvidenceResolutionState,
+    EvidenceResolutionStatus,
+    PolicyBoundaryCheckState,
+)
 
 
 class PolicyBoundaryRepository(ABC):
@@ -14,6 +19,17 @@ class PolicyBoundaryRepository(ABC):
     @abstractmethod
     def get_latest(self, session_id: str) -> PolicyBoundaryCheckState | None:
         """Return the latest policy boundary check for a session."""
+
+    @abstractmethod
+    def get_check_by_id(
+        self,
+        boundary_check_id: str,
+    ) -> tuple[str, PolicyBoundaryCheckState] | None:
+        """Return a policy boundary check with its owning session."""
+
+    @abstractmethod
+    def list_policy_blocked(self) -> list[tuple[str, PolicyBoundaryCheckState]]:
+        """Return policy boundary checks requiring underwriter review."""
 
     @abstractmethod
     def save_check(
@@ -32,6 +48,17 @@ class PolicyBoundaryRepository(ABC):
     @abstractmethod
     def get_latest_resolution(self, session_id: str) -> EvidenceResolutionState | None:
         """Return the latest Evidence resolution for a session."""
+
+    @abstractmethod
+    def get_resolution_by_id(
+        self,
+        resolution_id: str,
+    ) -> tuple[str, EvidenceResolutionState] | None:
+        """Return an Evidence resolution with its owning session."""
+
+    @abstractmethod
+    def list_human_review_resolutions(self) -> list[tuple[str, EvidenceResolutionState]]:
+        """Return Evidence resolutions requiring underwriter review."""
 
     @abstractmethod
     def get_resolution_by_comparison_id(
@@ -125,6 +152,43 @@ class SqlitePolicyBoundaryRepository(PolicyBoundaryRepository):
             ).fetchone()
         return PolicyBoundaryCheckState.model_validate_json(row["state_json"]) if row else None
 
+    def get_check_by_id(
+        self,
+        boundary_check_id: str,
+    ) -> tuple[str, PolicyBoundaryCheckState] | None:
+        with self._connect() as connection:
+            row = connection.execute(
+                """
+                SELECT session_id, state_json
+                FROM policy_boundary_checks
+                WHERE boundary_check_id = ?
+                """,
+                (boundary_check_id,),
+            ).fetchone()
+        if row is None:
+            return None
+        return row["session_id"], PolicyBoundaryCheckState.model_validate_json(row["state_json"])
+
+    def list_policy_blocked(self) -> list[tuple[str, PolicyBoundaryCheckState]]:
+        with self._connect() as connection:
+            rows = connection.execute(
+                """
+                SELECT session_id, state_json
+                FROM policy_boundary_checks
+                ORDER BY check_order DESC
+                """
+            ).fetchall()
+        items = [
+            (row["session_id"], PolicyBoundaryCheckState.model_validate_json(row["state_json"]))
+            for row in rows
+        ]
+        return [
+            item
+            for item in items
+            if item[1].decision.status == BoundaryStatus.POLICY_BLOCKED
+            and item[1].decision.underwriter_required
+        ]
+
     def save_check(
         self,
         *,
@@ -192,6 +256,43 @@ class SqlitePolicyBoundaryRepository(PolicyBoundaryRepository):
                 (session_id,),
             ).fetchone()
         return EvidenceResolutionState.model_validate_json(row["state_json"]) if row else None
+
+    def get_resolution_by_id(
+        self,
+        resolution_id: str,
+    ) -> tuple[str, EvidenceResolutionState] | None:
+        with self._connect() as connection:
+            row = connection.execute(
+                """
+                SELECT session_id, state_json
+                FROM evidence_collection_resolutions
+                WHERE resolution_id = ?
+                """,
+                (resolution_id,),
+            ).fetchone()
+        if row is None:
+            return None
+        return row["session_id"], EvidenceResolutionState.model_validate_json(row["state_json"])
+
+    def list_human_review_resolutions(self) -> list[tuple[str, EvidenceResolutionState]]:
+        with self._connect() as connection:
+            rows = connection.execute(
+                """
+                SELECT session_id, state_json
+                FROM evidence_collection_resolutions
+                ORDER BY resolution_order DESC
+                """
+            ).fetchall()
+        items = [
+            (row["session_id"], EvidenceResolutionState.model_validate_json(row["state_json"]))
+            for row in rows
+        ]
+        return [
+            item
+            for item in items
+            if item[1].status == EvidenceResolutionStatus.HUMAN_REVIEW
+            and item[1].underwriter_required
+        ]
 
     def get_resolution_by_comparison_id(
         self,

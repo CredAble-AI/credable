@@ -15,6 +15,9 @@ from app.schemas.review_workflow import (
 class UnderwriterReviewTriggerType(StrEnum):
     EVIDENCE_QUALITY = "EVIDENCE_QUALITY"
     CUSTOMER_ASSESSMENT_REVIEW = "CUSTOMER_ASSESSMENT_REVIEW"
+    POLICY_BOUNDARY = "POLICY_BOUNDARY"
+    EVIDENCE_SELECTION = "EVIDENCE_SELECTION"
+    EVIDENCE_RESOLUTION = "EVIDENCE_RESOLUTION"
 
 
 class UnderwriterReviewQueueItem(ApiModel):

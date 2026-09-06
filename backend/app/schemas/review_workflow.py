@@ -25,7 +25,13 @@ class UnderwriterReviewResultCode(StrEnum):
 class UnderwriterReviewWorkflowState(ApiModel):
     review_id: str = Field(min_length=1)
     session_id: str = Field(min_length=1)
-    trigger_type: Literal["EVIDENCE_QUALITY", "CUSTOMER_ASSESSMENT_REVIEW"]
+    trigger_type: Literal[
+        "EVIDENCE_QUALITY",
+        "CUSTOMER_ASSESSMENT_REVIEW",
+        "POLICY_BOUNDARY",
+        "EVIDENCE_SELECTION",
+        "EVIDENCE_RESOLUTION",
+    ]
     trigger_id: str = Field(min_length=1)
     status: UnderwriterReviewStatus
     result_code: UnderwriterReviewResultCode | None = None
