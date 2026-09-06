@@ -28,6 +28,7 @@ class _EvidenceTypeAccumulator:
     submission_count: int
     accepted_count: int
     rejected_count: int
+    review_required_count: int
     first_requested_at: datetime
     last_requested_at: datetime
 
@@ -88,6 +89,7 @@ class AdminEvidenceBurdenService:
                     submission_count=0,
                     accepted_count=0,
                     rejected_count=0,
+                    review_required_count=0,
                     first_requested_at=selection.selected_at,
                     last_requested_at=selection.selected_at,
                 )
@@ -118,6 +120,7 @@ class AdminEvidenceBurdenService:
         failed_quality_dimension_count = 0
         accepted_count = 0
         rejected_count = 0
+        review_required_count = 0
         for quality in qualities:
             submission = submission_by_id.get(quality.submission_id)
             if (
@@ -132,6 +135,9 @@ class AdminEvidenceBurdenService:
             if quality.status == EvidenceQualityStatus.ACCEPTED:
                 accepted_count += 1
                 breakdown.accepted_count += 1
+            elif quality.status == EvidenceQualityStatus.REVIEW_REQUIRED:
+                review_required_count += 1
+                breakdown.review_required_count += 1
             else:
                 rejected_count += 1
                 breakdown.rejected_count += 1
@@ -148,6 +154,7 @@ class AdminEvidenceBurdenService:
                 submission_count=item.submission_count,
                 accepted_count=item.accepted_count,
                 rejected_count=item.rejected_count,
+                review_required_count=item.review_required_count,
                 first_requested_at=item.first_requested_at,
                 last_requested_at=item.last_requested_at,
             )
@@ -174,6 +181,7 @@ class AdminEvidenceBurdenService:
             pending_submission_count=request_count - submission_count,
             accepted_count=accepted_count,
             rejected_count=rejected_count,
+            review_required_count=review_required_count,
             unverified_submission_count=submission_count - len(qualities),
             failed_quality_dimension_count=failed_quality_dimension_count,
             supplemental_assessment_count=(

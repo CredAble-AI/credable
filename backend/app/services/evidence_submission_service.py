@@ -259,12 +259,6 @@ class EvidenceSubmissionService:
                 code="EVIDENCE_ALREADY_SUBMITTED",
                 message="같은 Evidence 선택에 다른 제출 자료가 이미 등록되어 있습니다.",
             )
-        if uploaded_sha256 != definition.sha256:
-            raise ResourceConflictError(
-                code="DEMO_EVIDENCE_FILE_MISMATCH",
-                message="서버가 발급한 Demo Evidence 파일과 일치하지 않습니다.",
-            )
-
         uploaded_file = UploadedEvidenceFile(
             demo_file_id=definition.demo_file_id,
             file_name=definition.file_name,
