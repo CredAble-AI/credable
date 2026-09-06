@@ -36,4 +36,12 @@ describe('App routing', () => {
     expect(screen.getByLabelText('관리자 Demo API Key')).toHaveAttribute('type', 'password')
     expect(screen.queryByRole('link', { name: 'CredAble 홈' })).not.toBeInTheDocument()
   })
+
+  it('renders a directly-addressable administrator review detail route', () => {
+    renderRoute('/admin/reviews/uwr_demo')
+
+    expect(screen.getByRole('heading', { level: 1, name: '심사역 검토 상세' })).toBeInTheDocument()
+    expect(screen.getByLabelText('관리자 Demo API Key')).toHaveAttribute('type', 'password')
+    expect(document.title).toBe('심사역 검토 상세 | CredAble')
+  })
 })

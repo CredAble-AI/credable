@@ -31,6 +31,14 @@ export interface AdminReviewQueueResponse {
   demoOnly: true
 }
 
+export interface AdminReviewDetailResponse {
+  review: AdminReviewQueueItem
+}
+
+export interface AdminReviewCompleteRequest {
+  resultCode: AdminReviewResultCode
+}
+
 export interface AdminReviewListQuery {
   limit: number
   offset: number
