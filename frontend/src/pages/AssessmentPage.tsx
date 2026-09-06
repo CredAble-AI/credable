@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { normalizeAssessmentError } from '../api/assessmentClient'
 import { normalizePolicyBoundaryError } from '../api/policyBoundaryClient'
+import AssessmentReviewPanel from '../components/AssessmentReviewPanel'
 import Header from '../components/Header'
 import { isMockMode } from '../config/providerMode'
 import { assessmentProvider, policyBoundaryProvider } from '../hooks/useAssessmentState'
@@ -236,6 +237,7 @@ function AssessmentPage() {
         <section className="assessment-panel" aria-labelledby="metadata-title"><div className="assessment-panel__heading"><div><span>TRACEABILITY</span><h2 id="metadata-title">평가 메타데이터</h2></div><span className="demo-chip">Demo Only</span></div><dl><div><dt>처리 상태</dt><dd>{state.status}</dd></div><div><dt>결과 계산 시점</dt><dd>{formatDate(state.calculatedAt)}</dd></div><div><dt>평가 ID</dt><dd>{state.assessmentId ?? '확인되지 않음'}</dd></div><div><dt>입력 Snapshot</dt><dd>{state.inputSnapshotId ?? '확인되지 않음'}</dd></div><div><dt>모델 버전</dt><dd>{state.modelVersion ?? '확인되지 않음'}</dd></div><div><dt>상태 코드</dt><dd>{state.reasonCode ?? '없음'}</dd></div></dl></section>
       </div>
       {boundary && <BoundaryPanel boundary={boundary} />}
+      {state.status === 'COMPLETED' && <AssessmentReviewPanel sessionId={session.sessionId} />}
     </>}
 
     <section className="assessment-actions"><div><strong>{boundary ? boundaryCopy[boundary.decision.status].label : state?.status === 'COMPLETED' ? '정책 경계 상태를 확인해주세요' : '기준평가 상태를 먼저 확인해주세요'}</strong><p>{actionCopy}</p>{boundary?.decision.status === 'STABLE' && <small>추가 Evidence 없이 자사 상품 조건을 확인할 수 있습니다.</small>}</div><div><Link className="button button--secondary" to="/data-connection">데이터 연결 상태 확인</Link>{state?.status === 'NOT_RUN' && <button className="button button--primary" type="button" onClick={() => void runAssessment()} disabled={phase !== 'idle'}>기준평가 실행</button>}{state && state.status !== 'NOT_RUN' && state.status !== 'COMPLETED' && <button className="button button--secondary" type="button" onClick={() => void runAssessment()} disabled={phase !== 'idle'}>기준평가 다시 실행</button>}{state?.status === 'COMPLETED' && !boundary && <button className="button button--primary" type="button" onClick={() => void checkBoundary()} disabled={phase !== 'idle'}>정책 경계 확인</button>}{boundary?.decision.status === 'STABLE' && <Link className="button button--primary" to="/products">자사 상품 조건 확인</Link>}{boundary?.decision.status === 'AMBIGUOUS' && <Link className="button button--primary" to="/evidence">다음 Evidence 확인</Link>}</div></section>

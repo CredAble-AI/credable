@@ -6,6 +6,7 @@ import SupplementalAssessmentPanel from './SupplementalAssessmentPanel'
 
 vi.mock('../hooks/useSupplementalAssessmentState', () => ({ supplementalAssessmentProvider: { get: vi.fn(), run: vi.fn() } }))
 vi.mock('./AssessmentComparisonPanel', () => ({ default: () => <div>평가 전후 비교 패널</div> }))
+vi.mock('./AssessmentReviewPanel', () => ({ default: () => <div>심사역 재확인 패널</div> }))
 
 const completed: SupplementalAssessmentState = {
   supplementalAssessmentId: 'sam_demo', baselineAssessmentId: 'asm_demo', qualityCheckId: 'evq_demo', submissionId: 'sub_demo', status: 'COMPLETED',
@@ -34,6 +35,7 @@ describe('SupplementalAssessmentPanel', () => {
     expect(screen.getByText('1건')).toBeInTheDocument()
     expect(screen.getByText('demo-supplemental-v1')).toBeInTheDocument()
     expect(screen.getByText('평가 전후 비교 패널')).toBeInTheDocument()
+    expect(screen.getByText('심사역 재확인 패널')).toBeInTheDocument()
   })
 
   it('ignores a previous iteration result and offers the current assessment run', async () => {
