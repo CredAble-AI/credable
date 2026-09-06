@@ -18,7 +18,8 @@ const apiRequest = async <T,>(url: string, signal: AbortSignal, init: RequestIni
   const response = await fetch(url, { ...init, signal })
   if (!response.ok) {
     const body = await response.json().catch(() => null) as { error?: ApiError } | null
-    throw body?.error ?? { code: 'SESSION_REQUEST_FAILED', message: '세션 요청에 실패했습니다.', requestId: response.headers.get('x-request-id') ?? undefined, retryable: response.status >= 500 } satisfies ApiError
+    const error = body?.error ?? { code: 'SESSION_REQUEST_FAILED', message: '세션 요청에 실패했습니다.', requestId: response.headers.get('x-request-id') ?? undefined, retryable: response.status >= 500 } satisfies ApiError
+    throw { ...error, status: response.status }
   }
   return response.json() as Promise<T>
 }
@@ -92,9 +93,15 @@ export const liveCustomerSessionProvider: CustomerSessionProvider = {
         apiRequest<ConsentListResponse>(`/v1/sessions/${encodeURIComponent(sessionId)}/consents`, signal),
       ])
       return toCustomerSession(sessionState.session, toConsentSelections(consentList.consents))
-    } catch {
-      if (!signal.aborted) clearSessionId()
-      return null
+    } catch (caught) {
+      if (signal.aborted) throw caught
+      const error = normalizeSessionError(caught)
+      const status = typeof caught === 'object' && caught !== null && 'status' in caught ? caught.status : null
+      if (status === 404 || error.code === 'CUSTOMER_SESSION_NOT_FOUND') {
+        clearSessionId()
+        return null
+      }
+      throw error
     }
   },
   async updateConsents(consents, signal) {

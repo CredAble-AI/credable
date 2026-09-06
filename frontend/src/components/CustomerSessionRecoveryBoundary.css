@@ -1,0 +1,9 @@
+.session-recovery-page{display:grid;min-height:100svh;padding:140px 24px 80px;place-items:center;color:#fff;background:radial-gradient(circle at 50% 22%,rgba(49,130,246,.24),transparent 34%),linear-gradient(145deg,var(--color-navy),#0d2948)}
+.session-recovery-card{width:min(100%,680px);padding:42px;border:1px solid rgba(255,255,255,.14);border-radius:var(--radius-lg);background:rgba(8,30,57,.78);box-shadow:0 24px 70px rgba(0,7,22,.28);text-align:center}
+.session-recovery-card>span{display:grid;width:54px;height:54px;margin:0 auto 20px;place-items:center;border-radius:50%;color:#ffe0e4;background:rgba(240,68,82,.18);font-size:24px;font-weight:900}
+.session-recovery-card h1{margin-top:12px;font-size:clamp(32px,5vw,48px);letter-spacing:-.045em}
+.session-recovery-card>p:not(.flow-kicker){margin-top:16px;color:var(--color-hero-text);line-height:1.7}
+.session-recovery-card small{display:block;margin-top:12px;overflow-wrap:anywhere;color:#9fb5ca}
+.session-recovery-card>div{display:flex;justify-content:center;gap:10px;margin-top:28px}
+.session-recovery-card .button--secondary{color:#eaf6ff;border-color:rgba(255,255,255,.18);background:rgba(255,255,255,.07)}
+@media(max-width:560px){.session-recovery-page{padding:112px 16px 48px}.session-recovery-card{padding:30px 22px}.session-recovery-card>div{align-items:stretch;flex-direction:column}.session-recovery-card .button{width:100%}}
