@@ -49,17 +49,20 @@ function SourceCard({ source, busy, error, onRetry }: {
         </div>
       </div>
       <div className="status-row">
-        <span>{retrievalLabel[source.retrievalStatus]}</span>
-        <span>{verificationLabel[source.verificationStatus]}</span>
-        {isMockMode && <span>Mock</span>}
+        <span className="status-row__retrieval">조회 · {retrievalLabel[source.retrievalStatus]}</span>
+        <span className={`status-row__verification status-row__verification--${source.verificationStatus.toLowerCase()}`}>검증 · {verificationLabel[source.verificationStatus]}</span>
+        {isMockMode && <span className="status-row__environment">Mock 데이터</span>}
       </div>
-      <dl>
-        <div><dt>출처 유형</dt><dd>{source.sourceType}</dd></div>
-        <div><dt>데이터 기준시점</dt><dd>{formatDate(source.observedAt)}</dd></div>
-        <div><dt>시스템 조회시점</dt><dd>{formatDate(source.retrievedAt)}</dd></div>
-        <div><dt>데이터 버전</dt><dd>{source.dataVersion ?? '해당 없음'}</dd></div>
-      </dl>
-      {source.reasonCode && <p className="source-card__reason">상태 코드: <span>{source.reasonCode}</span></p>}
+      <details className="source-card__details">
+        <summary>상세 추적 정보</summary>
+        <dl>
+          <div><dt>출처 유형</dt><dd>{source.sourceType}</dd></div>
+          <div><dt>데이터 기준시점</dt><dd>{formatDate(source.observedAt)}</dd></div>
+          <div><dt>시스템 조회시점</dt><dd>{formatDate(source.retrievedAt)}</dd></div>
+          <div><dt>데이터 버전</dt><dd>{source.dataVersion ?? '해당 없음'}</dd></div>
+        </dl>
+        {source.reasonCode && <p className="source-card__reason">상태 코드: <span>{source.reasonCode}</span></p>}
+      </details>
       {error && <p className="source-card__error" role="alert">{error.message}{error.requestId ? <small>Request ID: {error.requestId}</small> : null}</p>}
       {source.retrievalStatus === 'FAILED' && onRetry && (
         <button className="retry-button" type="button" onClick={onRetry} disabled={busy}>
