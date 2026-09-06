@@ -8,6 +8,7 @@ from app.schemas.base import ApiModel
 from app.schemas.consent import ConsentSourceType
 from app.schemas.evidence_consent import EvidenceConsentScopeDefinition
 from app.schemas.evidence_file import EvidenceCollectionMode
+from app.schemas.feature_snapshot import FeatureCode
 
 
 class EvidenceAvailability(StrEnum):
@@ -32,6 +33,7 @@ class EvidenceCandidateDefinition(ApiModel):
     collection_mode: EvidenceCollectionMode
     boundary_codes: list[str] = Field(min_length=1)
     applicable_information_gap_codes: list[str] = Field(min_length=1)
+    information_content_codes: list[str] = Field(min_length=1)
     boundary_resolution_value: float = Field(ge=0, le=1)
     quality_reliability: float = Field(ge=0, le=1)
     customer_effort: float = Field(ge=0, le=1)
@@ -49,6 +51,8 @@ class EvidenceCandidateDefinition(ApiModel):
             set(self.applicable_information_gap_codes)
         ):
             raise ValueError("applicableInformationGapCodes values must be unique")
+        if len(self.information_content_codes) != len(set(self.information_content_codes)):
+            raise ValueError("informationContentCodes values must be unique")
         if len(self.rationale_codes) != len(set(self.rationale_codes)):
             raise ValueError("rationaleCodes values must be unique")
         return self
@@ -63,6 +67,9 @@ class SelectedEvidenceCandidate(ApiModel):
     availability: EvidenceAvailability
     rationale_codes: list[str] = Field(min_length=1)
     matched_information_gap_codes: list[str] = Field(default_factory=list)
+    information_content_codes: list[str] = Field(default_factory=list)
+    novel_information_codes: list[str] = Field(default_factory=list)
+    overlapping_information_codes: list[str] = Field(default_factory=list)
     consent_scope: EvidenceConsentScopeDefinition | None = None
     demo_only: Literal[True] = True
 
@@ -70,6 +77,21 @@ class SelectedEvidenceCandidate(ApiModel):
     def validate_information_gaps(self) -> "SelectedEvidenceCandidate":
         if len(self.matched_information_gap_codes) != len(set(self.matched_information_gap_codes)):
             raise ValueError("matchedInformationGapCodes values must be unique")
+        information_codes = set(self.information_content_codes)
+        novel_codes = set(self.novel_information_codes)
+        overlapping_codes = set(self.overlapping_information_codes)
+        if len(information_codes) != len(self.information_content_codes):
+            raise ValueError("informationContentCodes values must be unique")
+        if len(novel_codes) != len(self.novel_information_codes):
+            raise ValueError("novelInformationCodes values must be unique")
+        if len(overlapping_codes) != len(self.overlapping_information_codes):
+            raise ValueError("overlappingInformationCodes values must be unique")
+        if novel_codes.intersection(overlapping_codes):
+            raise ValueError("novel and overlapping information codes cannot overlap")
+        if (novel_codes or overlapping_codes) and novel_codes.union(
+            overlapping_codes
+        ) != information_codes:
+            raise ValueError("novel and overlapping codes must partition information content")
         return self
 
 
@@ -89,6 +111,8 @@ class EvidenceSelectionState(ApiModel):
     selection_policy_version: str = Field(min_length=1)
     source_credit_assessment_id: str | None = Field(default=None, min_length=1)
     information_gap_codes: list[str] = Field(default_factory=list)
+    baseline_feature_snapshot_id: str | None = Field(default=None, min_length=1)
+    baseline_information_coverage_codes: list[str] = Field(default_factory=list)
     demo_only: Literal[True] = True
 
     @model_validator(mode="after")
@@ -99,6 +123,12 @@ class EvidenceSelectionState(ApiModel):
             raise ValueError("informationGapCodes values must be unique")
         if self.source_credit_assessment_id is None and self.information_gap_codes:
             raise ValueError("informationGapCodes require sourceCreditAssessmentId")
+        if len(self.baseline_information_coverage_codes) != len(
+            set(self.baseline_information_coverage_codes)
+        ):
+            raise ValueError("baselineInformationCoverageCodes values must be unique")
+        if self.baseline_feature_snapshot_id is None and self.baseline_information_coverage_codes:
+            raise ValueError("baseline coverage requires baselineFeatureSnapshotId")
         if self.iteration == 1 and self.resolution_id is not None:
             raise ValueError("first selection cannot reference an Evidence resolution")
         if self.iteration > 1 and self.resolution_id is None:
@@ -123,9 +153,23 @@ class EvidenceSelectionResponse(ApiModel):
     selection: EvidenceSelectionState | None
 
 
+class BaselineInformationCoverageRule(ApiModel):
+    information_content_code: str = Field(min_length=1)
+    required_feature_codes: list[FeatureCode] = Field(min_length=1)
+
+    @model_validator(mode="after")
+    def validate_unique_features(self) -> "BaselineInformationCoverageRule":
+        if len(self.required_feature_codes) != len(set(self.required_feature_codes)):
+            raise ValueError("requiredFeatureCodes values must be unique")
+        return self
+
+
 class DemoEvidenceCandidateCatalogData(ApiModel):
     data_version: str = Field(min_length=1)
     selection_policy_version: str = Field(min_length=1)
+    baseline_information_coverage_rules: list[BaselineInformationCoverageRule] = Field(
+        default_factory=list
+    )
     candidates: list[EvidenceCandidateDefinition] = Field(min_length=1)
     demo_only: Literal[True] = True
 
@@ -134,4 +178,9 @@ class DemoEvidenceCandidateCatalogData(ApiModel):
         evidence_types = [item.evidence_type for item in self.candidates]
         if len(evidence_types) != len(set(evidence_types)):
             raise ValueError("candidate evidenceType values must be unique")
+        coverage_codes = [
+            item.information_content_code for item in self.baseline_information_coverage_rules
+        ]
+        if len(coverage_codes) != len(set(coverage_codes)):
+            raise ValueError("baseline coverage informationContentCode values must be unique")
         return self

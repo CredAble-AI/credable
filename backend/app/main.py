@@ -271,6 +271,7 @@ def build_evidence_selection_service(
     assessment_service: AssessmentService,
     policy_boundary_service: PolicyBoundaryService,
     data_source_service: DataSourceService,
+    feature_snapshot_service: FeatureSnapshotService,
 ) -> EvidenceSelectionService:
     return EvidenceSelectionService(
         repository=SqliteEvidenceSelectionRepository(settings.database_path),
@@ -280,6 +281,7 @@ def build_evidence_selection_service(
         assessment_repository=assessment_service.repository,
         resolution_repository=policy_boundary_service.repository,
         submission_repository=SqliteEvidenceSubmissionRepository(settings.database_path),
+        feature_snapshot_repository=feature_snapshot_service.repository,
         catalog=DemoEvidenceCandidateCatalog(settings.demo_evidence_candidates_path),
     )
 
@@ -479,6 +481,7 @@ def create_app(
             resolved_assessment_service,
             resolved_policy_boundary_service,
             resolved_data_source_service,
+            resolved_feature_snapshot_service,
         )
     )
     resolved_evidence_file_catalog = (

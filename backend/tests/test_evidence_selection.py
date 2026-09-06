@@ -185,12 +185,14 @@ def test_ambiguous_boundary_selects_one_minimum_evidence(
     assert state["underwriterRequired"] is False
     assert state["calibrationVersion"] == "demo-uncertainty-rule-table-v1"
     assert state["boundaryPolicyVersion"] == "demo-policy-boundary-v1"
-    assert state["selectionPolicyVersion"] == "demo-gap-aware-evidence-selection-v2"
+    assert state["selectionPolicyVersion"] == "demo-novel-evidence-selection-v3"
     assert state["sourceCreditAssessmentId"] == "bca_demo_001"
     assert state["informationGapCodes"] == [
         "DEMO_INFORMATION_GAP",
         "DEMO_RECENT_PERFORMANCE_NOT_REFLECTED",
     ]
+    assert state["baselineFeatureSnapshotId"].startswith("fts_")
+    assert state["baselineInformationCoverageCodes"] == ["BANK_CASH_FLOW_TOTALS"]
     assert state["demoOnly"] is True
     assert state["selectedEvidence"] == {
         "evidenceType": "CUSTOMER_SUBMITTED_RECENT_REVENUE_SUMMARY",
@@ -207,6 +209,16 @@ def test_ambiguous_boundary_selects_one_minimum_evidence(
             "DEMO_INFORMATION_GAP",
             "DEMO_RECENT_PERFORMANCE_NOT_REFLECTED",
         ],
+        "informationContentCodes": [
+            "BANK_CASH_FLOW_TOTALS",
+            "DEPOSIT_TO_REVENUE_RECONCILIATION",
+            "RECENT_REVENUE_SERIES",
+        ],
+        "novelInformationCodes": [
+            "DEPOSIT_TO_REVENUE_RECONCILIATION",
+            "RECENT_REVENUE_SERIES",
+        ],
+        "overlappingInformationCodes": ["BANK_CASH_FLOW_TOTALS"],
         "consentScope": {
             "scopeVersion": "demo-recent-revenue-consent-v1",
             "purposeCode": "SUPPLEMENTAL_CREDIT_ASSESSMENT",
@@ -226,7 +238,7 @@ def test_ambiguous_boundary_selects_one_minimum_evidence(
     assert evidence_selection_repository.count_selections(session_id) == 1
     event = session_repository.list_audit_events(session_id)[-1]
     assert event.stage == AuditStage.EVIDENCE_SELECTED
-    assert event.policy_version == "demo-gap-aware-evidence-selection-v2"
+    assert event.policy_version == "demo-novel-evidence-selection-v3"
     assert event.output_summary == {
         "selectionStatus": "SELECTED",
         "iteration": 1,
@@ -234,11 +246,14 @@ def test_ambiguous_boundary_selects_one_minimum_evidence(
         "underwriterRequired": False,
         "calibrationVersion": "demo-uncertainty-rule-table-v1",
         "informationGapCount": 2,
+        "baselineInformationCoverageCount": 1,
         "demoOnly": True,
         "sourceCreditAssessmentId": "bca_demo_001",
         "selectedEvidenceType": "CUSTOMER_SUBMITTED_RECENT_REVENUE_SUMMARY",
         "evidenceValue": 0.5,
         "matchedInformationGapCount": 2,
+        "novelInformationCount": 2,
+        "overlappingInformationCount": 1,
     }
 
     reopened = SqliteEvidenceSelectionRepository(evidence_selection_repository.database_path)
@@ -337,6 +352,69 @@ def test_unmapped_source_information_gap_is_not_guessed(
     assert selection["status"] == "HUMAN_REVIEW"
     assert selection["stopReason"] == "NO_CANDIDATE_FOR_INFORMATION_GAP"
     assert selection["informationGapCodes"] == ["DEMO_UNMAPPED_INFORMATION_GAP"]
+    assert selection["selectedEvidence"] is None
+    assert selection["underwriterRequired"] is True
+
+
+def test_missing_baseline_information_coverage_requires_review(
+    client: TestClient,
+    data_source_service: DataSourceService,
+    assessment_service: AssessmentService,
+    evidence_selection_service: EvidenceSelectionService,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    session_id = create_session(client)
+    prepare_ambiguous_boundary(
+        client,
+        session_id,
+        data_source_service,
+        assessment_service,
+    )
+    monkeypatch.setattr(
+        evidence_selection_service.feature_snapshot_repository,
+        "get",
+        lambda *_: None,
+    )
+
+    response = client.post(f"/v1/sessions/{session_id}/evidence/next")
+
+    assert response.status_code == 200
+    selection = response.json()["selection"]
+    assert selection["status"] == "HUMAN_REVIEW"
+    assert selection["stopReason"] == "BASELINE_INFORMATION_COVERAGE_NOT_READY"
+    assert selection["selectedEvidence"] is None
+    assert selection["underwriterRequired"] is True
+
+
+def test_fully_overlapping_evidence_is_not_requested(
+    client: TestClient,
+    data_source_service: DataSourceService,
+    assessment_service: AssessmentService,
+    evidence_selection_service: EvidenceSelectionService,
+    tmp_path: Path,
+) -> None:
+    session_id = create_session(client)
+    prepare_ambiguous_boundary(
+        client,
+        session_id,
+        data_source_service,
+        assessment_service,
+    )
+    catalog_data = json.loads(settings.demo_evidence_candidates_path.read_text(encoding="utf-8"))
+    catalog_data["candidates"] = [catalog_data["candidates"][0]]
+    catalog_data["candidates"][0]["informationContentCodes"] = ["BANK_CASH_FLOW_TOTALS"]
+    catalog_path = tmp_path / "fully-overlapping-candidates.json"
+    catalog_path.write_text(json.dumps(catalog_data), encoding="utf-8")
+    evidence_selection_service.catalog = DemoEvidenceCandidateCatalog(catalog_path)
+
+    response = client.post(f"/v1/sessions/{session_id}/evidence/next")
+
+    assert response.status_code == 200
+    selection = response.json()["selection"]
+    assert selection["status"] == "HUMAN_REVIEW"
+    assert selection["stopReason"] == "NO_NOVEL_EVIDENCE"
+    assert selection["evaluatedCandidateCount"] == 1
+    assert selection["baselineInformationCoverageCodes"] == ["BANK_CASH_FLOW_TOTALS"]
     assert selection["selectedEvidence"] is None
     assert selection["underwriterRequired"] is True
 

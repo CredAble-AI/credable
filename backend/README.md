@@ -310,6 +310,10 @@ curl -X POST \
 `sourceAssessment.reasonCodes`에 둘 다 연결된 후보만 비교해 다음 Evidence 한 건을
 선택합니다. 선택 결과에는 `sourceCreditAssessmentId`, `informationGapCodes`와
 후보가 실제로 맞춰진 `matchedInformationGapCodes`를 남겨 요청 근거를 추적합니다.
+기준평가의 Feature Snapshot은 버전이 고정된 정보 커버리지 규칙과 대조합니다. 필요한
+Feature가 모두 `AVAILABLE`일 때만 은행이 이미 보유한 정보로 인정하며, 후보별로
+`informationContentCodes`를 `novelInformationCodes`와 `overlappingInformationCodes`로
+나눍니다. 새 정보가 하나도 없는 후보는 요청하지 않고 `NO_NOVEL_EVIDENCE`로 중단합니다.
 
 `STABLE`이면 `PATH_STABLE`로 추가 요청 없이 종료하고, `POLICY_BLOCKED`이거나 기존
 평가 계보·Reason Code 매핑·유효한 후보가 없으면 AI가 증빙을 추측하지 않고
@@ -323,11 +327,16 @@ curl -X POST \
   http://127.0.0.1:8000/v1/sessions/<sessionId>/evidence/next
 ```
 
-Demo 후보 순서는 `경계 해소값 × 예상 품질 신뢰도 - 고객 노력 - 개인정보 민감도 - 획득 지연
-- 획득 비용`으로 계산합니다. 모든 입력값은 실제 은행 통계가 아닌 합성 정규화 값이며,
+Demo 후보 순서는 신규 정보가 하나 이상 남은 후보에 한해 `경계 해소값 × 예상 품질
+신뢰도 - 고객 노력 - 개인정보 민감도 - 획득 지연 - 획득 비용`으로 계산합니다.
+정보 코드 간 가치가 동일하다는 근거가 없으므로 신규 정보의 개수나 비율을 임의 가중치로
+사용하지 않습니다. 모든 입력값은 실제 은행 통계가 아닌 합성 정규화 값이며,
 후보 종류·값·선택 정책 버전은 파일 기반 정책표에서 관리합니다. 고객용 응답에는 내부
 가중치나 선택값을 노출하지 않고 요청 자료·출처·준비 상태·설명 코드만 제공합니다. 선택값과
 선택 Evidence 유형은 보호된 관리자 Audit에만 남깁니다.
+실제 Feature와 정보 범위의 매핑, ‘충분히 보유’한 상태 기준은 은행 데이터 정의서와
+여신 정책이 확정된 뒤 교체해야 합니다. 현재 커버리지 규칙과 정보 코드는 모두 합성
+Demo이며 실제 정보가치나 승인 효과를 의미하지 않습니다.
 
 첫 선택은 같은 `boundaryCheckId`, 반복 선택은 같은 `resolutionId`에 대해 저장된 결과를
 반환하므로 중복 요청과 중복 Audit을 만들지 않습니다. 보완평가 후 수집 판단이

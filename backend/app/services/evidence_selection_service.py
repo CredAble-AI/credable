@@ -8,6 +8,7 @@ from app.core.errors import ResourceConflictError
 from app.repositories.assessment_repository import AssessmentRepository
 from app.repositories.evidence_selection_repository import EvidenceSelectionRepository
 from app.repositories.evidence_submission_repository import EvidenceSubmissionRepository
+from app.repositories.feature_snapshot_repository import FeatureSnapshotRepository
 from app.repositories.policy_boundary_repository import PolicyBoundaryRepository
 from app.schemas.assessment import ExistingAssessmentReference
 from app.schemas.audit import AuditActor, AuditStage, SessionAuditEvent
@@ -21,6 +22,7 @@ from app.schemas.evidence_selection import (
     EvidenceSelectionStatus,
     SelectedEvidenceCandidate,
 )
+from app.schemas.feature_snapshot import AssessmentFeatureSnapshot, FeatureValueStatus
 from app.schemas.policy_boundary import (
     BoundaryDecision,
     BoundaryStatus,
@@ -55,6 +57,21 @@ class DemoEvidenceCandidateCatalog:
             and required_gaps.intersection(candidate.applicable_information_gap_codes)
         ]
 
+    def baseline_information_coverage(
+        self,
+        feature_snapshot: AssessmentFeatureSnapshot,
+    ) -> list[str]:
+        available_feature_codes = {
+            item.feature_code
+            for item in feature_snapshot.feature_values
+            if item.status == FeatureValueStatus.AVAILABLE
+        }
+        return sorted(
+            rule.information_content_code
+            for rule in self._load().baseline_information_coverage_rules
+            if set(rule.required_feature_codes).issubset(available_feature_codes)
+        )
+
     def is_ready(self) -> bool:
         try:
             self._load()
@@ -80,6 +97,7 @@ class EvidenceSelectionService:
         assessment_repository: AssessmentRepository,
         resolution_repository: PolicyBoundaryRepository,
         submission_repository: EvidenceSubmissionRepository,
+        feature_snapshot_repository: FeatureSnapshotRepository,
         catalog: DemoEvidenceCandidateCatalog,
     ) -> None:
         self.repository = repository
@@ -89,6 +107,7 @@ class EvidenceSelectionService:
         self.assessment_repository = assessment_repository
         self.resolution_repository = resolution_repository
         self.submission_repository = submission_repository
+        self.feature_snapshot_repository = feature_snapshot_repository
         self.catalog = catalog
 
     def initialize(self) -> None:
@@ -150,6 +169,19 @@ class EvidenceSelectionService:
             boundary_check.assessment_id,
         )
         source_assessment = baseline.source_assessment if baseline is not None else None
+        baseline_feature_snapshot_id: str | None = None
+        baseline_information_coverage_codes: list[str] | None = None
+        if baseline is not None and baseline.assessment_id is not None:
+            baseline_input = self.assessment_repository.get_snapshot(baseline.assessment_id)
+            if baseline_input is not None and baseline_input.feature_snapshot is not None:
+                feature_snapshot = self.feature_snapshot_repository.get(
+                    baseline_input.feature_snapshot.feature_snapshot_id
+                )
+                if feature_snapshot is not None and feature_snapshot.session_id == session_id:
+                    baseline_feature_snapshot_id = feature_snapshot.feature_snapshot_id
+                    baseline_information_coverage_codes = (
+                        self.catalog.baseline_information_coverage(feature_snapshot)
+                    )
         state, selected_evidence_value = self._build_state(
             boundary_check_id=boundary_check.boundary_check_id,
             resolution_id=resolution.resolution_id if resolution is not None else None,
@@ -168,6 +200,8 @@ class EvidenceSelectionService:
             ),
             excluded_evidence_types=excluded_evidence_types,
             source_assessment=source_assessment,
+            baseline_feature_snapshot_id=baseline_feature_snapshot_id,
+            baseline_information_coverage_codes=baseline_information_coverage_codes,
         )
         selection_input = resolution if resolution is not None else boundary_check
         selection_input_json = json.dumps(
@@ -178,6 +212,8 @@ class EvidenceSelectionService:
                     if source_assessment is not None
                     else None
                 ),
+                "baselineFeatureSnapshotId": baseline_feature_snapshot_id,
+                "baselineInformationCoverageCodes": baseline_information_coverage_codes,
             },
             ensure_ascii=False,
             separators=(",", ":"),
@@ -190,6 +226,7 @@ class EvidenceSelectionService:
             "underwriterRequired": state.underwriter_required,
             "calibrationVersion": state.calibration_version,
             "informationGapCount": len(state.information_gap_codes),
+            "baselineInformationCoverageCount": len(state.baseline_information_coverage_codes),
             "demoOnly": state.demo_only,
         }
         if state.source_credit_assessment_id is not None:
@@ -203,6 +240,10 @@ class EvidenceSelectionService:
                     "evidenceValue": selected_evidence_value,
                     "matchedInformationGapCount": len(
                         state.selected_evidence.matched_information_gap_codes
+                    ),
+                    "novelInformationCount": len(state.selected_evidence.novel_information_codes),
+                    "overlappingInformationCount": len(
+                        state.selected_evidence.overlapping_information_codes
                     ),
                 }
             )
@@ -244,6 +285,8 @@ class EvidenceSelectionService:
         boundary_policy_version: str,
         excluded_evidence_types: set[str],
         source_assessment: ExistingAssessmentReference | None,
+        baseline_feature_snapshot_id: str | None,
+        baseline_information_coverage_codes: list[str] | None,
     ) -> tuple[EvidenceSelectionState, float | None]:
         selected_at = datetime.now(UTC)
         common = {
@@ -260,6 +303,12 @@ class EvidenceSelectionService:
             ),
             "information_gap_codes": (
                 source_assessment.reason_codes if source_assessment is not None else []
+            ),
+            "baseline_feature_snapshot_id": baseline_feature_snapshot_id,
+            "baseline_information_coverage_codes": (
+                baseline_information_coverage_codes
+                if baseline_information_coverage_codes is not None
+                else []
             ),
         }
         if decision.status == BoundaryStatus.STABLE:
@@ -307,14 +356,26 @@ class EvidenceSelectionService:
                 ),
                 None,
             )
+        if baseline_information_coverage_codes is None:
+            return (
+                EvidenceSelectionState(
+                    **common,
+                    status=EvidenceSelectionStatus.HUMAN_REVIEW,
+                    evaluated_candidate_count=0,
+                    stop_reason="BASELINE_INFORMATION_COVERAGE_NOT_READY",
+                    underwriter_required=True,
+                ),
+                None,
+            )
 
         source_states = {item.source_type: item for item in data_sources}
+        applicable_definitions = self.catalog.candidates_for(
+            decision.crossed_boundary_codes,
+            source_assessment.reason_codes,
+        )
         definitions = [
             item
-            for item in self.catalog.candidates_for(
-                decision.crossed_boundary_codes,
-                source_assessment.reason_codes,
-            )
+            for item in applicable_definitions
             if item.evidence_type not in excluded_evidence_types
         ]
         candidates = [
@@ -322,6 +383,7 @@ class EvidenceSelectionService:
                 definition,
                 decision.crossed_boundary_codes,
                 source_assessment.reason_codes,
+                baseline_information_coverage_codes,
                 source_states.get(definition.source_type),
             )
             for definition in definitions
@@ -329,20 +391,26 @@ class EvidenceSelectionService:
         useful = [
             (candidate, evidence_value)
             for candidate, evidence_value in candidates
-            if candidate.availability != EvidenceAvailability.UNAVAILABLE and evidence_value > 0
+            if candidate.availability != EvidenceAvailability.UNAVAILABLE
+            and evidence_value is not None
+            and evidence_value > 0
         ]
         useful.sort(key=lambda item: (-item[1], item[0].evidence_type))
         if not useful:
+            if not applicable_definitions:
+                stop_reason = "NO_CANDIDATE_FOR_INFORMATION_GAP"
+            elif not definitions:
+                stop_reason = "NO_NEW_USEFUL_EVIDENCE"
+            elif all(not item.novel_information_codes for item, _ in candidates):
+                stop_reason = "NO_NOVEL_EVIDENCE"
+            else:
+                stop_reason = "NO_USEFUL_EVIDENCE"
             return (
                 EvidenceSelectionState(
                     **common,
                     status=EvidenceSelectionStatus.HUMAN_REVIEW,
                     evaluated_candidate_count=len(candidates),
-                    stop_reason=(
-                        "NO_NEW_USEFUL_EVIDENCE"
-                        if excluded_evidence_types
-                        else "NO_CANDIDATE_FOR_INFORMATION_GAP"
-                    ),
+                    stop_reason=stop_reason,
                     underwriter_required=True,
                 ),
                 None,
@@ -385,8 +453,16 @@ class EvidenceSelectionService:
         definition: EvidenceCandidateDefinition,
         crossed_boundary_codes: list[str],
         information_gap_codes: list[str],
+        baseline_information_coverage_codes: list[str],
         source_state: DataSourceState | None,
-    ) -> tuple[SelectedEvidenceCandidate, float]:
+    ) -> tuple[SelectedEvidenceCandidate, float | None]:
+        information_content_codes = set(definition.information_content_codes)
+        overlapping_information_codes = sorted(
+            information_content_codes.intersection(baseline_information_coverage_codes)
+        )
+        novel_information_codes = sorted(
+            information_content_codes.difference(baseline_information_coverage_codes)
+        )
         evidence_value = (
             definition.boundary_resolution_value * definition.quality_reliability
             - definition.customer_effort
@@ -411,9 +487,12 @@ class EvidenceSelectionService:
                 availability=self._availability(source_state),
                 rationale_codes=definition.rationale_codes,
                 matched_information_gap_codes=matched_information_gap_codes,
+                information_content_codes=sorted(information_content_codes),
+                novel_information_codes=novel_information_codes,
+                overlapping_information_codes=overlapping_information_codes,
                 consent_scope=definition.consent_scope,
             ),
-            round(evidence_value, 6),
+            round(evidence_value, 6) if novel_information_codes else None,
         )
 
     def _availability(self, state: DataSourceState | None) -> EvidenceAvailability:
