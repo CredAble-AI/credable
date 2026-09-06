@@ -331,6 +331,7 @@ def evidence_selection_repository(tmp_path) -> SqliteEvidenceSelectionRepository
 def evidence_selection_service(
     evidence_selection_repository: SqliteEvidenceSelectionRepository,
     evidence_submission_repository: SqliteEvidenceSubmissionRepository,
+    evidence_quality_repository: SqliteEvidenceQualityRepository,
     assessment_repository: SqliteAssessmentRepository,
     policy_boundary_repository: SqlitePolicyBoundaryRepository,
     session_service: CustomerSessionService,
@@ -346,6 +347,7 @@ def evidence_selection_service(
         assessment_repository=assessment_repository,
         resolution_repository=policy_boundary_repository,
         submission_repository=evidence_submission_repository,
+        quality_repository=evidence_quality_repository,
         feature_snapshot_repository=feature_snapshot_repository,
         catalog=DemoEvidenceCandidateCatalog(settings.demo_evidence_candidates_path),
     )

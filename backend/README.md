@@ -338,12 +338,13 @@ Demo 후보 순서는 신규 정보가 하나 이상 남은 후보에 한해 `�
 여신 정책이 확정된 뒤 교체해야 합니다. 현재 커버리지 규칙과 정보 코드는 모두 합성
 Demo이며 실제 정보가치나 승인 효과를 의미하지 않습니다.
 
-첫 선택은 같은 `boundaryCheckId`, 반복 선택은 같은 `resolutionId`에 대해 저장된 결과를
-반환하므로 중복 요청과 중복 Audit을 만들지 않습니다. 보완평가 후 수집 판단이
-`MORE_EVIDENCE_REQUIRED`이면 같은 `POST /evidence/next`를 호출해 다음 후보를 선택할 수
-있습니다. 서버는 이미 제출한 Evidence 유형을 제외하고 남은 후보 중 한 건만 선택하며,
-새로운 유효 후보가 없으면 `NO_NEW_USEFUL_EVIDENCE`와 `HUMAN_REVIEW`로 자동 수집을
-중단합니다. 반복 응답의 `resolutionId`는 어떤 수집 판단에서 요청이 발생했는지 나타냅니다.
+첫 선택은 같은 `boundaryCheckId`, 보완평가 후 반복 선택은 같은 `resolutionId`,
+품질 탈락 후 반복 선택은 같은 `rejectedQualityCheckId`에 대해 저장된 결과를 반환합니다.
+따라서 반복 호출이 중복 요청과 중복 Audit을 만들지 않습니다. 보완평가 후 수집 판단이
+`MORE_EVIDENCE_REQUIRED`이거나 최신 증빙 품질이 `REJECTED`이면 같은
+`POST /evidence/next`를 호출해 다음 후보를 선택할 수 있습니다. 서버는 이미 제출한
+Evidence 유형을 제외하고 남은 후보 중 한 건만 선택하며, 새로운 유효 후보가 없으면
+`NO_NEW_USEFUL_EVIDENCE`와 `HUMAN_REVIEW`로 자동 수집을 중단합니다.
 
 최신 보완평가·전후 비교·수집 판단의 연결이 완성되기 전에는 이전 요청을 재사용하지 않고
 `EVIDENCE_RESOLUTION_NOT_READY`를 반환합니다. 수집이 이미 `RESOLVED` 또는
@@ -414,7 +415,10 @@ PDF와 해시가 다른 파일은 메타데이터만 제출 이력으로 보존�
 `REJECTED`와 `nextAction: EXCLUDE_EVIDENCE`로 분리합니다. 해시·진위 또는 조작 위험 검사가
 명시적으로 `FAILED`이면 `REVIEW_REQUIRED`, `underwriterRequired: true`,
 `nextAction: UNDERWRITER_REVIEW`를 반환하고 자동 보완평가를 중단합니다. 단순
-`NOT_VERIFIED`는 이상 징후로 과장하지 않고 `REJECTED`로 처리합니다.
+`NOT_VERIFIED`는 이상 징후로 과장하지 않고 `REJECTED`로 처리합니다. `REJECTED` 증빙은
+현재 보완평가 입력에서 제외하고, 고객이 다음 Evidence 확인을 요청하면 서버가 이미
+제출한 유형을 제외한 남은 후보를 다시 검토합니다. 프론트엔드는 대체 증빙을 직접
+고르거나 순위를 재계산하지 않습니다.
 
 ```bash
 curl \

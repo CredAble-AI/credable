@@ -1,4 +1,5 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { MemoryRouter } from 'react-router-dom'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { evidenceQualityProvider } from '../hooks/useEvidenceQualityState'
 import type { EvidenceQualityResponse, EvidenceQualityState } from '../types/evidenceQuality'
@@ -27,7 +28,7 @@ const quality = (status: EvidenceQualityState['status'] = 'ACCEPTED'): EvidenceQ
   }
 }
 const response = (result: EvidenceQualityState | null): EvidenceQualityResponse => ({ sessionId: 'ses_demo', quality: result })
-const renderPanel = () => render(<EvidenceQualityPanel sessionId="ses_demo" submission={submission} />)
+const renderPanel = () => render(<MemoryRouter><EvidenceQualityPanel sessionId="ses_demo" submission={submission} /></MemoryRouter>)
 
 describe('EvidenceQualityPanel', () => {
   beforeEach(() => {
@@ -57,6 +58,15 @@ describe('EvidenceQualityPanel', () => {
     expect(screen.getAllByText('DEMO_AUTHENTICITY_FAILED')).toHaveLength(3)
     expect(screen.getByText('UNDERWRITER_REVIEW')).toBeInTheDocument()
     expect(screen.getByText('필요')).toBeInTheDocument()
+  })
+
+  it('offers the server-driven next selection path for rejected Evidence', async () => {
+    vi.mocked(evidenceQualityProvider.get).mockResolvedValue(response(quality('REJECTED')))
+    renderPanel()
+
+    const link = await screen.findByRole('link', { name: '다음 Evidence 한 건 확인' })
+    expect(link).toHaveAttribute('href', '/evidence?selectNext=1')
+    expect(screen.queryByText('보완평가 패널')).not.toBeInTheDocument()
   })
 
   it('rejects a quality response for another submission snapshot', async () => {

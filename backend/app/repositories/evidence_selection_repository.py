@@ -50,6 +50,13 @@ class EvidenceSelectionRepository(ABC):
         """Return an existing repeated selection for the same Evidence resolution."""
 
     @abstractmethod
+    def get_by_rejected_quality_check_id(
+        self,
+        quality_check_id: str,
+    ) -> EvidenceSelectionState | None:
+        """Return an existing repeated selection for the same rejected quality result."""
+
+    @abstractmethod
     def save_selection(
         self,
         *,
@@ -95,6 +102,7 @@ class SqliteEvidenceSelectionRepository(EvidenceSelectionRepository):
                         selection_id TEXT NOT NULL UNIQUE,
                         boundary_check_id TEXT NOT NULL,
                         resolution_id TEXT UNIQUE,
+                        rejected_quality_check_id TEXT,
                         session_id TEXT NOT NULL,
                         state_json TEXT NOT NULL,
                         selected_at TEXT NOT NULL,
@@ -106,6 +114,7 @@ class SqliteEvidenceSelectionRepository(EvidenceSelectionRepository):
                         selection_id,
                         boundary_check_id,
                         resolution_id,
+                        rejected_quality_check_id,
                         session_id,
                         state_json,
                         selected_at
@@ -115,6 +124,7 @@ class SqliteEvidenceSelectionRepository(EvidenceSelectionRepository):
                         selection_id,
                         boundary_check_id,
                         NULL,
+                        NULL,
                         session_id,
                         state_json,
                         selected_at
@@ -123,6 +133,14 @@ class SqliteEvidenceSelectionRepository(EvidenceSelectionRepository):
                     DROP TABLE evidence_selections_legacy;
                     """
                 )
+            columns = {
+                row["name"]
+                for row in connection.execute("PRAGMA table_info(evidence_selections)").fetchall()
+            }
+            if columns and "rejected_quality_check_id" not in columns:
+                connection.execute(
+                    "ALTER TABLE evidence_selections ADD COLUMN rejected_quality_check_id TEXT"
+                )
             connection.executescript(
                 """
                 CREATE TABLE IF NOT EXISTS evidence_selections (
@@ -130,6 +148,7 @@ class SqliteEvidenceSelectionRepository(EvidenceSelectionRepository):
                     selection_id TEXT NOT NULL UNIQUE,
                     boundary_check_id TEXT NOT NULL,
                     resolution_id TEXT UNIQUE,
+                    rejected_quality_check_id TEXT,
                     session_id TEXT NOT NULL,
                     state_json TEXT NOT NULL,
                     selected_at TEXT NOT NULL,
@@ -138,6 +157,10 @@ class SqliteEvidenceSelectionRepository(EvidenceSelectionRepository):
 
                 CREATE INDEX IF NOT EXISTS idx_evidence_selections_latest
                 ON evidence_selections(session_id, selection_order DESC);
+
+                CREATE UNIQUE INDEX IF NOT EXISTS idx_evidence_selections_rejected_quality
+                ON evidence_selections(rejected_quality_check_id)
+                WHERE rejected_quality_check_id IS NOT NULL;
                 """
             )
 
@@ -230,7 +253,9 @@ class SqliteEvidenceSelectionRepository(EvidenceSelectionRepository):
                 """
                 SELECT state_json
                 FROM evidence_selections
-                WHERE boundary_check_id = ? AND resolution_id IS NULL
+                WHERE boundary_check_id = ?
+                  AND resolution_id IS NULL
+                  AND rejected_quality_check_id IS NULL
                 ORDER BY selection_order ASC
                 LIMIT 1
                 """,
@@ -243,6 +268,21 @@ class SqliteEvidenceSelectionRepository(EvidenceSelectionRepository):
             row = connection.execute(
                 "SELECT state_json FROM evidence_selections WHERE resolution_id = ?",
                 (resolution_id,),
+            ).fetchone()
+        return EvidenceSelectionState.model_validate_json(row["state_json"]) if row else None
+
+    def get_by_rejected_quality_check_id(
+        self,
+        quality_check_id: str,
+    ) -> EvidenceSelectionState | None:
+        with self._connect() as connection:
+            row = connection.execute(
+                """
+                SELECT state_json
+                FROM evidence_selections
+                WHERE rejected_quality_check_id = ?
+                """,
+                (quality_check_id,),
             ).fetchone()
         return EvidenceSelectionState.model_validate_json(row["state_json"]) if row else None
 
@@ -260,16 +300,18 @@ class SqliteEvidenceSelectionRepository(EvidenceSelectionRepository):
                     selection_id,
                     boundary_check_id,
                     resolution_id,
+                    rejected_quality_check_id,
                     session_id,
                     state_json,
                     selected_at
                 )
-                VALUES (?, ?, ?, ?, ?, ?)
+                VALUES (?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
                     state.selection_id,
                     state.boundary_check_id,
                     state.resolution_id,
+                    state.rejected_quality_check_id,
                     session_id,
                     state.model_dump_json(by_alias=True),
                     state.selected_at.isoformat(),

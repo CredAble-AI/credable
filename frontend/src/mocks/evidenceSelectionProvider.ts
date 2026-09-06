@@ -20,6 +20,7 @@ export const mockEvidenceSelectionProvider: EvidenceSelectionProvider = {
         selectionId: `evs_demo_${sessionId}`,
         boundaryCheckId: `pbc_demo_${sessionId}`,
         resolutionId: null,
+        rejectedQualityCheckId: null,
         iteration: 1,
         status: 'SELECTED',
         selectedEvidence: {

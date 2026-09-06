@@ -21,6 +21,7 @@ export interface EvidenceSelectionState {
   selectionId: string
   boundaryCheckId: string
   resolutionId: string | null
+  rejectedQualityCheckId: string | null
   iteration: number
   status: EvidenceSelectionStatus
   selectedEvidence: SelectedEvidenceCandidate | null
