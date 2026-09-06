@@ -61,6 +61,9 @@ def execute_complete_journey(client: TestClient) -> tuple[str, str, dict[str, di
     recovered["resolution"] = assert_ok(
         client.post(f"/v1/sessions/{session_id}/assessment/resolution")
     )
+    recovered["explanation"] = assert_ok(
+        client.post(f"/v1/sessions/{session_id}/assessment/explanation/generate")
+    )
     review_request = assert_ok(client.post(f"/v1/sessions/{session_id}/assessment/review-request"))
     review_id = "uwr_" + review_request["reviewRequest"]["reviewRequestId"].removeprefix("arr_")
     assert_ok(
@@ -152,6 +155,9 @@ def test_complete_journey_is_restored_after_application_restart(
             ),
             "resolution": assert_ok(
                 restarted_client.get(f"/v1/sessions/{session_id}/assessment/resolution")
+            ),
+            "explanation": assert_ok(
+                restarted_client.get(f"/v1/sessions/{session_id}/assessment/explanation")
             ),
             "assessmentReviewRequest": assert_ok(
                 restarted_client.get(f"/v1/sessions/{session_id}/assessment/review-request")

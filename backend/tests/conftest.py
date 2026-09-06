@@ -9,6 +9,7 @@ from app.adapters.assessment_adapter import (
     UnconfiguredSupplementalAssessmentAdapter,
 )
 from app.adapters.data_source_adapter import EmptyDemoDataSourceAdapter
+from app.adapters.explanation_adapter import DemoExplanationProvider
 from app.adapters.product_catalog_adapter import UnconfiguredProductCatalogAdapter
 from app.adapters.product_condition_adapter import UnconfiguredProductConditionAdapter
 from app.core.admin_auth import AdminApiKeyAuthenticator
@@ -25,6 +26,7 @@ from app.repositories.evidence_consent_repository import SqliteEvidenceConsentRe
 from app.repositories.evidence_quality_repository import SqliteEvidenceQualityRepository
 from app.repositories.evidence_selection_repository import SqliteEvidenceSelectionRepository
 from app.repositories.evidence_submission_repository import SqliteEvidenceSubmissionRepository
+from app.repositories.explanation_repository import SqliteAssessmentExplanationRepository
 from app.repositories.feature_snapshot_repository import SqliteFeatureSnapshotRepository
 from app.repositories.loan_history_repository import SqliteLoanHistoryRepository
 from app.repositories.policy_boundary_repository import SqlitePolicyBoundaryRepository
@@ -69,6 +71,7 @@ from app.services.evidence_submission_service import (
     DemoEvidenceSubmissionCatalog,
     EvidenceSubmissionService,
 )
+from app.services.explanation_service import AssessmentExplanationService
 from app.services.feature_snapshot_service import FeatureSnapshotService
 from app.services.loan_history_service import DemoLoanHistoryCatalogService, LoanHistoryService
 from app.services.model_registry_service import DemoModelRegistryCatalog, ModelRegistryService
@@ -452,6 +455,22 @@ def assessment_comparison_service(
 
 
 @pytest.fixture
+def assessment_explanation_service(
+    tmp_path,
+    assessment_repository: SqliteAssessmentRepository,
+    policy_boundary_repository: SqlitePolicyBoundaryRepository,
+    session_service: CustomerSessionService,
+) -> AssessmentExplanationService:
+    return AssessmentExplanationService(
+        repository=SqliteAssessmentExplanationRepository(tmp_path / "test.db"),
+        session_service=session_service,
+        assessment_repository=assessment_repository,
+        boundary_repository=policy_boundary_repository,
+        provider=DemoExplanationProvider(),
+    )
+
+
+@pytest.fixture
 def assessment_review_repository(tmp_path) -> SqliteAssessmentReviewRepository:
     return SqliteAssessmentReviewRepository(tmp_path / "test.db")
 
@@ -548,6 +567,7 @@ def client(
     evidence_quality_service: EvidenceQualityService,
     supplemental_assessment_service: SupplementalAssessmentService,
     assessment_comparison_service: AssessmentComparisonService,
+    assessment_explanation_service: AssessmentExplanationService,
     assessment_review_request_service: AssessmentReviewRequestService,
     evidence_resolution_service: EvidenceResolutionService,
     product_catalog_service: ProductCatalogService,
@@ -571,6 +591,7 @@ def client(
             evidence_quality_service=evidence_quality_service,
             supplemental_assessment_service=supplemental_assessment_service,
             assessment_comparison_service=assessment_comparison_service,
+            assessment_explanation_service=assessment_explanation_service,
             assessment_review_request_service=assessment_review_request_service,
             evidence_resolution_service=evidence_resolution_service,
             product_catalog_service=product_catalog_service,

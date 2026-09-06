@@ -115,6 +115,14 @@ def test_ready_returns_current_dependency_checks(client: TestClient) -> None:
                 "status": "ok",
             },
             {
+                "name": "assessment_explanation_repository",
+                "status": "ok",
+            },
+            {
+                "name": "assessment_explanation_provider",
+                "status": "ok",
+            },
+            {
                 "name": "policy_boundary_repository",
                 "status": "ok",
             },
