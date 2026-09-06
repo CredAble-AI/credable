@@ -1,14 +1,40 @@
 import os
+from enum import StrEnum
 from pathlib import Path
 
+from dotenv import load_dotenv
 from pydantic import BaseModel, ConfigDict, Field, SecretStr
 
 BACKEND_ROOT = Path(__file__).resolve().parents[2]
+load_dotenv(BACKEND_ROOT / ".env", override=False)
+
+
+class ExplanationProviderMode(StrEnum):
+    DEMO = "demo"
+    GEMINI = "gemini"
 
 
 def load_admin_api_key() -> SecretStr | None:
     value = os.getenv("CREDABLE_ADMIN_API_KEY")
     return SecretStr(value) if value else None
+
+
+def load_gemini_api_key() -> SecretStr | None:
+    value = os.getenv("GEMINI_API_KEY")
+    return SecretStr(value) if value else None
+
+
+def load_explanation_provider_mode() -> ExplanationProviderMode:
+    value = os.getenv("CREDABLE_EXPLANATION_PROVIDER", ExplanationProviderMode.DEMO)
+    return ExplanationProviderMode(value.strip().lower())
+
+
+def load_gemini_model() -> str:
+    return os.getenv("CREDABLE_GEMINI_MODEL", "gemini-3.5-flash-lite").strip()
+
+
+def load_gemini_timeout_seconds() -> float:
+    return float(os.getenv("CREDABLE_GEMINI_TIMEOUT_SECONDS", "10"))
 
 
 class Settings(BaseModel):
@@ -46,6 +72,16 @@ class Settings(BaseModel):
         BACKEND_ROOT / "app" / "data" / "demo_product_conditions.json"
     )
     admin_api_key: SecretStr | None = Field(default_factory=load_admin_api_key)
+    explanation_provider: ExplanationProviderMode = Field(
+        default_factory=load_explanation_provider_mode
+    )
+    gemini_api_key: SecretStr | None = Field(default_factory=load_gemini_api_key)
+    gemini_model: str = Field(default_factory=load_gemini_model, min_length=1)
+    gemini_timeout_seconds: float = Field(
+        default_factory=load_gemini_timeout_seconds,
+        ge=1,
+        le=30,
+    )
 
 
 settings = Settings()

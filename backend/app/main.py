@@ -11,7 +11,8 @@ from app.adapters.assessment_adapter import (
     DemoSupplementalAssessmentAdapter,
 )
 from app.adapters.data_source_adapter import DemoDataSourceAdapter
-from app.adapters.explanation_adapter import DemoExplanationProvider
+from app.adapters.explanation_adapter import DemoExplanationProvider, ExplanationProvider
+from app.adapters.gemini_explanation_adapter import GeminiExplanationProvider
 from app.adapters.product_catalog_adapter import DemoProductCatalogAdapter
 from app.adapters.product_condition_adapter import DemoProductConditionAdapter
 from app.api.admin_audit import router as admin_audit_router
@@ -20,7 +21,7 @@ from app.api.demo_profiles import router as demo_profiles_router
 from app.api.health import router as health_router
 from app.api.sessions import router as sessions_router
 from app.core.admin_auth import AdminApiKeyAuthenticator
-from app.core.config import settings
+from app.core.config import ExplanationProviderMode, Settings, settings
 from app.core.errors import ApiDomainError
 from app.repositories.assessment_repository import SqliteAssessmentRepository
 from app.repositories.assessment_review_repository import SqliteAssessmentReviewRepository
@@ -365,6 +366,20 @@ def build_assessment_comparison_service(
     )
 
 
+def build_explanation_provider(config: Settings = settings) -> ExplanationProvider:
+    if config.explanation_provider == ExplanationProviderMode.DEMO:
+        return DemoExplanationProvider()
+    if config.explanation_provider == ExplanationProviderMode.GEMINI:
+        if config.gemini_api_key is None:
+            raise ValueError("GEMINI_API_KEY is required when CREDABLE_EXPLANATION_PROVIDER=gemini")
+        return GeminiExplanationProvider(
+            api_key=config.gemini_api_key,
+            model=config.gemini_model,
+            timeout_seconds=config.gemini_timeout_seconds,
+        )
+    raise ValueError(f"unsupported explanation provider: {config.explanation_provider}")
+
+
 def build_assessment_explanation_service(
     session_service: CustomerSessionService,
     assessment_service: AssessmentService,
@@ -375,7 +390,7 @@ def build_assessment_explanation_service(
         session_service=session_service,
         assessment_repository=assessment_service.repository,
         boundary_repository=policy_boundary_service.repository,
-        provider=DemoExplanationProvider(),
+        provider=build_explanation_provider(),
     )
 
 

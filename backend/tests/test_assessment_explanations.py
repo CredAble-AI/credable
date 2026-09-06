@@ -50,6 +50,24 @@ class InvalidExplanationProvider(ExplanationProvider):
         )
 
 
+class ReorderedExplanationProvider(ExplanationProvider):
+    provider_version = "reordered-provider-v1"
+    rendering_mode = ExplanationRenderingMode.GENERATIVE_AI
+    model_version = "reordered-model-v1"
+    prompt_version = "reordered-prompt-v1"
+
+    def plan(
+        self,
+        snapshot: AssessmentExplanationInputSnapshot,
+        allowed_message_codes: tuple[str, ...],
+    ) -> ExplanationPlan:
+        del snapshot
+        return ExplanationPlan(
+            headline_code=allowed_message_codes[-1],
+            section_codes=list(reversed(allowed_message_codes)),
+        )
+
+
 def create_session(client: TestClient) -> str:
     response = client.post(
         "/v1/sessions/demo",
@@ -239,3 +257,23 @@ def test_unapproved_provider_message_code_is_replaced_by_rule_fallback(
     assert explanation["renderingMode"] == "RULE_FALLBACK"
     assert explanation["fallbackReasonCode"] == "EXPLANATION_PROVIDER_OUTPUT_INVALID"
     assert "UNSUPPORTED_APPROVAL_CLAIM" not in response.text
+
+
+def test_provider_cannot_reorder_server_owned_messages(
+    client: TestClient,
+    data_source_service: DataSourceService,
+    assessment_service: AssessmentService,
+) -> None:
+    session_id, _ = run_baseline(client, data_source_service, assessment_service)
+    client.app.state.assessment_explanation_service.provider = ReorderedExplanationProvider()
+
+    response = client.post(f"/v1/sessions/{session_id}/assessment/explanation/generate")
+
+    assert response.status_code == 200
+    explanation = response.json()["explanation"]
+    assert explanation["renderingMode"] == "RULE_FALLBACK"
+    assert explanation["fallbackReasonCode"] == "EXPLANATION_PROVIDER_OUTPUT_INVALID"
+    assert [section["messageCode"] for section in explanation["sections"]] == [
+        "BASELINE_RESULT_AVAILABLE",
+        "BASELINE_UNCERTAINTY_PRESENT",
+    ]

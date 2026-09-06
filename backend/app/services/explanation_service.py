@@ -501,6 +501,10 @@ class AssessmentExplanationService:
         allowed = set(allowed_codes)
         if plan.headline_code not in allowed or not set(plan.section_codes).issubset(allowed):
             raise ValueError("provider selected a message code not allowed by current facts")
+        selected_codes = set(plan.section_codes)
+        server_ordered_codes = [code for code in allowed_codes if code in selected_codes]
+        if plan.section_codes != server_ordered_codes:
+            raise ValueError("provider cannot reorder server-owned explanation messages")
         required_current_state_code = allowed_codes[-1]
         if (
             plan.headline_code != required_current_state_code
