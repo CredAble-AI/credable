@@ -107,9 +107,10 @@ describe('customer journey integration', () => {
     fireEvent.click(screen.getByRole('button', { name: '데이터 연결로 이동' }))
 
     expect(await screen.findByRole('heading', { level: 1, name: '기준평가에 사용할 데이터 출처를 확인합니다' })).toBeInTheDocument()
-    const continueToAssessment = await screen.findByRole('button', { name: '데이터 확인 후 기존 평가 보기' })
-    await waitFor(() => expect(continueToAssessment).toBeEnabled())
-    fireEvent.click(continueToAssessment)
+    const loadBaselineData = await screen.findByRole('button', { name: '기준평가 데이터 불러오기' })
+    await waitFor(() => expect(loadBaselineData).toBeEnabled())
+    fireEvent.click(loadBaselineData)
+    fireEvent.click(await screen.findByRole('button', { name: '기존 평가 결과 확인' }, { timeout: 10_000 }))
 
     fireEvent.click(await screen.findByRole('button', { name: '기존 평가 결과 불러오기' }, { timeout: 3_000 }))
     fireEvent.click(await screen.findByRole('button', { name: '다음 단계 확인' }))
@@ -121,7 +122,7 @@ describe('customer journey integration', () => {
     expect(await screen.findByRole('heading', { level: 2, name: '최근 매출·입금 요약' })).toBeInTheDocument()
     fireEvent.click(await screen.findByRole('button', { name: '이 범위에 동의' }))
 
-    const download = await screen.findByRole('link', { name: '시연용 PDF 다운로드' })
+    const download = await screen.findByRole('link', { name: '요청 자료 다운로드' })
     expect(download).toHaveAttribute('download', 'recent-revenue-demo.pdf')
     expect(download.getAttribute('href')).toMatch(/^\/v1\/sessions\/[^/]+\/evidence\/selections\/[^/]+\/demo-file\/download$/)
 
