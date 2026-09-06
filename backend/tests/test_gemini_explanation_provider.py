@@ -9,7 +9,7 @@ import app.adapters.gemini_explanation_adapter as gemini_adapter_module
 from app.adapters.explanation_adapter import DemoExplanationProvider
 from app.adapters.gemini_explanation_adapter import (
     GeminiExplanationProvider,
-    UrlLibGeminiGenerateContentTransport,
+    UrlLibGeminiInteractionTransport,
 )
 from app.core.config import ExplanationProviderMode, Settings
 from app.main import build_explanation_provider
@@ -27,7 +27,6 @@ class FakeGeminiTransport:
     def __init__(self, response: Mapping[str, Any]) -> None:
         self.response = response
         self.api_key: SecretStr | None = None
-        self.model: str | None = None
         self.payload: Mapping[str, Any] | None = None
         self.timeout_seconds: float | None = None
 
@@ -35,12 +34,10 @@ class FakeGeminiTransport:
         self,
         *,
         api_key: SecretStr,
-        model: str,
         payload: Mapping[str, Any],
         timeout_seconds: float,
     ) -> Mapping[str, Any]:
         self.api_key = api_key
-        self.model = model
         self.payload = payload
         self.timeout_seconds = timeout_seconds
         return self.response
@@ -84,41 +81,38 @@ def make_snapshot() -> AssessmentExplanationInputSnapshot:
 
 def completed_response(plan: dict[str, Any]) -> dict[str, Any]:
     return {
-        "candidates": [
+        "status": "completed",
+        "steps": [
+            {"type": "thought", "signature": "not-used"},
             {
-                "finishReason": "STOP",
-                "content": {"role": "model", "parts": [{"text": json.dumps(plan)}]},
-            }
-        ]
+                "type": "model_output",
+                "content": [{"type": "text", "text": json.dumps(plan)}],
+            },
+        ],
     }
 
 
-def test_http_transport_targets_generate_content_without_exposing_the_key(monkeypatch) -> None:
+def test_http_transport_keeps_api_key_out_of_url_and_body(monkeypatch) -> None:
     captured: dict[str, Any] = {}
 
     def fake_urlopen(request, timeout: float):
         captured["request"] = request
         captured["timeout"] = timeout
-        return FakeHttpResponse(b'{"candidates":[]}')
+        return FakeHttpResponse(b'{"status":"completed","steps":[]}')
 
     monkeypatch.setattr(gemini_adapter_module, "urlopen", fake_urlopen)
-    transport = UrlLibGeminiGenerateContentTransport()
+    transport = UrlLibGeminiInteractionTransport()
 
     response = transport.create(
         api_key=SecretStr("synthetic-test-key"),
-        model="gemini-2.5-flash-lite",
-        payload={"contents": [{"role": "user", "parts": [{"text": "safe-codes-only"}]}]},
+        payload={"model": "gemini-3.5-flash-lite", "input": "safe-codes-only"},
         timeout_seconds=5,
     )
 
     request = captured["request"]
-    assert response == {"candidates": []}
+    assert response["status"] == "completed"
     assert captured["timeout"] == 5
-    # The model belongs in the path of the documented generateContent endpoint.
-    assert request.full_url == (
-        "https://generativelanguage.googleapis.com/v1beta"
-        "/models/gemini-2.5-flash-lite:generateContent"
-    )
+    assert request.full_url == UrlLibGeminiInteractionTransport.ENDPOINT
     assert "synthetic-test-key" not in request.full_url
     assert b"synthetic-test-key" not in request.data
     assert request.get_header("X-goog-api-key") == "synthetic-test-key"
@@ -140,7 +134,7 @@ def test_gemini_provider_sends_only_allowed_codes_and_parses_structured_plan() -
     )
     provider = GeminiExplanationProvider(
         api_key=SecretStr("synthetic-test-key"),
-        model="gemini-2.5-flash-lite",
+        model="gemini-3.5-flash-lite",
         timeout_seconds=7,
         transport=transport,
     )
@@ -151,18 +145,16 @@ def test_gemini_provider_sends_only_allowed_codes_and_parses_structured_plan() -
     assert plan.section_codes == list(allowed_codes)
     assert transport.timeout_seconds == 7
     assert isinstance(transport.api_key, SecretStr)
-    assert transport.model == "gemini-2.5-flash-lite"
     assert transport.payload is not None
-    prompt = transport.payload["contents"][0]["parts"][0]["text"]
+    assert transport.payload["model"] == "gemini-3.5-flash-lite"
+    prompt = transport.payload["input"]
     assert isinstance(prompt, str)
     assert all(code in prompt for code in allowed_codes)
     assert "ses_private_identifier" not in prompt
     assert "asm_private_identifier" not in prompt
     assert "private-financial-value" not in prompt
     assert "private-data-version" not in prompt
-    generation_config = transport.payload["generationConfig"]
-    assert generation_config["responseMimeType"] == "application/json"
-    schema = generation_config["responseSchema"]
+    schema = transport.payload["response_format"]["schema"]
     assert schema["properties"]["headlineCode"]["enum"] == list(allowed_codes)
     assert schema["properties"]["sectionCodes"]["items"]["enum"] == list(allowed_codes)
 
@@ -170,16 +162,19 @@ def test_gemini_provider_sends_only_allowed_codes_and_parses_structured_plan() -
 @pytest.mark.parametrize(
     "response",
     [
-        {"candidates": []},
-        {"candidates": [{"finishReason": "MAX_TOKENS", "content": {"parts": [{"text": "{}"}]}}]},
-        {"candidates": [{"finishReason": "STOP"}]},
+        {"status": "failed", "steps": []},
+        {"status": "completed", "steps": []},
         {
-            "candidates": [
+            "status": "completed",
+            "steps": [
                 {
-                    "finishReason": "STOP",
-                    "content": {"parts": [{"text": "{}"}, {"text": "{}"}]},
+                    "type": "model_output",
+                    "content": [
+                        {"type": "text", "text": "{}"},
+                        {"type": "text", "text": "{}"},
+                    ],
                 }
-            ]
+            ],
         },
     ],
 )
@@ -188,7 +183,7 @@ def test_gemini_provider_rejects_incomplete_or_ambiguous_output(
 ) -> None:
     provider = GeminiExplanationProvider(
         api_key=SecretStr("synthetic-test-key"),
-        model="gemini-2.5-flash-lite",
+        model="gemini-3.5-flash-lite",
         timeout_seconds=7,
         transport=FakeGeminiTransport(response),
     )
@@ -220,13 +215,42 @@ def test_provider_factory_builds_generative_gemini_provider() -> None:
         Settings(
             explanation_provider=ExplanationProviderMode.GEMINI,
             gemini_api_key=SecretStr("synthetic-test-key"),
-            gemini_model="gemini-2.5-flash-lite",
+            gemini_model="gemini-3.5-flash-lite",
             gemini_timeout_seconds=9,
         )
     )
 
     assert isinstance(provider, GeminiExplanationProvider)
     assert provider.rendering_mode == ExplanationRenderingMode.GENERATIVE_AI
-    assert provider.model_version == "gemini-2.5-flash-lite"
+    assert provider.model_version == "gemini-3.5-flash-lite"
     assert provider.timeout_seconds == 9
     assert "synthetic-test-key" not in repr(provider.api_key)
+
+
+def test_interactions_payload_matches_the_shape_verified_against_the_live_api() -> None:
+    """Pins the request shape that was confirmed with a real API key.
+
+    The transport is faked everywhere else, so without this the endpoint,
+    model field and structured-output contract could drift unnoticed.
+    """
+    transport = FakeGeminiTransport(
+        completed_response({"headlineCode": "A", "sectionCodes": ["A"]})
+    )
+    provider = GeminiExplanationProvider(
+        api_key=SecretStr("synthetic-test-key"),
+        model="gemini-3.5-flash-lite",
+        timeout_seconds=7,
+        transport=transport,
+    )
+
+    provider.plan(make_snapshot(), ("A",))
+
+    assert (
+        UrlLibGeminiInteractionTransport.ENDPOINT
+        == "https://generativelanguage.googleapis.com/v1beta/interactions"
+    )
+    assert transport.payload is not None
+    assert set(transport.payload) == {"model", "input", "response_format"}
+    assert transport.payload["model"] == "gemini-3.5-flash-lite"
+    assert transport.payload["response_format"]["type"] == "text"
+    assert transport.payload["response_format"]["mime_type"] == "application/json"
