@@ -267,7 +267,9 @@ curl -X POST \
 보존하고 고객 행위로 Audit을 남깁니다. 같은 평가 결과에 반복 요청하면 기존 요청을 반환해
 중복 큐와 중복 Audit을 만들지 않습니다. 완료된 평가가 없으면
 `ASSESSMENT_REVIEW_TARGET_NOT_READY`로 차단합니다. 이 기능은 평가값을 다시 계산하거나 금융
-판단을 변경하지 않고 은행 심사역 검토 큐에 요청을 추가하는 역할만 수행합니다.
+판단을 변경하지 않고 은행 심사역 검토 큐에 요청을 추가하는 역할만 수행합니다. 응답의
+`processing`은 `PENDING`, `IN_REVIEW`, `COMPLETED` 상태와 고객에게 공개 가능한 결과·처리시각을
+제공하며 내부 심사역 식별자는 노출하지 않습니다.
 
 ## Demo 정책 경계 판정 API
 
@@ -596,9 +598,35 @@ curl \
 최대 100개이며 `offset`으로 다음 구간을 조회합니다. Trigger는 `EVIDENCE_QUALITY`와
 `CUSTOMER_ASSESSMENT_REVIEW`를 구분합니다.
 
-이번 API는 검토 대상 조회 전용입니다. 심사역의 접수·배정·처리 상태, 최종 판단, 사유 코드와
-처리 Audit은 은행 운영 규칙이 확정된 후 별도 API로 추가해야 합니다. 실제 운영 인증은 Demo
-API Key가 아닌 SSO/RBAC 및 조직별 접근통제로 교체해야 합니다.
+심사역은 같은 관리자 인증으로 검토 상세 조회, 접수와 완료 처리를 수행합니다.
+
+```bash
+curl \
+  -H 'X-Admin-API-Key: <관리자용-비밀키>' \
+  http://127.0.0.1:8000/v1/admin/underwriter-reviews/<reviewId>
+
+curl -X POST \
+  -H 'X-Admin-API-Key: <관리자용-비밀키>' \
+  http://127.0.0.1:8000/v1/admin/underwriter-reviews/<reviewId>/claim
+
+curl -X POST \
+  -H 'X-Admin-API-Key: <관리자용-비밀키>' \
+  -H 'Content-Type: application/json' \
+  -d '{"resultCode":"ASSESSMENT_CONFIRMED"}' \
+  http://127.0.0.1:8000/v1/admin/underwriter-reviews/<reviewId>/complete
+```
+
+상태는 `PENDING → IN_REVIEW → COMPLETED` 순서만 허용합니다. Evidence Trigger에는
+`EVIDENCE_CONFIRMED`, `EVIDENCE_EXCLUDED`, 고객 재확인 Trigger에는
+`ASSESSMENT_CONFIRMED`, `CORRECTION_REQUIRED`를 사용할 수 있으며,
+`ADDITIONAL_INFORMATION_REQUIRED`, `ESCALATED`는 공통 결과입니다. 유형이 다른 결과 코드는
+차단하고 완료된 결과는 변경하지 않습니다. 접수·완료는 심사역 행위로 Audit에 기록되며
+자유입력 메모와 원본 금융자료는 저장하지 않습니다.
+
+처리 결과는 검토 이력일 뿐 기존 평가값·품질 결과·대출조건을 자동으로 변경하지 않습니다.
+정정이나 추가자료 결과를 실제 평가 흐름에 반영하는 규칙은 은행 정책 확정 후 별도 기능으로
+연결해야 합니다. 실제 운영 인증은 Demo API Key와 고정 Demo 심사역 주체가 아닌 SSO/RBAC,
+실제 담당자 식별 및 조직별 접근통제로 교체해야 합니다.
 
 ## 은행 관리자 Evidence 부담 지표 API
 
