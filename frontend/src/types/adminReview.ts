@@ -1,7 +1,12 @@
 import type { AssessmentReviewTargetType } from './assessmentReview'
 
 export type AdminReviewStatus = 'PENDING' | 'IN_REVIEW' | 'COMPLETED'
-export type AdminReviewTriggerType = 'EVIDENCE_QUALITY' | 'CUSTOMER_ASSESSMENT_REVIEW'
+export type AdminReviewTriggerType =
+  | 'EVIDENCE_QUALITY'
+  | 'CUSTOMER_ASSESSMENT_REVIEW'
+  | 'POLICY_BOUNDARY'
+  | 'EVIDENCE_SELECTION'
+  | 'EVIDENCE_RESOLUTION'
 export type AdminReviewResultCode = 'EVIDENCE_CONFIRMED' | 'EVIDENCE_EXCLUDED' | 'ASSESSMENT_CONFIRMED' | 'CORRECTION_REQUIRED' | 'ADDITIONAL_INFORMATION_REQUIRED' | 'ESCALATED'
 
 export interface AdminReviewQueueItem {
