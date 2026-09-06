@@ -35,7 +35,7 @@ describe('EvidenceFileSubmission', () => {
   it('downloads the server file and uploads the selected PDF', async () => {
     renderComponent()
 
-    const download = await screen.findByRole('link', { name: '요청 자료 다운로드' })
+    const download = await screen.findByRole('link', { name: '최근 매출·입금 요약서 다운로드' })
     expect(download).toHaveAttribute('href', '/v1/sessions/ses_demo/evidence/selections/evs_demo/demo-file/download')
     expect(download).toHaveAttribute('download', '최근_매출_입금_요약서_DEMO.pdf')
 
@@ -58,11 +58,11 @@ describe('EvidenceFileSubmission', () => {
 
     renderComponent()
 
-    expect(await screen.findByRole('link', { name: '요청 자료 다운로드' })).toHaveAttribute('href', '/v1/sessions/ses_demo/evidence/selections/evs_demo/demo-file/download')
-    fireEvent.click(screen.getByText('심사용 테스트 자료'))
+    expect(await screen.findByRole('link', { name: '최근 매출·입금 요약서 다운로드' })).toHaveAttribute('href', '/v1/sessions/ses_demo/evidence/selections/evs_demo/demo-file/download')
+    expect(screen.getByText('다양한 검증 분기를 직접 확인해보세요')).toBeInTheDocument()
     expect(screen.getByText('자동평가 제외 시나리오')).toBeInTheDocument()
     expect(screen.getByText('심사역 확인 시나리오')).toBeInTheDocument()
-    expect(screen.getAllByRole('link', { name: '테스트 자료 다운로드' })).toHaveLength(2)
+    expect(screen.getAllByRole('link', { name: /다운로드/ })).toHaveLength(3)
   })
 
   it('keeps upload blocked until the server reports the required consent', async () => {
@@ -71,7 +71,7 @@ describe('EvidenceFileSubmission', () => {
 
     expect(await screen.findByText('선택 증빙 이용 동의')).toBeInTheDocument()
     expect(screen.getByText('동의 후 다운로드')).toHaveAttribute('aria-disabled', 'true')
-    expect(screen.queryByRole('link', { name: '요청 자료 다운로드' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('link', { name: /다운로드/ })).not.toBeInTheDocument()
     expect(screen.queryByLabelText('제출할 PDF 선택')).not.toBeInTheDocument()
     expect(evidenceSubmissionProvider.upload).not.toHaveBeenCalled()
   })
@@ -87,7 +87,7 @@ describe('EvidenceFileSubmission', () => {
 
   it('rejects a non-PDF file before calling the backend', async () => {
     renderComponent()
-    await screen.findByRole('link', { name: '요청 자료 다운로드' })
+    await screen.findByRole('link', { name: '최근 매출·입금 요약서 다운로드' })
 
     fireEvent.change(screen.getByLabelText('제출할 PDF 선택'), { target: { files: [new File(['text'], 'evidence.txt', { type: 'text/plain' })] } })
 

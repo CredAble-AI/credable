@@ -42,7 +42,7 @@ describe('App routing', () => {
     renderRoute('/admin/reviews/uwr_demo')
 
     expect(screen.getByRole('heading', { level: 1, name: '심사역 검토 상세' })).toBeInTheDocument()
-    expect(screen.getByText(/합성 Demo 데이터 전용 화면/)).toBeInTheDocument()
+    expect(screen.getByText(/이 화면은 시연에서만/)).toBeInTheDocument()
     expect(document.title).toBe('심사역 검토 상세 | CredAble')
   })
 

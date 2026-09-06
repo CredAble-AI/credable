@@ -122,7 +122,7 @@ describe('customer journey integration', () => {
     expect(await screen.findByRole('heading', { level: 2, name: '최근 매출·입금 요약' })).toBeInTheDocument()
     fireEvent.click(await screen.findByRole('button', { name: '이 범위에 동의' }))
 
-    const download = await screen.findByRole('link', { name: '요청 자료 다운로드' })
+    const download = await screen.findByRole('link', { name: '최근 매출·입금 요약서 다운로드' })
     expect(download).toHaveAttribute('download', 'recent-revenue-demo.pdf')
     expect(download.getAttribute('href')).toMatch(/^\/v1\/sessions\/[^/]+\/evidence\/selections\/[^/]+\/demo-file\/download$/)
 

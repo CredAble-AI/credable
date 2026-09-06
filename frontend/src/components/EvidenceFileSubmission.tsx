@@ -115,8 +115,6 @@ function EvidenceFileSubmission({ sessionId, selectionId, evidenceType }: Eviden
 
   const scenarioFiles = option.demoFiles?.length ? option.demoFiles : option.demoFile ? [option.demoFile] : []
   const primaryFile = option.demoFile
-  const reviewerFiles = scenarioFiles.filter((scenario) => scenario.demoFileId !== primaryFile?.demoFileId)
-  const primaryDownloadPath = primaryFile ? safeDownloadPath(primaryFile.downloadUrl) : null
   const requirement = option.submissionRequirement
 
   return <section className="evidence-submission" aria-labelledby="evidence-submit-title">
@@ -129,28 +127,23 @@ function EvidenceFileSubmission({ sessionId, selectionId, evidenceType }: Eviden
       <div className="evidence-demo-step"><span>1</span><div><strong>제출 범위 동의</strong><p>서버가 선택한 최소 증빙 한 건의 이용 범위를 먼저 확인합니다.</p></div></div>
       <EvidenceConsentPanel sessionId={sessionId} selectionId={selectionId} evidenceType={evidenceType} onConsentChanged={load} />
 
-      <div className="evidence-demo-step"><span>2</span><div><strong>요청 자료 준비</strong><p>제출 URL에서도 흐름을 실습할 수 있도록 요청된 정상 자료를 제공합니다.</p></div></div>
+      <div className="evidence-demo-step"><span>2</span><div><strong>요청 자료 준비</strong><p>요청된 자료의 범위와 기준 기간을 확인한 뒤 보유한 문서를 준비해주세요.</p></div></div>
       <div className="evidence-requested-file" aria-label="요청된 정상 자료">
-        <div><span>요청된 최소 증빙</span><strong>{primaryFile.displayName}</strong><p>{primaryFile.description}</p><small>{primaryFile.fileName} · PDF · {formatBytes(primaryFile.sizeBytes)}</small></div>
-        {requirement.status !== 'READY'
-          ? <span className="button button--secondary" aria-disabled="true">동의 후 다운로드</span>
-          : primaryDownloadPath
-            ? <a className="button button--secondary" href={primaryDownloadPath} download={primaryFile.fileName}>요청 자료 다운로드</a>
-            : <span className="evidence-file-card__invalid" role="alert">다운로드 주소를 확인할 수 없습니다.</span>}
+        <div><span>요청된 최소 증빙</span><strong>{primaryFile.displayName}</strong><p>{primaryFile.description}</p><small>PDF · 최대 {formatBytes(option.uploadPolicy.maxSizeBytes)}</small></div>
       </div>
 
-      {reviewerFiles.length > 0 && <details className="evidence-reviewer-tools">
-        <summary><span><strong>심사용 테스트 자료</strong><small>기준시점 오류·누락·변조 분기를 확인하려면 열어보세요.</small></span></summary>
-        <p>이 영역은 제출 URL만으로 서버 품질검증 분기를 확인하기 위한 심사용 도구입니다. 운영환경에서는 고객 보유 문서 또는 기관 연결 자료를 사용합니다.</p>
+      {scenarioFiles.length > 0 && <section className="evidence-demo-library" aria-labelledby="demo-library-title">
+        <div className="evidence-demo-library__heading"><span>DEMO</span><div><strong id="demo-library-title">다양한 검증 분기를 직접 확인해보세요</strong><p>정상·기준시점 오류·필수항목 누락·변조 의심 자료 중 하나를 받아 서버의 서로 다른 검증 결과를 확인할 수 있습니다.</p></div></div>
+        <p className="evidence-demo-library__notice">이 자료는 제출 URL만으로 품질검증을 시연하기 위한 테스트 문서입니다. 운영 환경에서는 고객이 보유하거나 발급기관을 통해 확보한 문서를 제출합니다.</p>
         <div className="evidence-scenario-set" aria-label="품질 검증 심사용 시나리오 파일">
-        {reviewerFiles.map((scenario) => {
+        {scenarioFiles.map((scenario) => {
           const scenarioDownloadPath = safeDownloadPath(scenario.downloadUrl)
-          return <div className="evidence-file-card" key={scenario.demoFileId}><div>{scenario.expectedQualityStatus && <span className={`evidence-file-card__status evidence-file-card__status--${scenario.expectedQualityStatus.toLowerCase()}`}>{expectedStatusLabel[scenario.expectedQualityStatus]}</span>}<strong>{scenario.displayName}</strong><p>{scenario.description}</p><small>{scenario.fileName} · PDF · {formatBytes(scenario.sizeBytes)}</small></div>{requirement.status !== 'READY' ? <span className="button button--secondary" aria-disabled="true">동의 후 다운로드</span> : scenarioDownloadPath ? <a className="button button--secondary" href={scenarioDownloadPath} download={scenario.fileName}>테스트 자료 다운로드</a> : <span className="evidence-file-card__invalid" role="alert">다운로드 주소를 확인할 수 없습니다.</span>}</div>
+          return <div className="evidence-file-card" key={scenario.demoFileId}><div>{scenario.expectedQualityStatus && <span className={`evidence-file-card__status evidence-file-card__status--${scenario.expectedQualityStatus.toLowerCase()}`}>{expectedStatusLabel[scenario.expectedQualityStatus]}</span>}<strong>{scenario.displayName}</strong><p>{scenario.description}</p><small>{scenario.fileName} · PDF · {formatBytes(scenario.sizeBytes)}</small></div>{requirement.status !== 'READY' ? <span className="button button--secondary" aria-disabled="true">동의 후 다운로드</span> : scenarioDownloadPath ? <a aria-label={`${scenario.displayName} 다운로드`} className="button button--secondary" href={scenarioDownloadPath} download={scenario.fileName}>다운로드</a> : <span className="evidence-file-card__invalid" role="alert">다운로드 주소를 확인할 수 없습니다.</span>}</div>
         })}
         </div>
-      </details>}
+      </section>}
 
-      <div className="evidence-demo-step"><span>3</span><div><strong>내려받은 PDF 업로드</strong><p>선택한 파일을 그대로 올려 서버 품질검증 결과를 확인합니다.</p></div></div>
+      <div className="evidence-demo-step"><span>3</span><div><strong>요청한 자료 준비 완료 후 업로드</strong><p>보유하거나 발급받은 PDF를 선택해 제출해주세요. 시연에서는 위 테스트 자료 중 하나를 사용할 수 있습니다.</p></div></div>
 
       {requirement.status === 'UNAVAILABLE' && <div className="evidence-submission__notice evidence-submission__notice--blocked"><strong>현재 파일을 제출할 수 없습니다</strong><p>자료 제출 가능 상태를 확인해주세요.</p></div>}
 
