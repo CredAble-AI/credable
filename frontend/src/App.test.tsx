@@ -44,4 +44,12 @@ describe('App routing', () => {
     expect(screen.getByLabelText('관리자 Demo API Key')).toHaveAttribute('type', 'password')
     expect(document.title).toBe('심사역 검토 상세 | CredAble')
   })
+
+  it('renders a directly-addressable session audit route', () => {
+    renderRoute('/admin/sessions/ses_demo/audit')
+
+    expect(screen.getByRole('heading', { level: 1, name: '세션 처리 이력' })).toBeInTheDocument()
+    expect(screen.getByLabelText('관리자 Demo API Key')).toHaveAttribute('type', 'password')
+    expect(document.title).toBe('세션 처리 이력 | CredAble')
+  })
 })
