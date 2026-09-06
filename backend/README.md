@@ -612,9 +612,10 @@ curl \
 
 ## 은행 심사역 검토 큐 API
 
-은행 관리자는 Evidence 품질 결과가 `REVIEW_REQUIRED`인 건과 고객이 평가 결과 재확인을
-요청한 건을 최신순으로 조회할 수 있습니다. 이 API는 기존 품질 검증·재확인 요청 이력을 조회
-시점에 합치므로 별도의 금융 판단이나 중복 검토 요청을 생성하지 않습니다.
+은행 관리자는 서버가 자동 판단을 중단하고 `underwriterRequired: true`로 확정한 건과
+고객이 평가 결과 재확인을 요청한 건을 최신순으로 조회할 수 있습니다. 이 API는 각 도메인에
+이미 저장된 원본 상태를 조회 시점에 합치므로 별도의 금융 판단이나 중복 검토 요청을
+생성하지 않습니다.
 
 ```bash
 curl \
@@ -624,8 +625,16 @@ curl \
 
 응답에는 결정 가능한 금융 원문 대신 `reviewId`, 세션·Trigger ID, Evidence 유형 또는 평가
 대상, 사유 코드, 검토 요청 시점과 데이터·정책 버전만 포함합니다. 기본 조회 개수는 50개이고
-최대 100개이며 `offset`으로 다음 구간을 조회합니다. Trigger는 `EVIDENCE_QUALITY`와
-`CUSTOMER_ASSESSMENT_REVIEW`를 구분합니다.
+최대 100개이며 `offset`으로 다음 구간을 조회합니다. Trigger는 다음 다섯 유형을 구분합니다.
+
+- `EVIDENCE_QUALITY`: 위·변조 의심 등으로 Evidence 품질을 자동 확정할 수 없는 건
+- `CUSTOMER_ASSESSMENT_REVIEW`: 고객이 평가 결과 재확인을 요청한 건
+- `POLICY_BOUNDARY`: 등급·정책 매핑 누락으로 정책 경계를 판단할 수 없는 건
+- `EVIDENCE_SELECTION`: 계보·매핑·신규성·유용성 조건을 만족하는 최소 Evidence를 선택할 수 없는 건
+- `EVIDENCE_RESOLUTION`: 보완평가 전후 비교를 신뢰할 수 없거나 보완 후에도 정책상 수동 검토가 필요한 건
+
+정책 경계가 `POLICY_BLOCKED`인 동일 원인은 `POLICY_BOUNDARY`를 대표 Trigger로 한 번만
+노출하며, 후속 선택 상태를 중복 큐 항목으로 만들지 않습니다.
 
 심사역은 같은 관리자 인증으로 검토 상세 조회, 접수와 완료 처리를 수행합니다.
 
@@ -645,12 +654,13 @@ curl -X POST \
   http://127.0.0.1:8000/v1/admin/underwriter-reviews/<reviewId>/complete
 ```
 
-상태는 `PENDING → IN_REVIEW → COMPLETED` 순서만 허용합니다. Evidence Trigger에는
-`EVIDENCE_CONFIRMED`, `EVIDENCE_EXCLUDED`, 고객 재확인 Trigger에는
-`ASSESSMENT_CONFIRMED`, `CORRECTION_REQUIRED`를 사용할 수 있으며,
-`ADDITIONAL_INFORMATION_REQUIRED`, `ESCALATED`는 공통 결과입니다. 유형이 다른 결과 코드는
-차단하고 완료된 결과는 변경하지 않습니다. 접수·완료는 심사역 행위로 Audit에 기록되며
-자유입력 메모와 원본 금융자료는 저장하지 않습니다.
+상태는 `PENDING → IN_REVIEW → COMPLETED` 순서만 허용합니다. `EVIDENCE_QUALITY`에는
+`EVIDENCE_CONFIRMED`, `EVIDENCE_EXCLUDED`를 사용할 수 있고, 나머지 네 Trigger에는
+`ASSESSMENT_CONFIRMED`, `CORRECTION_REQUIRED`를 사용할 수 있습니다.
+`ADDITIONAL_INFORMATION_REQUIRED`, `ESCALATED`는 모든 Trigger의 공통 결과입니다. 이 결과 코드는
+검토 워크플로의 처리 결과이며 대출 승인·거절과 같은 최종 금융 판단이 아닙니다. 유형이 다른
+결과 코드는 차단하고 완료된 결과는 변경하지 않습니다. 접수·완료는 심사역 행위로 Audit에
+기록되며 자유입력 메모와 원본 금융자료는 저장하지 않습니다.
 
 처리 결과는 검토 이력일 뿐 기존 평가값·품질 결과·대출조건을 자동으로 변경하지 않습니다.
 정정이나 추가자료 결과를 실제 평가 흐름에 반영하는 규칙은 은행 정책 확정 후 별도 기능으로
