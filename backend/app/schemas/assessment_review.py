@@ -39,4 +39,5 @@ class AssessmentReviewRequestState(ApiModel):
 class AssessmentReviewRequestResponse(ApiModel):
     session_id: str = Field(min_length=1)
     review_request: AssessmentReviewRequestState | None
+    underwriter_review_id: str | None = Field(default=None, min_length=1)
     processing: CustomerReviewProcessing | None = None

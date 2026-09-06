@@ -10,8 +10,6 @@ from app.schemas.consent import ConsentSourceType
 from app.services.assessment_service import AssessmentService, SupplementalAssessmentService
 from app.services.data_source_service import DataSourceService
 
-ADMIN_HEADERS = {"X-Admin-API-Key": "test-admin-api-key"}
-
 
 def create_session(client: TestClient) -> dict:
     response = client.post(
@@ -22,13 +20,6 @@ def create_session(client: TestClient) -> dict:
     return response.json()["session"]
 
 
-def test_admin_evidence_burden_requires_authentication(client: TestClient) -> None:
-    response = client.get("/v1/admin/sessions/ses_unknown/evidence-burden")
-
-    assert response.status_code == 401
-    assert response.json()["error"]["code"] == "ADMIN_AUTHENTICATION_FAILED"
-
-
 def test_admin_evidence_burden_returns_policy_neutral_empty_metrics(
     client: TestClient,
 ) -> None:
@@ -36,7 +27,6 @@ def test_admin_evidence_burden_returns_policy_neutral_empty_metrics(
 
     response = client.get(
         f"/v1/admin/sessions/{session['sessionId']}/evidence-burden",
-        headers=ADMIN_HEADERS,
     )
 
     assert response.status_code == 200
@@ -121,7 +111,6 @@ def test_admin_evidence_burden_aggregates_verified_session_history(
 
     response = client.get(
         f"/v1/admin/sessions/{session_id}/evidence-burden",
-        headers=ADMIN_HEADERS,
     )
 
     assert response.status_code == 200

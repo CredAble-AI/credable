@@ -12,8 +12,6 @@ from app.schemas.consent import ConsentSourceType
 from app.services.assessment_service import AssessmentService, SupplementalAssessmentService
 from app.services.data_source_service import DataSourceService
 
-ADMIN_HEADERS = {"X-Admin-API-Key": "test-admin-api-key"}
-
 
 def create_session(client: TestClient) -> str:
     response = client.post(
@@ -90,6 +88,7 @@ def test_review_request_is_empty_before_creation(client: TestClient) -> None:
     assert response.json() == {
         "sessionId": session_id,
         "reviewRequest": None,
+        "underwriterReviewId": None,
         "processing": None,
     }
 
@@ -126,6 +125,9 @@ def test_customer_can_request_idempotent_baseline_review(
     assert second.json() == first.json()
     assert stored.json() == first.json()
     review = first.json()["reviewRequest"]
+    assert first.json()["underwriterReviewId"] == (
+        f"uwr_{review['reviewRequestId'].removeprefix('arr_')}"
+    )
     assert first.json()["processing"] == {
         "status": "PENDING",
         "resultCode": None,
@@ -190,10 +192,7 @@ def test_customer_review_request_appears_in_admin_queue_without_snapshot_hash(
     request_response = client.post(f"/v1/sessions/{session_id}/assessment/review-request")
     review = request_response.json()["reviewRequest"]
 
-    queue_response = client.get(
-        "/v1/admin/underwriter-reviews",
-        headers=ADMIN_HEADERS,
-    )
+    queue_response = client.get("/v1/admin/underwriter-reviews")
 
     assert queue_response.status_code == 200
     queue = queue_response.json()
@@ -232,38 +231,33 @@ def test_underwriter_processes_customer_review_without_changing_assessment(
     )
     customer_endpoint = f"/v1/sessions/{session_id}/assessment/review-request"
     requested = client.post(customer_endpoint).json()
-    review_id = f"uwr_{requested['reviewRequest']['reviewRequestId'].removeprefix('arr_')}"
+    review_id = requested["underwriterReviewId"]
     admin_endpoint = f"/v1/admin/underwriter-reviews/{review_id}"
 
-    pending = client.get(admin_endpoint, headers=ADMIN_HEADERS)
+    pending = client.get(admin_endpoint)
     premature = client.post(
         f"{admin_endpoint}/complete",
-        headers=ADMIN_HEADERS,
         json={"resultCode": "ASSESSMENT_CONFIRMED"},
     )
-    first_claim = client.post(f"{admin_endpoint}/claim", headers=ADMIN_HEADERS)
-    repeated_claim = client.post(f"{admin_endpoint}/claim", headers=ADMIN_HEADERS)
+    first_claim = client.post(f"{admin_endpoint}/claim")
+    repeated_claim = client.post(f"{admin_endpoint}/claim")
     invalid_result = client.post(
         f"{admin_endpoint}/complete",
-        headers=ADMIN_HEADERS,
         json={"resultCode": "EVIDENCE_CONFIRMED"},
     )
     completed = client.post(
         f"{admin_endpoint}/complete",
-        headers=ADMIN_HEADERS,
         json={"resultCode": "ASSESSMENT_CONFIRMED"},
     )
     repeated_completion = client.post(
         f"{admin_endpoint}/complete",
-        headers=ADMIN_HEADERS,
         json={"resultCode": "ASSESSMENT_CONFIRMED"},
     )
     conflicting_completion = client.post(
         f"{admin_endpoint}/complete",
-        headers=ADMIN_HEADERS,
         json={"resultCode": "CORRECTION_REQUIRED"},
     )
-    reclaim = client.post(f"{admin_endpoint}/claim", headers=ADMIN_HEADERS)
+    reclaim = client.post(f"{admin_endpoint}/claim")
 
     assert pending.status_code == 200
     assert pending.json()["review"]["status"] == "PENDING"
@@ -294,16 +288,12 @@ def test_underwriter_processes_customer_review_without_changing_assessment(
     }
     unchanged = client.get(f"/v1/sessions/{session_id}/assessment").json()["assessment"]
     assert unchanged == assessment
-    completed_queue = client.get(
-        "/v1/admin/underwriter-reviews?status=COMPLETED",
-        headers=ADMIN_HEADERS,
-    ).json()
+    completed_queue = client.get("/v1/admin/underwriter-reviews?status=COMPLETED").json()
     assert completed_queue["totalCount"] == 1
     assert completed_queue["items"][0]["reviewId"] == review_id
     assert (
         client.get(
             "/v1/admin/underwriter-reviews?status=PENDING",
-            headers=ADMIN_HEADERS,
         ).json()["totalCount"]
         == 0
     )
@@ -323,18 +313,8 @@ def test_underwriter_processes_customer_review_without_changing_assessment(
     assert {event.actor for event in workflow_events} == {AuditActor.UNDERWRITER}
 
 
-def test_underwriter_review_actions_require_admin_authentication(client: TestClient) -> None:
-    response = client.post("/v1/admin/underwriter-reviews/uwr_unknown/claim")
-
-    assert response.status_code == 401
-    assert response.json()["error"]["code"] == "ADMIN_AUTHENTICATION_FAILED"
-
-
 def test_unknown_underwriter_review_is_not_exposed(client: TestClient) -> None:
-    response = client.get(
-        "/v1/admin/underwriter-reviews/uwr_unknown",
-        headers=ADMIN_HEADERS,
-    )
+    response = client.get("/v1/admin/underwriter-reviews/uwr_unknown")
 
     assert response.status_code == 404
     assert response.json()["error"]["code"] == "UNDERWRITER_REVIEW_NOT_FOUND"

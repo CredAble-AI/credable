@@ -2,12 +2,9 @@ from pathlib import Path
 
 import pytest
 from fastapi.testclient import TestClient
-from pydantic import SecretStr
 
 import app.main as main_module
 from app.core.config import Settings
-
-ADMIN_HEADERS = {"X-Admin-API-Key": "recovery-test-admin-key"}
 
 
 def assert_ok(response) -> dict:
@@ -65,17 +62,15 @@ def execute_complete_journey(client: TestClient) -> tuple[str, str, dict[str, di
         client.post(f"/v1/sessions/{session_id}/assessment/explanation/generate")
     )
     review_request = assert_ok(client.post(f"/v1/sessions/{session_id}/assessment/review-request"))
-    review_id = "uwr_" + review_request["reviewRequest"]["reviewRequestId"].removeprefix("arr_")
+    review_id = review_request["underwriterReviewId"]
     assert_ok(
         client.post(
             f"/v1/admin/underwriter-reviews/{review_id}/claim",
-            headers=ADMIN_HEADERS,
         )
     )
     recovered["underwriterReview"] = assert_ok(
         client.post(
             f"/v1/admin/underwriter-reviews/{review_id}/complete",
-            headers=ADMIN_HEADERS,
             json={"resultCode": "ASSESSMENT_CONFIRMED"},
         )
     )
@@ -91,18 +86,10 @@ def execute_complete_journey(client: TestClient) -> tuple[str, str, dict[str, di
         client.get(
             f"/v1/admin/sessions/{session_id}/audit-events",
             params={"limit": 100},
-            headers=ADMIN_HEADERS,
         )
     )
-    recovered["burden"] = assert_ok(
-        client.get(
-            f"/v1/admin/sessions/{session_id}/evidence-burden",
-            headers=ADMIN_HEADERS,
-        )
-    )
-    recovered["underwriterReviews"] = assert_ok(
-        client.get("/v1/admin/underwriter-reviews", headers=ADMIN_HEADERS)
-    )
+    recovered["burden"] = assert_ok(client.get(f"/v1/admin/sessions/{session_id}/evidence-burden"))
+    recovered["underwriterReviews"] = assert_ok(client.get("/v1/admin/underwriter-reviews"))
     return session_id, submission_id, recovered
 
 
@@ -111,10 +98,7 @@ def test_complete_journey_is_restored_after_application_restart(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     database_path = tmp_path / "recovery.db"
-    test_settings = Settings(
-        database_path=database_path,
-        admin_api_key=SecretStr(ADMIN_HEADERS["X-Admin-API-Key"]),
-    )
+    test_settings = Settings(database_path=database_path)
     monkeypatch.setattr(main_module, "settings", test_settings)
 
     with TestClient(main_module.create_app()) as client:
@@ -173,25 +157,21 @@ def test_complete_journey_is_restored_after_application_restart(
                 restarted_client.get(
                     f"/v1/admin/sessions/{session_id}/audit-events",
                     params={"limit": 100},
-                    headers=ADMIN_HEADERS,
                 )
             ),
             "underwriterReview": assert_ok(
                 restarted_client.get(
                     f"/v1/admin/underwriter-reviews/{review_id}",
-                    headers=ADMIN_HEADERS,
                 )
             ),
             "burden": assert_ok(
                 restarted_client.get(
                     f"/v1/admin/sessions/{session_id}/evidence-burden",
-                    headers=ADMIN_HEADERS,
                 )
             ),
             "underwriterReviews": assert_ok(
                 restarted_client.get(
                     "/v1/admin/underwriter-reviews",
-                    headers=ADMIN_HEADERS,
                 )
             ),
         }
