@@ -426,7 +426,7 @@ def test_uploaded_binary_quality_comes_from_hash_and_manifest_validation(
     assert response.status_code == 200
     quality = response.json()["quality"]
     assert quality["status"] == "ACCEPTED"
-    assert quality["qualityPolicyVersion"] == "demo-binary-evidence-quality-policy-v1"
+    assert quality["qualityPolicyVersion"] == "demo-binary-evidence-quality-policy-v2"
     assert {item["dimension"] for item in quality["checks"]} == {
         "PROVENANCE",
         "FRESHNESS",
@@ -440,6 +440,18 @@ def test_uploaded_binary_quality_comes_from_hash_and_manifest_validation(
     assert quality["suspicionCodes"] == []
     assert quality["nextAction"] == "RUN_REASSESSMENT"
     assert quality["underwriterRequired"] is False
+    assert quality["trustVerification"] == {
+        "status": "VERIFIED",
+        "channel": "SERVER_SIGNED_MANIFEST",
+        "verifiedScopes": [
+            "DOCUMENT_INTEGRITY",
+            "MANIFEST_BINDING",
+            "DEMO_ISSUER_IDENTITY",
+        ],
+        "algorithm": "RS256",
+        "keyId": "credable-demo-manifest-rs256-v1",
+        "rationaleCode": "DEMO_SIGNED_MANIFEST_VERIFIED",
+    }
 
 
 def test_changed_pdf_routes_to_underwriter_without_storing_binary_or_reassessment(
@@ -602,7 +614,7 @@ def test_withdrawal_preserves_already_created_supplemental_snapshot(
     assert latest.json() == first.json()
 
 
-def test_inconsistent_server_manifest_rejects_uploaded_binary_quality(
+def test_changed_signed_manifest_routes_uploaded_binary_to_review(
     client: TestClient,
     data_source_service: DataSourceService,
     assessment_service: AssessmentService,
@@ -634,17 +646,19 @@ def test_inconsistent_server_manifest_rejects_uploaded_binary_quality(
 
     assert response.status_code == 200
     quality = response.json()["quality"]
-    assert quality["status"] == "REJECTED"
+    assert quality["status"] == "REVIEW_REQUIRED"
     assert quality["eligibleForReassessment"] is False
-    assert quality["suspicionCodes"] == []
-    assert quality["nextAction"] == "EXCLUDE_EVIDENCE"
-    assert quality["underwriterRequired"] is False
+    assert "DEMO_MANIFEST_SIGNATURE_INVALID" in quality["suspicionCodes"]
+    assert quality["nextAction"] == "UNDERWRITER_REVIEW"
+    assert quality["underwriterRequired"] is True
     consistency = next(item for item in quality["checks"] if item["dimension"] == "CONSISTENCY")
     assert consistency == {
         "dimension": "CONSISTENCY",
         "status": "FAILED",
         "rationaleCode": "DEMO_MANIFEST_TOTALS_INCONSISTENT",
     }
+    assert quality["trustVerification"]["status"] == "NOT_VERIFIED"
+    assert quality["trustVerification"]["rationaleCode"] == "DEMO_MANIFEST_SIGNATURE_INVALID"
 
 
 def test_changed_submission_snapshot_is_not_eligible_for_reassessment(

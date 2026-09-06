@@ -1,0 +1,12 @@
+{
+  "dataVersion": "demo-evidence-trust-keys-v1",
+  "keys": [
+    {
+      "keyId": "credable-demo-manifest-rs256-v1",
+      "algorithm": "RS256",
+      "modulusHex": "b6d4b1e69bbbc9edc1514f42078fcf0f747c7bc46eae6160a3f56a2a930f8398ad4fb674d52201b9374bba2c7255744ed5e3dd43e5f5e8231ff753bc246e10f107df2f6f09cd363ff2355df6c21939b9df127b824369dd979c92184a91fb6003d59da715e652d5c222b619fe50aaeb4351aa9e2862489d27fdfcb358aeb427ca8e76760a20cbbd9d45714a68e843827dd3119ae7f597c5d08e6e2d02c86e74cf8728302eaa21f7147ce67fbfb49d4624a32aa952b6f4a85a33cd3079cbfbe58c878a0dbc23b725e790c0bb4cdbf9125e2b8ebd32b915c04cea7dafe66e9f8f9bd56119bfdaa7b8ab496227411dfab85d390a9bb0c8a19d2e8445999e75fd5ce7",
+      "publicExponent": 65537
+    }
+  ],
+  "demoOnly": true
+}

@@ -70,6 +70,10 @@ from app.services.evidence_submission_service import (
     DemoEvidenceSubmissionCatalog,
     EvidenceSubmissionService,
 )
+from app.services.evidence_trust_service import (
+    DemoEvidenceTrustKeyCatalog,
+    DemoSignedManifestVerifier,
+)
 from app.services.explanation_service import AssessmentExplanationService
 from app.services.feature_snapshot_service import FeatureSnapshotService
 from app.services.loan_history_service import DemoLoanHistoryCatalogService, LoanHistoryService
@@ -415,6 +419,10 @@ def evidence_quality_service(
         session_service=session_service,
         catalog=DemoEvidenceQualityCatalog(settings.demo_evidence_quality_path),
         file_catalog=evidence_submission_service.file_catalog,
+        trust_verifier=DemoSignedManifestVerifier(
+            DemoEvidenceTrustKeyCatalog(settings.demo_evidence_trust_keys_path),
+            evidence_submission_service.file_catalog,
+        ),
     )
 
 

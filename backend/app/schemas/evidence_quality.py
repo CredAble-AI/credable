@@ -5,6 +5,7 @@ from typing import Literal
 from pydantic import Field, model_validator
 
 from app.schemas.base import ApiModel
+from app.schemas.evidence_trust import EvidenceTrustVerification
 
 
 class EvidenceQualityDimension(StrEnum):
@@ -55,6 +56,7 @@ class EvidenceQualityState(ApiModel):
     submission_snapshot_hash: str = Field(pattern=r"^[0-9a-f]{64}$")
     data_version: str = Field(min_length=1)
     quality_policy_version: str = Field(min_length=1)
+    trust_verification: EvidenceTrustVerification | None = None
     demo_only: Literal[True] = True
 
     @model_validator(mode="before")

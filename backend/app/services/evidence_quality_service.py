@@ -23,7 +23,9 @@ from app.schemas.evidence_quality import (
     EvidenceQualityStatus,
 )
 from app.schemas.evidence_submission import EvidenceSubmissionMode, EvidenceSubmissionState
+from app.schemas.evidence_trust import EvidenceTrustStatus, EvidenceTrustVerification
 from app.services.evidence_submission_service import DemoEvidenceFileCatalog
+from app.services.evidence_trust_service import EvidenceTrustVerifier
 from app.services.session_service import CustomerSessionService
 
 
@@ -66,6 +68,7 @@ class EvidenceQualityService:
         session_service: CustomerSessionService,
         catalog: DemoEvidenceQualityCatalog,
         file_catalog: DemoEvidenceFileCatalog,
+        trust_verifier: EvidenceTrustVerifier,
     ) -> None:
         self.repository = repository
         self.submission_repository = submission_repository
@@ -73,6 +76,7 @@ class EvidenceQualityService:
         self.session_service = session_service
         self.catalog = catalog
         self.file_catalog = file_catalog
+        self.trust_verifier = trust_verifier
 
     def initialize(self) -> None:
         self.repository.initialize()
@@ -101,7 +105,9 @@ class EvidenceQualityService:
 
         if submission.submission_mode == EvidenceSubmissionMode.DEMO_FILE_UPLOAD:
             self._require_active_submission_consent(session_id, submission)
-            checks, quality_policy_version = self._binary_file_checks(submission)
+            checks, quality_policy_version, trust_verification = self._binary_file_checks(
+                submission
+            )
         else:
             definition = self.catalog.get(submission.evidence_type)
             checks = (
@@ -117,6 +123,7 @@ class EvidenceQualityService:
                 ]
             )
             quality_policy_version = self.catalog.quality_policy_version
+            trust_verification = None
         rejection_codes = [
             item.rationale_code
             for item in checks
@@ -157,7 +164,21 @@ class EvidenceQualityService:
             submission_snapshot_hash=submission.submission_snapshot_hash,
             data_version=submission.data_version,
             quality_policy_version=quality_policy_version,
+            trust_verification=trust_verification,
         )
+        output_summary: dict[str, str | bool | int | float] = {
+            "qualityStatus": state.status.value,
+            "failedCheckCount": len(rejection_codes),
+            "suspicionCount": len(suspicion_codes),
+            "eligibleForReassessment": state.eligible_for_reassessment,
+            "nextAction": state.next_action.value,
+            "underwriterRequired": state.underwriter_required,
+            "evidenceType": state.evidence_type,
+            "demoOnly": state.demo_only,
+        }
+        if trust_verification is not None:
+            output_summary["trustStatus"] = trust_verification.status.value
+            output_summary["trustChannel"] = trust_verification.channel.value
         audit_event = SessionAuditEvent(
             event_id=f"evt_{uuid4().hex}",
             session_id=session_id,
@@ -167,16 +188,7 @@ class EvidenceQualityService:
             actor=AuditActor.SYSTEM,
             input_version=submission.submission_id,
             input_snapshot_hash=submission.submission_snapshot_hash,
-            output_summary={
-                "qualityStatus": state.status.value,
-                "failedCheckCount": len(rejection_codes),
-                "suspicionCount": len(suspicion_codes),
-                "eligibleForReassessment": state.eligible_for_reassessment,
-                "nextAction": state.next_action.value,
-                "underwriterRequired": state.underwriter_required,
-                "evidenceType": state.evidence_type,
-                "demoOnly": state.demo_only,
-            },
+            output_summary=output_summary,
             data_version=state.data_version,
             policy_version=state.quality_policy_version,
         )
@@ -226,7 +238,7 @@ class EvidenceQualityService:
     def _binary_file_checks(
         self,
         submission: EvidenceSubmissionState,
-    ) -> tuple[list[EvidenceQualityDimensionResult], str]:
+    ) -> tuple[list[EvidenceQualityDimensionResult], str, EvidenceTrustVerification]:
         uploaded = submission.uploaded_file
         definition = self.file_catalog.get_by_id(uploaded.demo_file_id) if uploaded else None
         policy_version = (
@@ -245,12 +257,19 @@ class EvidenceQualityService:
         asset_valid = definition is not None and self.file_catalog.asset_matches_manifest(
             definition
         )
+        trust_verification = self.trust_verifier.verify(definition)
         authenticity_valid = (
             provenance_valid
             and asset_valid
+            and trust_verification.status == EvidenceTrustStatus.VERIFIED
             and uploaded is not None
             and definition is not None
             and uploaded.sha256 == (definition.trusted_sha256 or definition.sha256)
+        )
+        authenticity_failure_code = (
+            trust_verification.rationale_code
+            if trust_verification.status != EvidenceTrustStatus.VERIFIED
+            else "DEMO_SERVER_FILE_HASH_NOT_VERIFIED"
         )
         manifest = definition.manifest if definition is not None else None
         manifest_data = (
@@ -297,7 +316,7 @@ class EvidenceQualityService:
                 EvidenceQualityDimension.AUTHENTICITY,
                 authenticity_valid,
                 "DEMO_SERVER_FILE_HASH_MATCHED",
-                "DEMO_SERVER_FILE_HASH_NOT_VERIFIED",
+                authenticity_failure_code,
             ),
             self._dimension_result(
                 EvidenceQualityDimension.COMPLETENESS,
@@ -318,7 +337,7 @@ class EvidenceQualityService:
                 "DEMO_FILE_METADATA_OR_HASH_CHANGED",
             ),
         ]
-        return results, policy_version
+        return results, policy_version, trust_verification
 
     def _uploaded_submission_snapshot_matches(
         self,
@@ -401,4 +420,5 @@ class EvidenceQualityService:
             "evidence_quality_repository": self.repository.is_ready(),
             "evidence_quality_catalog": self.catalog.is_ready(),
             "demo_evidence_file_catalog": self.file_catalog.is_ready(),
+            "demo_evidence_trust_verifier": self.trust_verifier.is_ready(),
         }

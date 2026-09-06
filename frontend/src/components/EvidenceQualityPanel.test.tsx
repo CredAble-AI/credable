@@ -25,6 +25,7 @@ const quality = (status: EvidenceQualityState['status'] = 'ACCEPTED'): EvidenceQ
     rejectionCodes: status === 'ACCEPTED' ? [] : ['DEMO_AUTHENTICITY_FAILED'], suspicionCodes: status === 'REVIEW_REQUIRED' ? ['DEMO_AUTHENTICITY_FAILED'] : [],
     eligibleForReassessment: status === 'ACCEPTED', nextAction: status === 'ACCEPTED' ? 'RUN_REASSESSMENT' : status === 'REJECTED' ? 'EXCLUDE_EVIDENCE' : 'UNDERWRITER_REVIEW',
     underwriterRequired: status === 'REVIEW_REQUIRED', checkedAt: '2026-09-06T02:00:00+09:00', submissionSnapshotHash: snapshotHash, dataVersion: 'demo-v1', qualityPolicyVersion: 'demo-quality-v1', demoOnly: true,
+    trustVerification: { status: 'VERIFIED', channel: 'SERVER_SIGNED_MANIFEST', verifiedScopes: ['DOCUMENT_INTEGRITY', 'MANIFEST_BINDING', 'DEMO_ISSUER_IDENTITY'], algorithm: 'RS256', keyId: 'demo-key-v1', rationaleCode: 'DEMO_SIGNED_MANIFEST_VERIFIED' },
   }
 }
 const response = (result: EvidenceQualityState | null): EvidenceQualityResponse => ({ sessionId: 'ses_demo', quality: result })
@@ -46,6 +47,9 @@ describe('EvidenceQualityPanel', () => {
     await waitFor(() => expect(evidenceQualityProvider.check).toHaveBeenCalledWith('ses_demo', 'sub_demo', expect.any(AbortSignal)))
     expect(await screen.findByRole('heading', { name: '자료 확인을 완료했습니다' })).toBeInTheDocument()
     expect(screen.getAllByText('확인 완료')).toHaveLength(6)
+    expect(screen.getByText('서버가 서명한 Demo 검증정보를 확인했습니다')).toBeInTheDocument()
+    expect(screen.getByText('Demo 발급 서버')).toBeInTheDocument()
+    expect(screen.getByText('SERVER_SIGNED_MANIFEST')).toBeInTheDocument()
     expect(screen.getByText('RUN_REASSESSMENT')).toBeInTheDocument()
     expect(screen.getByText('보완평가 패널')).toBeInTheDocument()
   })

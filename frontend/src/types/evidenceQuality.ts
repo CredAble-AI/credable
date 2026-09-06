@@ -2,6 +2,17 @@ export type EvidenceQualityDimension = 'PROVENANCE' | 'FRESHNESS' | 'AUTHENTICIT
 export type EvidenceQualityDimensionStatus = 'PASSED' | 'FAILED' | 'NOT_VERIFIED'
 export type EvidenceQualityStatus = 'ACCEPTED' | 'REJECTED' | 'REVIEW_REQUIRED'
 export type EvidenceQualityNextAction = 'RUN_REASSESSMENT' | 'EXCLUDE_EVIDENCE' | 'UNDERWRITER_REVIEW'
+export type EvidenceTrustChannel = 'SERVER_SIGNED_MANIFEST' | 'BANK_INTERNAL_LEDGER' | 'SOURCE_API' | 'PDF_DIGITAL_SIGNATURE' | 'ISSUER_REFERENCE' | 'UNVERIFIED_DOCUMENT'
+export type EvidenceVerifiedScope = 'DOCUMENT_INTEGRITY' | 'MANIFEST_BINDING' | 'DEMO_ISSUER_IDENTITY'
+
+export interface EvidenceTrustVerification {
+  status: 'VERIFIED' | 'NOT_VERIFIED'
+  channel: EvidenceTrustChannel
+  verifiedScopes: EvidenceVerifiedScope[]
+  algorithm: 'RS256' | null
+  keyId: string | null
+  rationaleCode: string
+}
 
 export interface EvidenceQualityDimensionResult {
   dimension: EvidenceQualityDimension
@@ -24,6 +35,7 @@ export interface EvidenceQualityState {
   submissionSnapshotHash: string
   dataVersion: string
   qualityPolicyVersion: string
+  trustVerification?: EvidenceTrustVerification | null
   demoOnly: true
 }
 

@@ -8,6 +8,8 @@ During local development, Vite proxies `/v1` to `CREDABLE_BACKEND_ORIGIN`, which
 
 In live mode, the Evidence submission screen renders the backend-provided `demoFiles` list. It lets a reviewer download and re-upload normal, point-in-time mismatch, required-field-missing, and hash-mismatch synthetic PDFs. The labels show the expected demo path, while the actual quality status always comes from the backend response. Older backends that only return `demoFile` remain supported.
 
+When the backend returns `trustVerification`, the quality screen shows whether the signed Demo manifest was verified and which scopes were actually established. `SERVER_SIGNED_MANIFEST` confirms the synthetic document's integrity, manifest binding, and Demo issuing server only; it must not be presented as proof that a real financial institution issued the document.
+
 Currently, two official plugins are available:
 
 - [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
