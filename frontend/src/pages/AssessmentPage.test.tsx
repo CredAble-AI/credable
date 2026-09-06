@@ -122,13 +122,13 @@ describe('AssessmentPage', () => {
     vi.mocked(assessmentProvider.get).mockResolvedValue(notRun)
     renderPage()
 
-    expect(await screen.findByRole('heading', { name: '기준평가 전' })).toBeInTheDocument()
-    expect(screen.getByText('평가 재현과 확인에 필요한 서버 추적 정보입니다.')).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { name: '평가 준비 완료' })).toBeInTheDocument()
+    expect(screen.getByText('시연 기술 정보 보기')).toBeInTheDocument()
     expect(assessmentProvider.get).toHaveBeenCalledTimes(1)
     expect(assessmentProvider.run).not.toHaveBeenCalled()
     expect(policyBoundaryProvider.get).not.toHaveBeenCalled()
     expect(policyBoundaryProvider.check).not.toHaveBeenCalled()
-    expect(screen.getByRole('button', { name: '기준평가 실행' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: '기준평가 시작' })).toBeInTheDocument()
   })
 
   it('runs a completed assessment and then checks the server policy boundary', async () => {
@@ -137,17 +137,17 @@ describe('AssessmentPage', () => {
     vi.mocked(policyBoundaryProvider.check).mockResolvedValue(ambiguous)
     renderPage()
 
-    fireEvent.click(await screen.findByRole('button', { name: '기준평가 실행' }))
+    fireEvent.click(await screen.findByRole('button', { name: '기준평가 시작' }))
 
     await waitFor(() => expect(policyBoundaryProvider.check).toHaveBeenCalledWith('ses_demo', expect.any(AbortSignal)))
-    expect(await screen.findByRole('heading', { name: '가능한 평가 범위' })).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { name: '현재 확인 가능한 결과' })).toBeInTheDocument()
     expect(screen.getByText('DEMO_GRADE_B')).toBeInTheDocument()
     expect(screen.getByText('DEMO_GRADE_C')).toBeInTheDocument()
-    expect(screen.getByRole('heading', { name: '추가 확인 필요' })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: '추가 자료 확인 필요' })).toBeInTheDocument()
     expect(screen.getByText('심사역 재확인 패널')).toBeInTheDocument()
-    expect(screen.getByText('DEMO_PATH_1')).toBeInTheDocument()
+    expect(screen.getByText((content) => content.includes('DEMO_PATH_1'))).toBeInTheDocument()
     expect(screen.getByText('DEMO_BOUNDARY_1_2')).toBeInTheDocument()
-    expect(screen.getByRole('link', { name: '다음 Evidence 확인' })).toHaveAttribute('href', '/evidence')
+    expect(screen.getByRole('link', { name: '필요한 자료 확인' })).toHaveAttribute('href', '/evidence')
   })
 
   it('blocks boundary checking when the server cannot complete the assessment', async () => {
@@ -167,7 +167,7 @@ describe('AssessmentPage', () => {
     })
     renderPage()
 
-    fireEvent.click(await screen.findByRole('button', { name: '기준평가 실행' }))
+    fireEvent.click(await screen.findByRole('button', { name: '기준평가 시작' }))
 
     expect((await screen.findAllByText('DEMO_VERIFIED_DATA_INSUFFICIENT')).length).toBeGreaterThan(0)
     expect(screen.getByText('이 상태는 신용이 낮거나 대출 자격이 없다는 의미가 아닙니다.')).toBeInTheDocument()
@@ -182,11 +182,11 @@ describe('AssessmentPage', () => {
     vi.mocked(policyBoundaryProvider.check).mockResolvedValue(ambiguous)
     renderPage()
 
-    expect(await screen.findByRole('button', { name: '정책 경계 확인' })).toBeInTheDocument()
+    expect(await screen.findByRole('button', { name: '다음 단계 확인' })).toBeInTheDocument()
     expect(policyBoundaryProvider.get).toHaveBeenCalledWith('ses_demo', expect.any(AbortSignal))
     expect(policyBoundaryProvider.check).not.toHaveBeenCalled()
 
-    fireEvent.click(screen.getByRole('button', { name: '정책 경계 확인' }))
+    fireEvent.click(screen.getByRole('button', { name: '다음 단계 확인' }))
     await waitFor(() => expect(policyBoundaryProvider.check).toHaveBeenCalledTimes(1))
   })
 
@@ -195,8 +195,8 @@ describe('AssessmentPage', () => {
     vi.mocked(policyBoundaryProvider.get).mockResolvedValue(stable)
     renderPage()
 
-    expect(await screen.findByRole('heading', { name: '단일 경로 확인' })).toBeInTheDocument()
-    expect(screen.getByText('추가 Evidence 없이 자사 상품 조건을 확인할 수 있습니다.')).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { name: '추가 자료 없이 확인 완료' })).toBeInTheDocument()
+    expect(screen.getByText('추가 자료 없이 자사 상품 조건을 확인할 수 있습니다.')).toBeInTheDocument()
     expect(screen.getByRole('link', { name: '자사 상품 조건 확인' })).toHaveAttribute('href', '/products')
   })
 })

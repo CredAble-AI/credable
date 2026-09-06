@@ -28,18 +28,18 @@ describe('EvidenceResolutionPanel', () => {
     fireEvent.click(button)
 
     await waitFor(() => expect(evidenceResolutionProvider.resolve).toHaveBeenCalledWith('ses_demo', { comparisonId: 'acp_demo', supplementalAssessmentId: 'sam_demo' }, expect.any(AbortSignal)))
-    expect(await screen.findByRole('heading', { name: '추가 Evidence 수집을 종료했습니다' })).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { name: '추가 자료 확인을 마쳤습니다' })).toBeInTheDocument()
     expect(screen.getByText('PATH_STABLE')).toBeInTheDocument()
     expect(screen.getByRole('link', { name: '자사 상품 조건 확인' })).toHaveAttribute('href', '/products')
-    expect(screen.queryByRole('link', { name: '다음 Evidence 한 건 확인' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('link', { name: '다음 자료 한 건 확인' })).not.toBeInTheDocument()
   })
 
   it('offers the next Evidence action only when the server requests it', async () => {
     vi.mocked(evidenceResolutionProvider.get).mockResolvedValue(response({ ...resolved, status: 'MORE_EVIDENCE_REQUIRED', nextAction: 'REQUEST_NEXT_EVIDENCE', stopEvidenceCollection: false, reasonCode: 'POLICY_BOUNDARY_STILL_AMBIGUOUS', possibleRoutes: ['DEMO_PATH_1', 'DEMO_PATH_2'], crossedBoundaryCodes: ['DEMO_BOUNDARY_1_2'] }))
     renderPanel()
 
-    expect(await screen.findByRole('heading', { name: '추가 Evidence 한 건이 필요합니다' })).toBeInTheDocument()
-    expect(screen.getByRole('link', { name: '다음 Evidence 한 건 확인' })).toHaveAttribute('href', '/evidence?selectNext=1')
+    expect(await screen.findByRole('heading', { name: '자료 한 건을 더 확인할 수 있습니다' })).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: '다음 자료 한 건 확인' })).toHaveAttribute('href', '/evidence?selectNext=1')
     expect(screen.getByText('DEMO_BOUNDARY_1_2')).toBeInTheDocument()
   })
 
@@ -47,9 +47,9 @@ describe('EvidenceResolutionPanel', () => {
     vi.mocked(evidenceResolutionProvider.get).mockResolvedValue(response({ ...resolved, status: 'HUMAN_REVIEW', nextAction: 'UNDERWRITER_REVIEW', underwriterRequired: true, reasonCode: 'UNCERTAINTY_COMPARISON_NOT_RELIABLE', possibleRoutes: [] }))
     renderPanel()
 
-    expect(await screen.findByRole('heading', { name: '심사역 검토로 전환했습니다' })).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { name: '담당자 확인으로 전환했습니다' })).toBeInTheDocument()
     expect(screen.getByText('UNCERTAINTY_COMPARISON_NOT_RELIABLE')).toBeInTheDocument()
-    expect(screen.queryByRole('link', { name: '다음 Evidence 한 건 확인' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('link', { name: '다음 자료 한 건 확인' })).not.toBeInTheDocument()
   })
 
   it('ignores a resolution from a previous comparison', async () => {

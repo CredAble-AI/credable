@@ -111,32 +111,32 @@ describe('customer journey integration', () => {
     await waitFor(() => expect(refreshSources).toBeEnabled())
     fireEvent.click(refreshSources)
     await waitFor(
-      () => expect(screen.getAllByText('조회 · 조회 완료')).toHaveLength(3),
+      () => expect(screen.getAllByText('연결 상태 · 조회 완료')).toHaveLength(3),
       { timeout: 2_000 },
     )
     fireEvent.click(screen.getByRole('link', { name: '기준평가 실행' }))
 
-    fireEvent.click(await screen.findByRole('button', { name: '기준평가 실행' }))
-    fireEvent.click(await screen.findByRole('button', { name: '정책 경계 확인' }))
-    fireEvent.click(await screen.findByRole('button', { name: '평가 결과 설명 생성' }))
+    fireEvent.click(await screen.findByRole('button', { name: '기준평가 시작' }))
+    fireEvent.click(await screen.findByRole('button', { name: '다음 단계 확인' }))
+    fireEvent.click(await screen.findByRole('button', { name: '평가 결과 설명 보기' }))
     expect(await screen.findByRole('heading', { level: 3, name: '정책 경계에 불확실성이 남아 있습니다' })).toBeInTheDocument()
-    fireEvent.click(await screen.findByRole('link', { name: '다음 Evidence 확인' }))
+    fireEvent.click(await screen.findByRole('link', { name: '필요한 자료 확인' }))
 
-    fireEvent.click(await screen.findByRole('button', { name: '다음 Evidence 확인' }))
+    fireEvent.click(await screen.findByRole('button', { name: '필요한 자료 확인' }))
     expect(await screen.findByRole('heading', { level: 2, name: '최근 매출·입금 요약' })).toBeInTheDocument()
     fireEvent.click(await screen.findByRole('button', { name: '이 범위에 동의' }))
 
-    const download = await screen.findByRole('link', { name: 'Demo 증빙 PDF 내려받기' })
+    const download = await screen.findByRole('link', { name: '시연용 PDF 내려받기' })
     expect(download).toHaveAttribute('download', 'recent-revenue-demo.pdf')
     expect(download.getAttribute('href')).toMatch(/^\/v1\/sessions\/[^/]+\/evidence\/selections\/[^/]+\/demo-file\/download$/)
 
     const file = new File(['%PDF-1.7 customer flow'], 'recent-revenue-demo.pdf', { type: 'application/pdf' })
     fireEvent.change(screen.getByLabelText('제출할 PDF 선택'), { target: { files: [file] } })
     fireEvent.click(screen.getByRole('button', { name: '선택한 파일 제출' }))
-    expect(await screen.findByText('파일 제출을 확인했습니다')).toBeInTheDocument()
+    expect(await screen.findByText('파일 제출을 완료했습니다')).toBeInTheDocument()
 
-    fireEvent.click(await screen.findByRole('button', { name: '증빙 품질 확인' }))
-    expect(await screen.findByRole('heading', { level: 3, name: '품질검증을 통과했습니다' })).toBeInTheDocument()
+    fireEvent.click(await screen.findByRole('button', { name: '자료 품질 확인' }))
+    expect(await screen.findByRole('heading', { level: 3, name: '자료 확인을 완료했습니다' })).toBeInTheDocument()
     fireEvent.click(await screen.findByRole('button', { name: '보완평가 실행' }))
     expect(await screen.findByRole('heading', { level: 3, name: '보완평가를 완료했습니다' })).toBeInTheDocument()
 
@@ -146,8 +146,8 @@ describe('customer journey integration', () => {
     expect(await screen.findByRole('heading', { level: 4, name: '가능한 결과 범위가 줄었습니다' })).toBeInTheDocument()
     fireEvent.click(await screen.findByRole('button', { name: '다음 단계 확인' }))
 
-    expect(await screen.findByRole('heading', { level: 5, name: '추가 Evidence 수집을 종료했습니다' })).toBeInTheDocument()
-    fireEvent.click(await screen.findByRole('button', { name: '평가 결과 설명 생성' }))
+    expect(await screen.findByRole('heading', { level: 5, name: '추가 자료 확인을 마쳤습니다' })).toBeInTheDocument()
+    fireEvent.click(await screen.findByRole('button', { name: '평가 결과 설명 보기' }))
     expect(await screen.findByRole('heading', { level: 3, name: '추가 증빙 수집이 종료됐습니다' })).toBeInTheDocument()
     fireEvent.click(screen.getByRole('link', { name: '자사 상품 조건 확인' }))
     expect(await screen.findByRole('heading', { level: 1, name: '자사 대출상품 조건을 비교합니다' })).toBeInTheDocument()

@@ -6,14 +6,14 @@ describe('EnvironmentIndicator', () => {
   it('identifies the browser mock environment', () => {
     render(<EnvironmentIndicator mode="mock" />)
 
-    expect(screen.getByText('Mock · Demo Only')).toBeInTheDocument()
-    expect(screen.getByLabelText('실행 환경: 브라우저의 합성 Mock 데이터를 사용하는 Demo 환경')).toBeInTheDocument()
+    expect(screen.getByText('시연용 합성 데이터')).toBeInTheDocument()
+    expect(screen.getByLabelText('실행 환경: 실제 고객 정보가 아닌 합성 데이터로 동작하는 시연 환경')).toBeInTheDocument()
   })
 
   it('identifies the backend-connected demo environment without implying production', () => {
     render(<EnvironmentIndicator mode="live" />)
 
-    expect(screen.getByText('API · Demo Only')).toBeInTheDocument()
-    expect(screen.getByLabelText('실행 환경: 백엔드 API에 연결된 합성 Demo 환경')).toBeInTheDocument()
+    expect(screen.getByText('시연용 합성 데이터')).toBeInTheDocument()
+    expect(screen.getByLabelText('실행 환경: 실제 고객 정보가 아닌 합성 데이터로 동작하는 시연 환경')).toBeInTheDocument()
   })
 })
