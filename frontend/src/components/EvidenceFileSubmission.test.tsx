@@ -47,6 +47,24 @@ describe('EvidenceFileSubmission', () => {
     expect(await screen.findByText('파일 제출을 완료했습니다')).toBeInTheDocument()
   })
 
+  it('shows each server-provided quality scenario without calculating its result', async () => {
+    const scenarioOption = option()
+    scenarioOption.demoFiles = [
+      { ...scenarioOption.demoFile!, scenarioCode: 'VALID_ORIGINAL', expectedQualityStatus: 'ACCEPTED' },
+      { ...scenarioOption.demoFile!, demoFileId: 'file_stale', displayName: '기준시점 이후 자료', fileName: '기준시점불일치.pdf', downloadUrl: '/v1/demo-files/file_stale/download', scenarioCode: 'POINT_IN_TIME_INVALID', expectedQualityStatus: 'REJECTED' },
+      { ...scenarioOption.demoFile!, demoFileId: 'file_changed', displayName: '변조 의심 자료', fileName: '변조의심.pdf', downloadUrl: '/v1/demo-files/file_changed/download', scenarioCode: 'HASH_MISMATCH', expectedQualityStatus: 'REVIEW_REQUIRED' },
+    ]
+    vi.mocked(evidenceSubmissionProvider.getOption).mockResolvedValue(scenarioOption)
+
+    renderComponent()
+
+    expect(await screen.findByText('품질 통과 시나리오')).toBeInTheDocument()
+    expect(screen.getByText('자동평가 제외 시나리오')).toBeInTheDocument()
+    expect(screen.getByText('심사역 확인 시나리오')).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: '정상 자료 내려받기' })).toHaveAttribute('href', '/v1/sessions/ses_demo/evidence/selections/evs_demo/demo-file/download')
+    expect(screen.getAllByRole('link', { name: '테스트 자료 내려받기' })).toHaveLength(2)
+  })
+
   it('keeps upload blocked until the server reports the required consent', async () => {
     vi.mocked(evidenceSubmissionProvider.getOption).mockResolvedValue(option('CONSENT_REQUIRED'))
     renderComponent()

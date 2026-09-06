@@ -29,6 +29,12 @@ const safeDownloadPath = (value: string) => {
   }
 }
 
+const expectedStatusLabel = {
+  ACCEPTED: '품질 통과 시나리오',
+  REJECTED: '자동평가 제외 시나리오',
+  REVIEW_REQUIRED: '심사역 확인 시나리오',
+} as const
+
 function EvidenceFileSubmission({ sessionId, selectionId, evidenceType }: EvidenceFileSubmissionProps) {
   const inputId = useId()
   const [option, setOption] = useState<EvidenceSubmissionOption | null>(null)
@@ -107,7 +113,7 @@ function EvidenceFileSubmission({ sessionId, selectionId, evidenceType }: Eviden
 
   if (!option) return <section className="evidence-submission" aria-labelledby="evidence-submit-title"><h2 id="evidence-submit-title">시연용 자료 제출</h2>{error && <div className="evidence-submission__error" role="alert"><strong>{error.message}</strong>{error.retryable && <button type="button" onClick={() => void load()}>다시 확인</button>}</div>}</section>
 
-  const downloadPath = option.demoFile ? safeDownloadPath(option.demoFile.downloadUrl) : null
+  const scenarioFiles = option.demoFiles?.length ? option.demoFiles : option.demoFile ? [option.demoFile] : []
   const requirement = option.submissionRequirement
 
   return <section className="evidence-submission" aria-labelledby="evidence-submit-title">
@@ -117,7 +123,12 @@ function EvidenceFileSubmission({ sessionId, selectionId, evidenceType }: Eviden
     {error && <div className="evidence-submission__error" role="alert"><strong>{error.message}</strong></div>}
 
     {option.collectionMode === 'DEMO_FILE_UPLOAD' && option.demoFile && option.uploadPolicy && <>
-      <div className="evidence-file-card"><div><strong>{option.demoFile.displayName}</strong><p>{option.demoFile.description}</p><small>{option.demoFile.fileName} · PDF · {formatBytes(option.demoFile.sizeBytes)}</small></div>{requirement.status !== 'READY' ? <span className="button button--secondary" aria-disabled="true">동의 후 다운로드</span> : downloadPath ? <a className="button button--secondary" href={downloadPath} download={option.demoFile.fileName}>시연용 PDF 내려받기</a> : <span className="evidence-file-card__invalid" role="alert">다운로드 주소를 확인할 수 없습니다.</span>}</div>
+      <div className="evidence-scenario-set" aria-label="품질 검증 시나리오 파일">
+        {scenarioFiles.map((scenario) => {
+          const scenarioDownloadPath = safeDownloadPath(scenario.downloadUrl)
+          return <div className="evidence-file-card" key={scenario.demoFileId}><div>{scenario.expectedQualityStatus && <span className={`evidence-file-card__status evidence-file-card__status--${scenario.expectedQualityStatus.toLowerCase()}`}>{expectedStatusLabel[scenario.expectedQualityStatus]}</span>}<strong>{scenario.displayName}</strong><p>{scenario.description}</p><small>{scenario.fileName} · PDF · {formatBytes(scenario.sizeBytes)}</small></div>{requirement.status !== 'READY' ? <span className="button button--secondary" aria-disabled="true">동의 후 다운로드</span> : scenarioDownloadPath ? <a className="button button--secondary" href={scenarioDownloadPath} download={scenario.fileName}>{scenario.expectedQualityStatus === 'ACCEPTED' ? '정상 자료 내려받기' : scenario.expectedQualityStatus ? '테스트 자료 내려받기' : '시연용 PDF 내려받기'}</a> : <span className="evidence-file-card__invalid" role="alert">다운로드 주소를 확인할 수 없습니다.</span>}</div>
+        })}
+      </div>
       <EvidenceConsentPanel sessionId={sessionId} selectionId={selectionId} evidenceType={evidenceType} onConsentChanged={load} />
 
       {requirement.status === 'UNAVAILABLE' && <div className="evidence-submission__notice evidence-submission__notice--blocked"><strong>현재 파일을 제출할 수 없습니다</strong><p>자료 제출 가능 상태를 확인해주세요.</p></div>}
