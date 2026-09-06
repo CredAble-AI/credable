@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { Link } from 'react-router-dom'
 import { normalizeEvidenceQualityError } from '../api/evidenceQualityClient'
 import { evidenceQualityProvider } from '../hooks/useEvidenceQualityState'
 import type { ApiError } from '../types/api'
@@ -68,6 +69,7 @@ function EvidenceQualityPanel({ sessionId, submission }: EvidenceQualityPanelPro
     <ul className="evidence-quality__checks">{quality.checks.map((check) => <li key={check.dimension}><div><strong>{dimensionLabels[check.dimension]}</strong><code>{check.rationaleCode}</code></div><span className={`evidence-quality__check-status evidence-quality__check-status--${check.status.toLowerCase()}`}>{check.status}</span></li>)}</ul>
     {(quality.rejectionCodes.length > 0 || quality.suspicionCodes.length > 0) && <div className="evidence-quality__codes">{quality.rejectionCodes.length > 0 && <p><strong>미통과 사유</strong>{quality.rejectionCodes.join(' · ')}</p>}{quality.suspicionCodes.length > 0 && <p><strong>이상 징후</strong>{quality.suspicionCodes.join(' · ')}</p>}</div>}
     <dl className="evidence-quality__metadata"><div><dt>다음 조치</dt><dd><code>{quality.nextAction}</code></dd></div><div><dt>재평가 입력</dt><dd>{quality.eligibleForReassessment ? '서버 응답상 가능' : '서버 응답상 불가'}</dd></div><div><dt>심사역 확인</dt><dd>{quality.underwriterRequired ? '필요' : '서버 응답상 필요 없음'}</dd></div><div><dt>검증 시점</dt><dd>{formatDate(quality.checkedAt)}</dd></div><div><dt>품질 정책 버전</dt><dd><code>{quality.qualityPolicyVersion}</code></dd></div><div><dt>품질검증 ID</dt><dd><code>{quality.qualityCheckId}</code></dd></div></dl>
+    {quality.status === 'REJECTED' && <Link className="button button--primary" to="/evidence?selectNext=1">다음 Evidence 한 건 확인</Link>}
     {quality.status === 'ACCEPTED' && <SupplementalAssessmentPanel sessionId={sessionId} submissionId={submission.submissionId} qualityCheckId={quality.qualityCheckId} />}
   </section>
 }
