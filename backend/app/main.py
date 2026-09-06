@@ -586,6 +586,8 @@ def create_app(
     resolved_underwriter_review_queue_service = UnderwriterReviewQueueService(
         quality_repository=resolved_evidence_quality_service.repository,
         assessment_review_repository=resolved_assessment_review_request_service.repository,
+        evidence_selection_repository=resolved_evidence_selection_service.repository,
+        boundary_repository=resolved_policy_boundary_service.repository,
         workflow_repository=resolved_assessment_review_request_service.workflow_repository,
     )
 

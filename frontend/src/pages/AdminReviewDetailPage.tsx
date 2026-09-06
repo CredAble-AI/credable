@@ -9,7 +9,13 @@ import type { AdminReviewQueueItem, AdminReviewResultCode, AdminReviewStatus, Ad
 import './AdminReviewDetailPage.css'
 
 const statusLabels: Record<AdminReviewStatus, string> = { PENDING: '접수 대기', IN_REVIEW: '검토 중', COMPLETED: '처리 완료' }
-const triggerLabels: Record<AdminReviewTriggerType, string> = { EVIDENCE_QUALITY: 'Evidence 품질검토', CUSTOMER_ASSESSMENT_REVIEW: '고객 평가 재확인' }
+const triggerLabels: Record<AdminReviewTriggerType, string> = {
+  EVIDENCE_QUALITY: 'Evidence 품질검토',
+  CUSTOMER_ASSESSMENT_REVIEW: '고객 평가 재확인',
+  POLICY_BOUNDARY: '정책 경계 검토',
+  EVIDENCE_SELECTION: '최소 증빙 선택 검토',
+  EVIDENCE_RESOLUTION: '증빙 수집 종료 검토',
+}
 const targetLabels = { BASELINE_ASSESSMENT: '기준평가', SUPPLEMENTAL_ASSESSMENT: '보완평가' } as const
 const resultLabels: Record<AdminReviewResultCode, string> = {
   EVIDENCE_CONFIRMED: 'Evidence 확인',
@@ -22,6 +28,9 @@ const resultLabels: Record<AdminReviewResultCode, string> = {
 const allowedResults: Record<AdminReviewTriggerType, AdminReviewResultCode[]> = {
   EVIDENCE_QUALITY: ['EVIDENCE_CONFIRMED', 'EVIDENCE_EXCLUDED', 'ADDITIONAL_INFORMATION_REQUIRED', 'ESCALATED'],
   CUSTOMER_ASSESSMENT_REVIEW: ['ASSESSMENT_CONFIRMED', 'CORRECTION_REQUIRED', 'ADDITIONAL_INFORMATION_REQUIRED', 'ESCALATED'],
+  POLICY_BOUNDARY: ['ASSESSMENT_CONFIRMED', 'CORRECTION_REQUIRED', 'ADDITIONAL_INFORMATION_REQUIRED', 'ESCALATED'],
+  EVIDENCE_SELECTION: ['ASSESSMENT_CONFIRMED', 'CORRECTION_REQUIRED', 'ADDITIONAL_INFORMATION_REQUIRED', 'ESCALATED'],
+  EVIDENCE_RESOLUTION: ['ASSESSMENT_CONFIRMED', 'CORRECTION_REQUIRED', 'ADDITIONAL_INFORMATION_REQUIRED', 'ESCALATED'],
 }
 const formatDate = (value?: string) => value ? new Intl.DateTimeFormat('ko-KR', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(value)) : '기록 없음'
 

@@ -9,7 +9,13 @@ import type { AdminReviewQueueItem, AdminReviewQueueResponse, AdminReviewStatus 
 
 const PAGE_SIZE = 20
 const statusLabels: Record<AdminReviewStatus, string> = { PENDING: '접수 대기', IN_REVIEW: '검토 중', COMPLETED: '처리 완료' }
-const triggerLabels = { EVIDENCE_QUALITY: 'Evidence 품질검토', CUSTOMER_ASSESSMENT_REVIEW: '고객 평가 재확인' } as const
+const triggerLabels = {
+  EVIDENCE_QUALITY: 'Evidence 품질검토',
+  CUSTOMER_ASSESSMENT_REVIEW: '고객 평가 재확인',
+  POLICY_BOUNDARY: '정책 경계 검토',
+  EVIDENCE_SELECTION: '최소 증빙 선택 검토',
+  EVIDENCE_RESOLUTION: '증빙 수집 종료 검토',
+} as const
 const targetLabels = { BASELINE_ASSESSMENT: '기준평가', SUPPLEMENTAL_ASSESSMENT: '보완평가' } as const
 const formatDate = (value: string) => new Intl.DateTimeFormat('ko-KR', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(value))
 
@@ -60,7 +66,7 @@ function AdminReviewListPage() {
   const authFailed = error?.code === 'ADMIN_AUTHENTICATION_FAILED'
 
   return <main id="main-content" tabIndex={-1} className="admin-main"><div className="admin-container">
-      <header className="admin-heading"><p>UNDERWRITER REVIEW QUEUE</p><h1>심사역 검토 목록</h1><span>서버가 등록한 Evidence 품질검토와 고객 평가 재확인 요청을 최신순으로 확인합니다.</span></header>
+      <header className="admin-heading"><p>UNDERWRITER REVIEW QUEUE</p><h1>심사역 검토 목록</h1><span>서버가 자동 판단을 중단한 건과 고객이 재확인을 요청한 건을 최신순으로 확인합니다.</span></header>
       {!apiKey ? <AdminApiKeyForm /> : <>
         <section className="admin-toolbar" aria-label="검토 목록 도구"><label>처리 상태<select value={status ?? 'ALL'} onChange={(event) => { setStatus(event.target.value === 'ALL' ? null : event.target.value as AdminReviewStatus); setOffset(0) }}><option value="ALL">전체 상태</option><option value="PENDING">접수 대기</option><option value="IN_REVIEW">검토 중</option><option value="COMPLETED">처리 완료</option></select></label><button type="button" onClick={() => void load()} disabled={loading}>상태 새로고침</button></section>
         <div className="admin-live" role="status" aria-live="polite">{loading ? '심사역 검토 목록을 불러오고 있습니다.' : error ? '검토 목록을 확인하지 못했습니다.' : result ? `전체 ${result.totalCount}건 중 ${result.items.length}건을 표시합니다.` : '검토 목록을 확인해주세요.'}</div>

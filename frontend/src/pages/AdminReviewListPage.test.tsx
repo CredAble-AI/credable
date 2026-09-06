@@ -9,10 +9,13 @@ import AdminReviewListPage from './AdminReviewListPage'
 vi.mock('../hooks/useAdminReviewState', () => ({ adminReviewProvider: { list: vi.fn() } }))
 
 const queue: AdminReviewQueueResponse = {
-  totalCount: 2, limit: 20, offset: 0, demoOnly: true,
+  totalCount: 5, limit: 20, offset: 0, demoOnly: true,
   items: [
     { reviewId: 'uwr_assessment', sessionId: 'ses_sole', triggerType: 'CUSTOMER_ASSESSMENT_REVIEW', triggerId: 'arr_demo', targetType: 'SUPPLEMENTAL_ASSESSMENT', targetAssessmentId: 'sam_demo', reasonCodes: ['CUSTOMER_REQUESTED_ASSESSMENT_REVIEW'], requestedAt: '2026-09-06T02:00:00Z', dataVersion: 'demo-v1', policyVersion: 'assessment-review-request-policy-v1', status: 'PENDING', demoOnly: true },
     { reviewId: 'uwr_evidence', sessionId: 'ses_corp', triggerType: 'EVIDENCE_QUALITY', triggerId: 'evq_demo', evidenceType: 'RECENT_REVENUE_SUMMARY', reasonCodes: ['DEMO_FILE_HASH_MISMATCH'], requestedAt: '2026-09-06T01:00:00Z', dataVersion: 'demo-v1', policyVersion: 'demo-quality-v1', status: 'IN_REVIEW', startedAt: '2026-09-06T01:10:00Z', demoOnly: true },
+    { reviewId: 'uwr_boundary', sessionId: 'ses_sole', triggerType: 'POLICY_BOUNDARY', triggerId: 'pbc_demo', reasonCodes: ['DEMO_GRADE_POLICY_NOT_CONFIGURED'], requestedAt: '2026-09-06T00:50:00Z', dataVersion: 'snap-v1', policyVersion: 'demo-policy-v1', status: 'PENDING', demoOnly: true },
+    { reviewId: 'uwr_selection', sessionId: 'ses_sole', triggerType: 'EVIDENCE_SELECTION', triggerId: 'evs_demo', reasonCodes: ['NO_NOVEL_EVIDENCE'], requestedAt: '2026-09-06T00:40:00Z', dataVersion: 'snap-v1', policyVersion: 'demo-selection-v1', status: 'PENDING', demoOnly: true },
+    { reviewId: 'uwr_resolution', sessionId: 'ses_sole', triggerType: 'EVIDENCE_RESOLUTION', triggerId: 'res_demo', reasonCodes: ['UNCERTAINTY_COMPARISON_NOT_RELIABLE'], requestedAt: '2026-09-06T00:30:00Z', dataVersion: 'sam-v1', policyVersion: 'demo-policy-v1', status: 'PENDING', demoOnly: true },
   ],
 }
 const renderPage = () => render(<MemoryRouter><AdminAuthProvider><AdminReviewListPage /></AdminAuthProvider></MemoryRouter>)
@@ -32,7 +35,7 @@ describe('AdminReviewListPage', () => {
     expect(localStorage.length).toBe(0)
   })
 
-  it('loads both trigger shapes without exposing the key in the page', async () => {
+  it('loads every trigger shape without exposing the key in the page', async () => {
     renderPage()
     enterKey()
 
@@ -40,6 +43,9 @@ describe('AdminReviewListPage', () => {
     expect(await screen.findByRole('heading', { name: 'uwr_assessment' })).toBeInTheDocument()
     expect(screen.getByText('보완평가')).toBeInTheDocument()
     expect(screen.getByText('RECENT_REVENUE_SUMMARY')).toBeInTheDocument()
+    expect(screen.getByText('정책 경계 검토')).toBeInTheDocument()
+    expect(screen.getByText('최소 증빙 선택 검토')).toBeInTheDocument()
+    expect(screen.getByText('증빙 수집 종료 검토')).toBeInTheDocument()
     expect(screen.getAllByRole('link', { name: '상세 확인' })[0]).toHaveAttribute('href', '/admin/reviews/uwr_assessment')
     expect(screen.queryByText('demo-secret')).not.toBeInTheDocument()
   })

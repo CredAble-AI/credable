@@ -62,4 +62,21 @@ describe('AdminReviewDetailPage', () => {
     expect(await screen.findByRole('alert')).toHaveTextContent('요청한 검토 ID와 서버 응답이 일치하지 않습니다.')
     expect(screen.queryByText('uwr_other')).not.toBeInTheDocument()
   })
+
+  it('supports the assessment result contract for an automated stop trigger', async () => {
+    vi.mocked(adminReviewProvider.get).mockResolvedValue({
+      review: {
+        ...inReview,
+        triggerType: 'POLICY_BOUNDARY',
+        triggerId: 'pbc_demo',
+        reasonCodes: ['DEMO_GRADE_POLICY_NOT_CONFIGURED'],
+      },
+    })
+    renderPage()
+    enterKey()
+
+    expect(await screen.findByText('정책 경계 검토')).toBeInTheDocument()
+    expect(screen.getByRole('option', { name: /평가 확인/ })).toBeInTheDocument()
+    expect(screen.queryByRole('option', { name: /Evidence 확인/ })).not.toBeInTheDocument()
+  })
 })

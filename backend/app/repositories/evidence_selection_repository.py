@@ -3,7 +3,7 @@ from abc import ABC, abstractmethod
 from pathlib import Path
 
 from app.schemas.audit import SessionAuditEvent
-from app.schemas.evidence_selection import EvidenceSelectionState
+from app.schemas.evidence_selection import EvidenceSelectionState, EvidenceSelectionStatus
 
 
 class EvidenceSelectionRepository(ABC):
@@ -26,6 +26,17 @@ class EvidenceSelectionRepository(ABC):
         selection_id: str,
     ) -> EvidenceSelectionState | None:
         """Return an Evidence selection only when it belongs to the session."""
+
+    @abstractmethod
+    def get_by_selection_id(
+        self,
+        selection_id: str,
+    ) -> tuple[str, EvidenceSelectionState] | None:
+        """Return an Evidence selection with its owning session."""
+
+    @abstractmethod
+    def list_human_review_required(self) -> list[tuple[str, EvidenceSelectionState]]:
+        """Return terminal Evidence selections requiring underwriter review."""
 
     @abstractmethod
     def get_by_boundary_check_id(
@@ -172,6 +183,43 @@ class SqliteEvidenceSelectionRepository(EvidenceSelectionRepository):
                 (session_id, selection_id),
             ).fetchone()
         return EvidenceSelectionState.model_validate_json(row["state_json"]) if row else None
+
+    def get_by_selection_id(
+        self,
+        selection_id: str,
+    ) -> tuple[str, EvidenceSelectionState] | None:
+        with self._connect() as connection:
+            row = connection.execute(
+                """
+                SELECT session_id, state_json
+                FROM evidence_selections
+                WHERE selection_id = ?
+                """,
+                (selection_id,),
+            ).fetchone()
+        if row is None:
+            return None
+        return row["session_id"], EvidenceSelectionState.model_validate_json(row["state_json"])
+
+    def list_human_review_required(self) -> list[tuple[str, EvidenceSelectionState]]:
+        with self._connect() as connection:
+            rows = connection.execute(
+                """
+                SELECT session_id, state_json
+                FROM evidence_selections
+                ORDER BY selection_order DESC
+                """
+            ).fetchall()
+        items = [
+            (row["session_id"], EvidenceSelectionState.model_validate_json(row["state_json"]))
+            for row in rows
+        ]
+        return [
+            item
+            for item in items
+            if item[1].status == EvidenceSelectionStatus.HUMAN_REVIEW
+            and item[1].underwriter_required
+        ]
 
     def get_by_boundary_check_id(
         self,

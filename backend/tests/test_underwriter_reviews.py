@@ -1,3 +1,6 @@
+import json
+from pathlib import Path
+
 from fastapi.testclient import TestClient
 
 from app.adapters.assessment_adapter import DemoAssessmentAdapter
@@ -6,11 +9,19 @@ from app.core.config import settings
 from app.schemas.consent import ConsentSourceType
 from app.services.assessment_service import AssessmentService
 from app.services.data_source_service import DataSourceService
+from app.services.evidence_selection_service import (
+    DemoEvidenceCandidateCatalog,
+    EvidenceSelectionService,
+)
+from app.services.policy_boundary_service import (
+    DemoPolicyBoundaryCatalog,
+    PolicyBoundaryService,
+)
 
 ADMIN_HEADERS = {"X-Admin-API-Key": "test-admin-api-key"}
 
 
-def create_suspicious_quality(
+def create_completed_assessment(
     client: TestClient,
     data_source_service: DataSourceService,
     assessment_service: AssessmentService,
@@ -32,7 +43,22 @@ def create_suspicious_quality(
             == 200
         )
     assert client.post(f"/v1/sessions/{session_id}/data-sources/refresh").status_code == 200
-    assert client.post(f"/v1/sessions/{session_id}/assessment/run").status_code == 200
+    assessment_response = client.post(f"/v1/sessions/{session_id}/assessment/run")
+    assert assessment_response.status_code == 200
+    assert assessment_response.json()["assessment"]["status"] == "COMPLETED"
+    return session_id, assessment_response.json()["assessment"]
+
+
+def create_suspicious_quality(
+    client: TestClient,
+    data_source_service: DataSourceService,
+    assessment_service: AssessmentService,
+) -> tuple[str, dict]:
+    session_id, _ = create_completed_assessment(
+        client,
+        data_source_service,
+        assessment_service,
+    )
     assert client.post(f"/v1/sessions/{session_id}/assessment/boundary-check").status_code == 200
     selection_response = client.post(f"/v1/sessions/{session_id}/evidence/next")
     assert selection_response.status_code == 200
@@ -61,6 +87,13 @@ def create_suspicious_quality(
     quality = quality_response.json()["quality"]
     assert quality["status"] == "REVIEW_REQUIRED"
     return session_id, quality
+
+
+def get_only_review(client: TestClient) -> dict:
+    response = client.get("/v1/admin/underwriter-reviews", headers=ADMIN_HEADERS)
+    assert response.status_code == 200
+    assert response.json()["totalCount"] == 1
+    return response.json()["items"][0]
 
 
 def test_underwriter_review_queue_requires_admin_authentication(client: TestClient) -> None:
@@ -120,6 +153,136 @@ def test_underwriter_review_queue_exposes_only_safe_review_context(
     ]
     assert "sha256" not in response.text.lower()
     assert "changed review queue evidence" not in response.text
+
+
+def test_policy_blocked_boundary_is_exposed_in_underwriter_queue(
+    client: TestClient,
+    data_source_service: DataSourceService,
+    assessment_service: AssessmentService,
+    policy_boundary_service: PolicyBoundaryService,
+    tmp_path: Path,
+) -> None:
+    session_id, assessment = create_completed_assessment(
+        client,
+        data_source_service,
+        assessment_service,
+    )
+    catalog_path = tmp_path / "blocked-policy.json"
+    catalog_path.write_text(
+        json.dumps(
+            {
+                "dataVersion": "test-blocked-policy-v1",
+                "policyVersion": "test-blocked-policy-v1",
+                "gradeRoutes": [{"grade": "DEMO_GRADE_B", "route": "DEMO_PATH_1"}],
+                "boundaries": [],
+                "demoOnly": True,
+            }
+        ),
+        encoding="utf-8",
+    )
+    policy_boundary_service.catalog = DemoPolicyBoundaryCatalog(catalog_path)
+    boundary_response = client.post(f"/v1/sessions/{session_id}/assessment/boundary-check")
+    assert boundary_response.status_code == 200
+    boundary = boundary_response.json()["boundaryCheck"]
+    assert boundary["decision"]["status"] == "POLICY_BLOCKED"
+
+    review = get_only_review(client)
+
+    assert review["triggerType"] == "POLICY_BOUNDARY"
+    assert review["triggerId"] == boundary["boundaryCheckId"]
+    assert review["reasonCodes"] == ["DEMO_GRADE_POLICY_NOT_CONFIGURED"]
+    assert review["dataVersion"] == assessment["inputSnapshotId"]
+    assert review["policyVersion"] == "test-blocked-policy-v1"
+    endpoint = f"/v1/admin/underwriter-reviews/{review['reviewId']}"
+    assert client.post(f"{endpoint}/claim", headers=ADMIN_HEADERS).status_code == 200
+    completed = client.post(
+        f"{endpoint}/complete",
+        headers=ADMIN_HEADERS,
+        json={"resultCode": "ASSESSMENT_CONFIRMED"},
+    )
+    assert completed.status_code == 200
+    assert completed.json()["review"]["status"] == "COMPLETED"
+
+
+def test_terminal_evidence_selection_is_exposed_in_underwriter_queue(
+    client: TestClient,
+    data_source_service: DataSourceService,
+    assessment_service: AssessmentService,
+    evidence_selection_service: EvidenceSelectionService,
+    tmp_path: Path,
+) -> None:
+    session_id, assessment = create_completed_assessment(
+        client,
+        data_source_service,
+        assessment_service,
+    )
+    boundary_response = client.post(f"/v1/sessions/{session_id}/assessment/boundary-check")
+    assert boundary_response.status_code == 200
+    catalog_data = json.loads(settings.demo_evidence_candidates_path.read_text(encoding="utf-8"))
+    catalog_data["candidates"] = [catalog_data["candidates"][0]]
+    catalog_data["candidates"][0]["informationContentCodes"] = ["BANK_CASH_FLOW_TOTALS"]
+    catalog_path = tmp_path / "overlapping-evidence.json"
+    catalog_path.write_text(json.dumps(catalog_data), encoding="utf-8")
+    evidence_selection_service.catalog = DemoEvidenceCandidateCatalog(catalog_path)
+    selection_response = client.post(f"/v1/sessions/{session_id}/evidence/next")
+    assert selection_response.status_code == 200
+    selection = selection_response.json()["selection"]
+    assert selection["status"] == "HUMAN_REVIEW"
+
+    review = get_only_review(client)
+
+    assert review["triggerType"] == "EVIDENCE_SELECTION"
+    assert review["triggerId"] == selection["selectionId"]
+    assert review["reasonCodes"] == ["NO_NOVEL_EVIDENCE"]
+    assert review["dataVersion"] == assessment["inputSnapshotId"]
+    assert review["policyVersion"] == "demo-novel-evidence-selection-v3"
+
+
+def test_human_review_resolution_is_exposed_in_underwriter_queue(
+    client: TestClient,
+    data_source_service: DataSourceService,
+    assessment_service: AssessmentService,
+) -> None:
+    session_id, _ = create_completed_assessment(
+        client,
+        data_source_service,
+        assessment_service,
+    )
+    assert client.post(f"/v1/sessions/{session_id}/assessment/boundary-check").status_code == 200
+    selection = client.post(f"/v1/sessions/{session_id}/evidence/next").json()["selection"]
+    submission_response = client.post(
+        f"/v1/sessions/{session_id}/evidence/submissions",
+        json={
+            "selectionId": selection["selectionId"],
+            "submissionMode": "DEMO_FIXTURE_REFERENCE",
+        },
+    )
+    assert submission_response.status_code == 200
+    submission = submission_response.json()["submission"]
+    quality_response = client.post(
+        f"/v1/sessions/{session_id}/evidence/submissions/{submission['submissionId']}/quality"
+    )
+    assert quality_response.status_code == 200
+    supplemental_response = client.post(
+        f"/v1/sessions/{session_id}/assessment/supplemental/run",
+        json={"submissionId": submission["submissionId"]},
+    )
+    assert supplemental_response.status_code == 200
+    supplemental = supplemental_response.json()["supplementalAssessment"]
+    assert supplemental["status"] == "MODEL_NOT_CONFIGURED"
+    assert client.post(f"/v1/sessions/{session_id}/assessment/comparison").status_code == 200
+    resolution_response = client.post(f"/v1/sessions/{session_id}/assessment/resolution")
+    assert resolution_response.status_code == 200
+    resolution = resolution_response.json()["resolution"]
+    assert resolution["status"] == "HUMAN_REVIEW"
+
+    review = get_only_review(client)
+
+    assert review["triggerType"] == "EVIDENCE_RESOLUTION"
+    assert review["triggerId"] == resolution["resolutionId"]
+    assert review["reasonCodes"] == ["UNCERTAINTY_COMPARISON_NOT_RELIABLE"]
+    assert review["dataVersion"] == supplemental["supplementalAssessmentId"]
+    assert review["policyVersion"] == "demo-policy-boundary-v1"
 
 
 def test_underwriter_review_queue_supports_bounded_offset_paging(

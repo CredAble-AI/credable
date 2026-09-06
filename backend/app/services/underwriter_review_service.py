@@ -9,9 +9,18 @@ from uuid import uuid4
 from app.core.errors import ResourceConflictError, ResourceNotFoundError
 from app.repositories.assessment_review_repository import AssessmentReviewRepository
 from app.repositories.evidence_quality_repository import EvidenceQualityRepository
+from app.repositories.evidence_selection_repository import EvidenceSelectionRepository
+from app.repositories.policy_boundary_repository import PolicyBoundaryRepository
 from app.repositories.underwriter_review_repository import UnderwriterReviewRepository
 from app.schemas.audit import AuditActor, AuditStage, SessionAuditEvent
 from app.schemas.evidence_quality import EvidenceQualityState, EvidenceQualityStatus
+from app.schemas.evidence_selection import EvidenceSelectionState, EvidenceSelectionStatus
+from app.schemas.policy_boundary import (
+    BoundaryStatus,
+    EvidenceResolutionState,
+    EvidenceResolutionStatus,
+    PolicyBoundaryCheckState,
+)
 from app.schemas.review_workflow import (
     UnderwriterReviewResultCode,
     UnderwriterReviewStatus,
@@ -44,10 +53,14 @@ class UnderwriterReviewQueueService:
         *,
         quality_repository: EvidenceQualityRepository,
         assessment_review_repository: AssessmentReviewRepository,
+        evidence_selection_repository: EvidenceSelectionRepository,
+        boundary_repository: PolicyBoundaryRepository,
         workflow_repository: UnderwriterReviewRepository,
     ) -> None:
         self.quality_repository = quality_repository
         self.assessment_review_repository = assessment_review_repository
+        self.evidence_selection_repository = evidence_selection_repository
+        self.boundary_repository = boundary_repository
         self.workflow_repository = workflow_repository
 
     def initialize(self) -> None:
@@ -170,8 +183,18 @@ class UnderwriterReviewQueueService:
             offset=0,
         )
         requests = self.assessment_review_repository.list_latest(limit=max(request_count, 1))
-        return [self._quality_item(session_id, quality) for session_id, quality in qualities] + [
-            self._assessment_item(session_id, review) for session_id, review in requests
+        boundaries = self.boundary_repository.list_policy_blocked()
+        selections = self.evidence_selection_repository.list_human_review_required()
+        resolutions = self.boundary_repository.list_human_review_resolutions()
+        return [
+            *[self._quality_item(session_id, quality) for session_id, quality in qualities],
+            *[self._assessment_item(session_id, review) for session_id, review in requests],
+            *[self._boundary_item(session_id, boundary) for session_id, boundary in boundaries],
+            *[self._selection_item(session_id, selection) for session_id, selection in selections],
+            *[
+                self._resolution_item(session_id, resolution)
+                for session_id, resolution in resolutions
+            ],
         ]
 
     def _source_item(self, review_id: str) -> UnderwriterReviewQueueItem:
@@ -180,6 +203,9 @@ class UnderwriterReviewQueueService:
         suffix = review_id.removeprefix("uwr_")
         quality_record = self.quality_repository.get_by_quality_check_id(f"evq_{suffix}")
         request_record = self.assessment_review_repository.get_by_id(f"arr_{suffix}")
+        boundary_record = self.boundary_repository.get_check_by_id(f"pbc_{suffix}")
+        selection_record = self.evidence_selection_repository.get_by_selection_id(f"evs_{suffix}")
+        resolution_record = self.boundary_repository.get_resolution_by_id(f"res_{suffix}")
         candidates: list[UnderwriterReviewQueueItem] = []
         if quality_record is not None:
             session_id, quality = quality_record
@@ -188,6 +214,27 @@ class UnderwriterReviewQueueService:
         if request_record is not None:
             session_id, review = request_record
             candidates.append(self._assessment_item(session_id, review))
+        if boundary_record is not None:
+            session_id, boundary = boundary_record
+            if (
+                boundary.decision.status == BoundaryStatus.POLICY_BLOCKED
+                and boundary.decision.underwriter_required
+            ):
+                candidates.append(self._boundary_item(session_id, boundary))
+        if selection_record is not None:
+            session_id, selection = selection_record
+            if (
+                selection.status == EvidenceSelectionStatus.HUMAN_REVIEW
+                and selection.underwriter_required
+            ):
+                candidates.append(self._selection_item(session_id, selection))
+        if resolution_record is not None:
+            session_id, resolution = resolution_record
+            if (
+                resolution.status == EvidenceResolutionStatus.HUMAN_REVIEW
+                and resolution.underwriter_required
+            ):
+                candidates.append(self._resolution_item(session_id, resolution))
         if not candidates:
             self._not_found(review_id)
         if len(candidates) != 1:
@@ -242,6 +289,64 @@ class UnderwriterReviewQueueService:
             data_version=review.data_version,
             policy_version=review.request_policy_version,
             demo_only=review.demo_only,
+        )
+
+    @staticmethod
+    def _boundary_item(
+        session_id: str,
+        boundary: PolicyBoundaryCheckState,
+    ) -> UnderwriterReviewQueueItem:
+        if boundary.decision.stop_reason is None:
+            raise ValueError("policy-blocked boundary requires a stop reason")
+        return UnderwriterReviewQueueItem(
+            review_id=UnderwriterReviewQueueService._review_id(boundary.boundary_check_id),
+            session_id=session_id,
+            trigger_type=UnderwriterReviewTriggerType.POLICY_BOUNDARY,
+            trigger_id=boundary.boundary_check_id,
+            reason_codes=[boundary.decision.stop_reason],
+            requested_at=boundary.checked_at,
+            data_version=boundary.input_snapshot_id,
+            policy_version=boundary.policy_version,
+            demo_only=boundary.demo_only,
+        )
+
+    def _selection_item(
+        self,
+        session_id: str,
+        selection: EvidenceSelectionState,
+    ) -> UnderwriterReviewQueueItem:
+        if selection.stop_reason is None:
+            raise ValueError("human-review selection requires a stop reason")
+        boundary_record = self.boundary_repository.get_check_by_id(selection.boundary_check_id)
+        if boundary_record is None or boundary_record[0] != session_id:
+            raise ValueError("Evidence selection boundary lineage is inconsistent")
+        return UnderwriterReviewQueueItem(
+            review_id=UnderwriterReviewQueueService._review_id(selection.selection_id),
+            session_id=session_id,
+            trigger_type=UnderwriterReviewTriggerType.EVIDENCE_SELECTION,
+            trigger_id=selection.selection_id,
+            reason_codes=[selection.stop_reason],
+            requested_at=selection.selected_at,
+            data_version=boundary_record[1].input_snapshot_id,
+            policy_version=selection.selection_policy_version,
+            demo_only=selection.demo_only,
+        )
+
+    @staticmethod
+    def _resolution_item(
+        session_id: str,
+        resolution: EvidenceResolutionState,
+    ) -> UnderwriterReviewQueueItem:
+        return UnderwriterReviewQueueItem(
+            review_id=UnderwriterReviewQueueService._review_id(resolution.resolution_id),
+            session_id=session_id,
+            trigger_type=UnderwriterReviewTriggerType.EVIDENCE_RESOLUTION,
+            trigger_id=resolution.resolution_id,
+            reason_codes=[resolution.reason_code],
+            requested_at=resolution.resolved_at,
+            data_version=resolution.supplemental_assessment_id,
+            policy_version=resolution.boundary_policy_version,
+            demo_only=resolution.demo_only,
         )
 
     @staticmethod
