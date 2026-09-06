@@ -17,6 +17,7 @@ from app.schemas.evidence_quality import (
     EvidenceQualityDimension,
     EvidenceQualityDimensionResult,
     EvidenceQualityDimensionStatus,
+    EvidenceQualityNextAction,
     EvidenceQualityResponse,
     EvidenceQualityState,
     EvidenceQualityStatus,
@@ -121,9 +122,25 @@ class EvidenceQualityService:
             for item in checks
             if item.status != EvidenceQualityDimensionStatus.PASSED
         ]
-        status = (
-            EvidenceQualityStatus.REJECTED if rejection_codes else EvidenceQualityStatus.ACCEPTED
-        )
+        suspicion_codes = [
+            item.rationale_code
+            for item in checks
+            if item.status == EvidenceQualityDimensionStatus.FAILED
+            and item.dimension
+            in {
+                EvidenceQualityDimension.AUTHENTICITY,
+                EvidenceQualityDimension.MANIPULATION_RISK,
+            }
+        ]
+        if suspicion_codes:
+            status = EvidenceQualityStatus.REVIEW_REQUIRED
+            next_action = EvidenceQualityNextAction.UNDERWRITER_REVIEW
+        elif rejection_codes:
+            status = EvidenceQualityStatus.REJECTED
+            next_action = EvidenceQualityNextAction.EXCLUDE_EVIDENCE
+        else:
+            status = EvidenceQualityStatus.ACCEPTED
+            next_action = EvidenceQualityNextAction.RUN_REASSESSMENT
         checked_at = datetime.now(UTC)
         state = EvidenceQualityState(
             quality_check_id=f"evq_{uuid4().hex}",
@@ -132,7 +149,10 @@ class EvidenceQualityService:
             status=status,
             checks=checks,
             rejection_codes=rejection_codes,
+            suspicion_codes=suspicion_codes,
             eligible_for_reassessment=status == EvidenceQualityStatus.ACCEPTED,
+            next_action=next_action,
+            underwriter_required=status == EvidenceQualityStatus.REVIEW_REQUIRED,
             checked_at=checked_at,
             submission_snapshot_hash=submission.submission_snapshot_hash,
             data_version=submission.data_version,
@@ -150,7 +170,10 @@ class EvidenceQualityService:
             output_summary={
                 "qualityStatus": state.status.value,
                 "failedCheckCount": len(rejection_codes),
+                "suspicionCount": len(suspicion_codes),
                 "eligibleForReassessment": state.eligible_for_reassessment,
+                "nextAction": state.next_action.value,
+                "underwriterRequired": state.underwriter_required,
                 "evidenceType": state.evidence_type,
                 "demoOnly": state.demo_only,
             },

@@ -15,6 +15,7 @@ class EvidenceTypeBurdenBreakdown(ApiModel):
     submission_count: int = Field(ge=0)
     accepted_count: int = Field(ge=0)
     rejected_count: int = Field(ge=0)
+    review_required_count: int = Field(ge=0)
     first_requested_at: datetime
     last_requested_at: datetime
 
@@ -26,7 +27,10 @@ class EvidenceTypeBurdenBreakdown(ApiModel):
             raise ValueError("firstRequestedAt cannot exceed lastRequestedAt")
         if self.submission_count > self.request_count:
             raise ValueError("submissionCount cannot exceed requestCount")
-        if self.accepted_count + self.rejected_count > self.submission_count:
+        if (
+            self.accepted_count + self.rejected_count + self.review_required_count
+            > self.submission_count
+        ):
             raise ValueError("quality result count cannot exceed submissionCount")
         return self
 
@@ -44,6 +48,7 @@ class AdminEvidenceBurdenResponse(ApiModel):
     pending_submission_count: int = Field(ge=0)
     accepted_count: int = Field(ge=0)
     rejected_count: int = Field(ge=0)
+    review_required_count: int = Field(ge=0)
     unverified_submission_count: int = Field(ge=0)
     failed_quality_dimension_count: int = Field(ge=0)
     supplemental_assessment_count: int = Field(ge=0)
@@ -71,7 +76,10 @@ class AdminEvidenceBurdenResponse(ApiModel):
         if self.submission_count + self.pending_submission_count != self.evidence_request_count:
             raise ValueError("submission counts must equal evidenceRequestCount")
         if (
-            self.accepted_count + self.rejected_count + self.unverified_submission_count
+            self.accepted_count
+            + self.rejected_count
+            + self.review_required_count
+            + self.unverified_submission_count
             != self.submission_count
         ):
             raise ValueError("quality counts must equal submissionCount")
