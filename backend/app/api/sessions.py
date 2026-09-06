@@ -13,6 +13,7 @@ from app.schemas.comparison import ProductComparisonResponse
 from app.schemas.consent import ConsentListResponse, ConsentState
 from app.schemas.data_source import DataSourceListResponse
 from app.schemas.error import ApiErrorResponse
+from app.schemas.evidence_consent import EvidenceConsentResponse
 from app.schemas.evidence_file import EvidenceSubmissionOptionResponse
 from app.schemas.evidence_quality import EvidenceQualityResponse
 from app.schemas.evidence_selection import EvidenceSelectionResponse
@@ -36,6 +37,7 @@ from app.services.assessment_service import (
 from app.services.comparison_service import ProductComparisonService
 from app.services.consent_service import ConsentService
 from app.services.data_source_service import DataSourceService
+from app.services.evidence_consent_service import EvidenceConsentService
 from app.services.evidence_quality_service import EvidenceQualityService
 from app.services.evidence_selection_service import EvidenceSelectionService
 from app.services.evidence_submission_service import EvidenceSubmissionService
@@ -81,6 +83,10 @@ def get_policy_boundary_service(request: Request) -> PolicyBoundaryService:
 
 def get_evidence_selection_service(request: Request) -> EvidenceSelectionService:
     return request.app.state.evidence_selection_service
+
+
+def get_evidence_consent_service(request: Request) -> EvidenceConsentService:
+    return request.app.state.evidence_consent_service
 
 
 def get_evidence_submission_service(request: Request) -> EvidenceSubmissionService:
@@ -381,6 +387,62 @@ async def select_next_evidence(
 ) -> EvidenceSelectionResponse:
     return get_evidence_selection_service(request).select_next(
         session_id,
+        request.state.request_id,
+    )
+
+
+@router.get(
+    "/{session_id}/evidence/selections/{selection_id}/consent",
+    response_model=EvidenceConsentResponse,
+    responses={
+        404: {"model": ApiErrorResponse},
+        409: {"model": ApiErrorResponse},
+    },
+)
+async def get_evidence_consent(
+    session_id: str,
+    selection_id: str,
+    request: Request,
+) -> EvidenceConsentResponse:
+    return get_evidence_consent_service(request).get(session_id, selection_id)
+
+
+@router.post(
+    "/{session_id}/evidence/selections/{selection_id}/consent/grant",
+    response_model=EvidenceConsentResponse,
+    responses={
+        404: {"model": ApiErrorResponse},
+        409: {"model": ApiErrorResponse},
+    },
+)
+async def grant_evidence_consent(
+    session_id: str,
+    selection_id: str,
+    request: Request,
+) -> EvidenceConsentResponse:
+    return get_evidence_consent_service(request).grant(
+        session_id,
+        selection_id,
+        request.state.request_id,
+    )
+
+
+@router.post(
+    "/{session_id}/evidence/selections/{selection_id}/consent/withdraw",
+    response_model=EvidenceConsentResponse,
+    responses={
+        404: {"model": ApiErrorResponse},
+        409: {"model": ApiErrorResponse},
+    },
+)
+async def withdraw_evidence_consent(
+    session_id: str,
+    selection_id: str,
+    request: Request,
+) -> EvidenceConsentResponse:
+    return get_evidence_consent_service(request).withdraw(
+        session_id,
+        selection_id,
         request.state.request_id,
     )
 

@@ -4,10 +4,12 @@ from datetime import UTC, datetime
 from pathlib import Path
 from uuid import uuid4
 
-from app.core.errors import EvidenceSubmissionNotFoundError
+from app.core.errors import EvidenceSubmissionNotFoundError, ResourceConflictError
+from app.repositories.evidence_consent_repository import EvidenceConsentRepository
 from app.repositories.evidence_quality_repository import EvidenceQualityRepository
 from app.repositories.evidence_submission_repository import EvidenceSubmissionRepository
 from app.schemas.audit import AuditActor, AuditStage, SessionAuditEvent
+from app.schemas.consent import ConsentStatus
 from app.schemas.evidence_file import DemoEvidenceFileDefinition
 from app.schemas.evidence_quality import (
     DemoEvidenceQualityCatalogData,
@@ -59,12 +61,14 @@ class EvidenceQualityService:
         self,
         repository: EvidenceQualityRepository,
         submission_repository: EvidenceSubmissionRepository,
+        evidence_consent_repository: EvidenceConsentRepository,
         session_service: CustomerSessionService,
         catalog: DemoEvidenceQualityCatalog,
         file_catalog: DemoEvidenceFileCatalog,
     ) -> None:
         self.repository = repository
         self.submission_repository = submission_repository
+        self.evidence_consent_repository = evidence_consent_repository
         self.session_service = session_service
         self.catalog = catalog
         self.file_catalog = file_catalog
@@ -95,6 +99,7 @@ class EvidenceQualityService:
             return EvidenceQualityResponse(session_id=session_id, quality=existing)
 
         if submission.submission_mode == EvidenceSubmissionMode.DEMO_FILE_UPLOAD:
+            self._require_active_submission_consent(session_id, submission)
             checks, quality_policy_version = self._binary_file_checks(submission)
         else:
             definition = self.catalog.get(submission.evidence_type)
@@ -158,6 +163,31 @@ class EvidenceQualityService:
             audit_event=audit_event,
         )
         return EvidenceQualityResponse(session_id=session_id, quality=saved)
+
+    def _require_active_submission_consent(
+        self,
+        session_id: str,
+        submission: EvidenceSubmissionState,
+    ) -> None:
+        consent = self.evidence_consent_repository.get_for_selection(
+            session_id,
+            submission.selection_id,
+        )
+        if (
+            consent is None
+            or consent.status != ConsentStatus.GRANTED
+            or consent.selection_id != submission.selection_id
+            or consent.evidence_type != submission.evidence_type
+            or consent.source_type != submission.source_type
+            or submission.evidence_consent_id is None
+            or consent.evidence_consent_id != submission.evidence_consent_id
+            or submission.consent_scope_version is None
+            or consent.scope_version != submission.consent_scope_version
+        ):
+            raise ResourceConflictError(
+                code="EVIDENCE_CONSENT_NOT_ACTIVE",
+                message="현재 유효한 Evidence 동의가 있는 자료만 품질 검증할 수 있습니다.",
+            )
 
     def _submission(
         self,
@@ -282,6 +312,12 @@ class EvidenceQualityService:
             "dataVersion": submission.data_version,
             "uploadedFile": submission.uploaded_file.model_dump(mode="json", by_alias=True),
         }
+        if (
+            submission.evidence_consent_id is not None
+            and submission.consent_scope_version is not None
+        ):
+            snapshot["evidenceConsentId"] = submission.evidence_consent_id
+            snapshot["consentScopeVersion"] = submission.consent_scope_version
         serialized = json.dumps(
             snapshot,
             ensure_ascii=False,

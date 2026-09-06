@@ -344,6 +344,7 @@ class EvidenceSelectionService:
                 collection_mode=definition.collection_mode,
                 availability=self._availability(source_state),
                 rationale_codes=definition.rationale_codes,
+                consent_scope=definition.consent_scope,
             ),
             round(evidence_value, 6),
         )

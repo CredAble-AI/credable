@@ -314,6 +314,15 @@ curl http://127.0.0.1:8000/v1/sessions/<sessionId>/evidence/submissions/latest
 curl \
   http://127.0.0.1:8000/v1/sessions/<sessionId>/evidence/selections/<selectionId>/submission-option
 
+curl \
+  http://127.0.0.1:8000/v1/sessions/<sessionId>/evidence/selections/<selectionId>/consent
+
+curl -X POST \
+  http://127.0.0.1:8000/v1/sessions/<sessionId>/evidence/selections/<selectionId>/consent/grant
+
+curl -X POST \
+  http://127.0.0.1:8000/v1/sessions/<sessionId>/evidence/selections/<selectionId>/consent/withdraw
+
 curl -OJ \
   http://127.0.0.1:8000/v1/sessions/<sessionId>/evidence/selections/<selectionId>/demo-file/download
 
@@ -328,10 +337,15 @@ curl -X POST \
   -d '{"selectionId":"<selectionId>","submissionMode":"DEMO_FIXTURE_REFERENCE"}'
 ```
 
-제출 옵션 API는 현재 동의를 매번 다시 확인해 `READY`, `CONSENT_REQUIRED`, `UNAVAILABLE` 중
-하나를 반환하고 Demo 파일 메타데이터와 허용 형식·최대 5MB 정책을 함께 제공합니다. 파일
-다운로드는 동의를 자동 부여하지 않으며, 업로드 시 `CUSTOMER_SUBMITTED` 동의가 현재
-`GRANTED`가 아니면 `EVIDENCE_CONSENT_REQUIRED`로 차단합니다.
+제출 옵션 API는 현재 선택에 귀속된 Evidence 동의를 매번 다시 확인해 `READY`,
+`CONSENT_REQUIRED`, `UNAVAILABLE` 중 하나를 반환하고 Demo 파일 메타데이터와 허용 형식·최대
+5MB 정책을 함께 제공합니다. Evidence 동의 API는 서버가 선택한 한 건의 자료에 대해서만
+이용 목적, 데이터 항목, 기간과 범위 버전을 제공합니다. 기존 출처 단위 동의와 별도로
+관리되므로 `CUSTOMER_SUBMITTED` 출처 동의만으로 파일 다운로드·업로드가 허용되지 않습니다.
+
+파일 다운로드는 동의를 자동 부여하지 않습니다. 현재 `selectionId`의 동의가 `GRANTED`이고
+서버 정책의 `scopeVersion`과 일치할 때만 다운로드·업로드할 수 있으며, 아니면
+`EVIDENCE_CONSENT_REQUIRED`로 차단합니다. 동의·철회는 Audit에 고객 행위로 기록됩니다.
 
 업로드는 확장자·MIME·`%PDF-` magic bytes·5MB 제한을 확인한 뒤 실제 binary의 SHA-256을
 계산해 서버가 발급한 PDF manifest의 해시와 비교합니다. 원본 binary와 PDF 본문은 DB·Audit·
@@ -358,6 +372,9 @@ curl -X POST \
 월별 매출·입금 차이와 전체 합계를 검증해 여섯 차원으로 변환합니다. 해시·manifest·제출
 Snapshot 중 하나라도 일치하지 않으면 재평가 입력 자격을 주지 않습니다. 원본을 폐기한 뒤에도
 서버가 저장한 해시와 manifest로 같은 결과를 재현할 수 있습니다.
+새 품질 검증을 시작할 때 증빙별 동의가 철회됐거나 제출 Snapshot의 동의 ID·범위 버전과
+일치하지 않으면 `EVIDENCE_CONSENT_NOT_ACTIVE`로 차단합니다. 이미 저장된 품질 결과는
+감사 가능한 과거 이력으로 유지합니다.
 
 기존 `DEMO_FIXTURE_REFERENCE` 제출은 하위 호환을 위해 기존 품질 Fixture를 사용합니다. 같은
 `submissionId`를 다시 검증하면 저장된 결과를 반환해 중복 판정과 중복 Audit을 만들지 않습니다.
@@ -373,6 +390,12 @@ Snapshot 중 하나라도 일치하지 않으면 재평가 입력 자격을 주�
 기준평가가 연결된 정책 경계에서 불확실하고, 서버가 선택한 Evidence가 제출·품질
 검증을 모두 통과한 경우에만 보완평가를 실행합니다. 기준평가는 덮어쓰지 않고
 보완평가를 별도 이력으로 보존합니다.
+
+파일 업로드 제출은 제출 Snapshot에 `evidenceConsentId`와 `consentScopeVersion`을 함께
+고정합니다. 보완평가를 새로 실행할 때 해당 동의가 철회됐거나 범위 버전이 달라졌다면
+`EVIDENCE_CONSENT_NOT_ACTIVE`로 차단합니다. 이미 생성된 보완평가 Snapshot은 철회로
+덮어쓰거나 삭제하지 않습니다. 기존 `DEMO_FIXTURE_REFERENCE` 제출 계약은 하위 호환을 위해
+출처 단위 흐름을 유지합니다.
 
 ```bash
 curl \
@@ -565,7 +588,7 @@ uv run pytest
 
 ## 현재 범위
 
-현재 FastAPI 애플리케이션, liveness/readiness API, Demo 고객 세션, 데이터 출처별 동의와
+현재 FastAPI 애플리케이션, liveness/readiness API, Demo 고객 세션, 데이터 출처별 기본 동의와 선택된 증빙별 동의,
 조회·검증 상태, 기준평가, Demo 정책 경계 판정·반복 최소 증빙 선택·제출·품질 검증·보완평가·전후 비교·수집 종료 판단,
 합성 자사 상품 카탈로그·비교 API와 관리자 Evidence 부담 지표를 제공합니다. 합성 데이터 출처 상태와 평가
 상태, 개인사업자 사례용 개인화 상품 조건은 기존 Frontend Fixture와 일치합니다. Legacy

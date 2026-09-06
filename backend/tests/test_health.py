@@ -127,6 +127,10 @@ def test_ready_returns_current_dependency_checks(client: TestClient) -> None:
                 "status": "ok",
             },
             {
+                "name": "evidence_consent_repository",
+                "status": "ok",
+            },
+            {
                 "name": "evidence_submission_repository",
                 "status": "ok",
             },

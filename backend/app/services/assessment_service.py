@@ -7,6 +7,7 @@ from uuid import uuid4
 from app.adapters.assessment_adapter import AssessmentAdapter, SupplementalAssessmentAdapter
 from app.core.errors import EvidenceSubmissionNotFoundError, ResourceConflictError
 from app.repositories.assessment_repository import AssessmentRepository
+from app.repositories.evidence_consent_repository import EvidenceConsentRepository
 from app.repositories.evidence_quality_repository import EvidenceQualityRepository
 from app.repositories.evidence_selection_repository import EvidenceSelectionRepository
 from app.repositories.evidence_submission_repository import EvidenceSubmissionRepository
@@ -28,8 +29,10 @@ from app.schemas.assessment import (
     SupplementalAssessmentState,
 )
 from app.schemas.audit import AuditActor, AuditStage, SessionAuditEvent
+from app.schemas.consent import ConsentStatus
 from app.schemas.evidence_quality import EvidenceQualityStatus
 from app.schemas.evidence_selection import EvidenceSelectionStatus
+from app.schemas.evidence_submission import EvidenceSubmissionMode, EvidenceSubmissionState
 from app.schemas.model_registry import ModelGovernanceResolution, ModelRole
 from app.schemas.policy_boundary import BoundaryStatus
 from app.services.assessment_data_lineage_service import AssessmentDataLineageService
@@ -276,6 +279,7 @@ class SupplementalAssessmentService:
         session_service: CustomerSessionService,
         quality_repository: EvidenceQualityRepository,
         submission_repository: EvidenceSubmissionRepository,
+        evidence_consent_repository: EvidenceConsentRepository,
         selection_repository: EvidenceSelectionRepository,
         boundary_repository: PolicyBoundaryRepository,
         adapter: SupplementalAssessmentAdapter,
@@ -285,6 +289,7 @@ class SupplementalAssessmentService:
         self.session_service = session_service
         self.quality_repository = quality_repository
         self.submission_repository = submission_repository
+        self.evidence_consent_repository = evidence_consent_repository
         self.selection_repository = selection_repository
         self.boundary_repository = boundary_repository
         self.adapter = adapter
@@ -343,6 +348,8 @@ class SupplementalAssessmentService:
                 session_id=session_id,
                 supplemental_assessment=existing,
             )
+
+        self._require_active_submission_consent(session_id, submission)
 
         selection = self.selection_repository.get_latest(session_id)
         boundary = self.boundary_repository.get_latest(session_id)
@@ -527,6 +534,7 @@ class SupplementalAssessmentService:
                 )
             if selection.boundary_check_id != boundary_check_id:
                 continue
+            self._require_active_submission_consent(session_id, submission)
             accepted.append(
                 AcceptedEvidenceSnapshot(
                     quality_check_id=quality.quality_check_id,
@@ -555,6 +563,33 @@ class SupplementalAssessmentService:
                 "현재 제출을 포함한 누적 Evidence 집합을 확인할 수 없습니다.",
             )
         return accepted
+
+    def _require_active_submission_consent(
+        self,
+        session_id: str,
+        submission: EvidenceSubmissionState,
+    ) -> None:
+        if submission.submission_mode != EvidenceSubmissionMode.DEMO_FILE_UPLOAD:
+            return
+        consent = self.evidence_consent_repository.get_for_selection(
+            session_id,
+            submission.selection_id,
+        )
+        if (
+            consent is None
+            or consent.status != ConsentStatus.GRANTED
+            or consent.selection_id != submission.selection_id
+            or consent.evidence_type != submission.evidence_type
+            or consent.source_type != submission.source_type
+            or submission.evidence_consent_id is None
+            or consent.evidence_consent_id != submission.evidence_consent_id
+            or submission.consent_scope_version is None
+            or consent.scope_version != submission.consent_scope_version
+        ):
+            self._conflict(
+                "EVIDENCE_CONSENT_NOT_ACTIVE",
+                "현재 유효한 Evidence 동의가 있는 자료만 보완평가에 사용할 수 있습니다.",
+            )
 
     def readiness(self) -> dict[str, bool]:
         return {

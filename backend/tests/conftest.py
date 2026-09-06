@@ -20,6 +20,7 @@ from app.repositories.consent_repository import SqliteConsentRepository
 from app.repositories.credit_exposure_repository import SqliteCreditExposureRepository
 from app.repositories.credit_history_repository import SqliteCreditHistoryRepository
 from app.repositories.data_source_repository import SqliteDataSourceRepository
+from app.repositories.evidence_consent_repository import SqliteEvidenceConsentRepository
 from app.repositories.evidence_quality_repository import SqliteEvidenceQualityRepository
 from app.repositories.evidence_selection_repository import SqliteEvidenceSelectionRepository
 from app.repositories.evidence_submission_repository import SqliteEvidenceSubmissionRepository
@@ -51,6 +52,7 @@ from app.services.credit_history_service import (
     DemoCreditHistoryCatalogService,
 )
 from app.services.data_source_service import DataSourceService
+from app.services.evidence_consent_service import EvidenceConsentService
 from app.services.evidence_quality_service import (
     DemoEvidenceQualityCatalog,
     EvidenceQualityService,
@@ -348,17 +350,35 @@ def evidence_submission_repository(tmp_path) -> SqliteEvidenceSubmissionReposito
 
 
 @pytest.fixture
+def evidence_consent_repository(tmp_path) -> SqliteEvidenceConsentRepository:
+    return SqliteEvidenceConsentRepository(tmp_path / "test.db")
+
+
+@pytest.fixture
+def evidence_consent_service(
+    evidence_consent_repository: SqliteEvidenceConsentRepository,
+    session_service: CustomerSessionService,
+    evidence_selection_service: EvidenceSelectionService,
+) -> EvidenceConsentService:
+    return EvidenceConsentService(
+        repository=evidence_consent_repository,
+        session_service=session_service,
+        selection_repository=evidence_selection_service.repository,
+    )
+
+
+@pytest.fixture
 def evidence_submission_service(
     evidence_submission_repository: SqliteEvidenceSubmissionRepository,
     session_service: CustomerSessionService,
     evidence_selection_service: EvidenceSelectionService,
-    consent_service: ConsentService,
+    evidence_consent_service: EvidenceConsentService,
 ) -> EvidenceSubmissionService:
     return EvidenceSubmissionService(
         repository=evidence_submission_repository,
         session_service=session_service,
         selection_service=evidence_selection_service,
-        consent_service=consent_service,
+        evidence_consent_service=evidence_consent_service,
         catalog=DemoEvidenceSubmissionCatalog(settings.demo_evidence_submissions_path),
         file_catalog=DemoEvidenceFileCatalog(settings.demo_evidence_files_path),
     )
@@ -373,12 +393,14 @@ def evidence_quality_repository(tmp_path) -> SqliteEvidenceQualityRepository:
 def evidence_quality_service(
     evidence_quality_repository: SqliteEvidenceQualityRepository,
     evidence_submission_repository: SqliteEvidenceSubmissionRepository,
+    evidence_consent_repository: SqliteEvidenceConsentRepository,
     session_service: CustomerSessionService,
     evidence_submission_service: EvidenceSubmissionService,
 ) -> EvidenceQualityService:
     return EvidenceQualityService(
         repository=evidence_quality_repository,
         submission_repository=evidence_submission_repository,
+        evidence_consent_repository=evidence_consent_repository,
         session_service=session_service,
         catalog=DemoEvidenceQualityCatalog(settings.demo_evidence_quality_path),
         file_catalog=evidence_submission_service.file_catalog,
@@ -391,6 +413,7 @@ def supplemental_assessment_service(
     session_service: CustomerSessionService,
     evidence_quality_repository: SqliteEvidenceQualityRepository,
     evidence_submission_repository: SqliteEvidenceSubmissionRepository,
+    evidence_consent_repository: SqliteEvidenceConsentRepository,
     evidence_selection_repository: SqliteEvidenceSelectionRepository,
     policy_boundary_repository: SqlitePolicyBoundaryRepository,
     model_registry_service: ModelRegistryService,
@@ -400,6 +423,7 @@ def supplemental_assessment_service(
         session_service=session_service,
         quality_repository=evidence_quality_repository,
         submission_repository=evidence_submission_repository,
+        evidence_consent_repository=evidence_consent_repository,
         selection_repository=evidence_selection_repository,
         boundary_repository=policy_boundary_repository,
         adapter=UnconfiguredSupplementalAssessmentAdapter(),
@@ -485,6 +509,7 @@ def client(
     assessment_service: AssessmentService,
     policy_boundary_service: PolicyBoundaryService,
     evidence_selection_service: EvidenceSelectionService,
+    evidence_consent_service: EvidenceConsentService,
     evidence_submission_service: EvidenceSubmissionService,
     evidence_quality_service: EvidenceQualityService,
     supplemental_assessment_service: SupplementalAssessmentService,
@@ -506,6 +531,7 @@ def client(
             assessment_service=assessment_service,
             policy_boundary_service=policy_boundary_service,
             evidence_selection_service=evidence_selection_service,
+            evidence_consent_service=evidence_consent_service,
             evidence_submission_service=evidence_submission_service,
             evidence_quality_service=evidence_quality_service,
             supplemental_assessment_service=supplemental_assessment_service,
