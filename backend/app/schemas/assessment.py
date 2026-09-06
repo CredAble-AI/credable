@@ -6,6 +6,7 @@ from pydantic import Field, model_validator
 
 from app.schemas.base import ApiModel
 from app.schemas.consent import ConsentSourceType
+from app.schemas.credit_history import CreditAssessmentType
 from app.schemas.data_source import DataSourceState
 
 
@@ -67,6 +68,41 @@ class AssessmentFeatureSnapshotReference(ApiModel):
         return self
 
 
+class ExistingAssessmentReference(ApiModel):
+    credit_assessment_id: str = Field(min_length=1)
+    data_version: str = Field(min_length=1)
+    application_id: str | None = Field(default=None, min_length=1)
+    assessment_type: CreditAssessmentType
+    assessed_at: datetime
+    feature_cutoff_at: datetime
+    grade_code: str = Field(min_length=1)
+    grade_scale_version: str = Field(min_length=1)
+    reason_codes: list[str] = Field(default_factory=list)
+    model_version: str = Field(min_length=1)
+    feature_set_version: str = Field(min_length=1)
+    policy_version: str = Field(min_length=1)
+    demo_only: Literal[True] = True
+
+    @model_validator(mode="after")
+    def validate_reference(self) -> "ExistingAssessmentReference":
+        if self.assessed_at.tzinfo is None or self.feature_cutoff_at.tzinfo is None:
+            raise ValueError("existing assessment timestamps must include a timezone")
+        if self.feature_cutoff_at > self.assessed_at:
+            raise ValueError("featureCutoffAt cannot be later than assessedAt")
+        if self.assessment_type == CreditAssessmentType.APPLICATION and self.application_id is None:
+            raise ValueError("APPLICATION assessment requires applicationId")
+        if (
+            self.assessment_type != CreditAssessmentType.APPLICATION
+            and self.application_id is not None
+        ):
+            raise ValueError("non-application assessment cannot include applicationId")
+        if any(not code.strip() for code in self.reason_codes):
+            raise ValueError("reasonCodes cannot contain blank values")
+        if len(self.reason_codes) != len(set(self.reason_codes)):
+            raise ValueError("reasonCodes must be unique")
+        return self
+
+
 class AssessmentUncertainty(ApiModel):
     point_estimate: float | None = None
     lower_bound: float | None = None
@@ -106,6 +142,7 @@ class AssessmentInputSnapshot(ApiModel):
     source_snapshots: list[AssessmentDataSnapshotReference] = Field(default_factory=list)
     excluded_source_snapshots: list[AssessmentDataSnapshotReference] = Field(default_factory=list)
     feature_snapshot: AssessmentFeatureSnapshotReference | None = None
+    source_assessment: ExistingAssessmentReference | None = None
     demo_only: Literal[True] = True
 
     @model_validator(mode="after")
@@ -156,7 +193,7 @@ class AdapterAssessmentResult(ApiModel):
 
 
 class DemoAssessmentDefinition(ApiModel):
-    demo_profile_id: str = Field(min_length=1)
+    source_credit_assessment_id: str = Field(min_length=1)
     result: AdapterAssessmentResult
 
 
@@ -166,13 +203,13 @@ class DemoAssessmentCatalogData(ApiModel):
     assessments: list[DemoAssessmentDefinition] = Field(min_length=1)
 
     @model_validator(mode="after")
-    def validate_unique_profiles(self) -> "DemoAssessmentCatalogData":
+    def validate_unique_source_assessments(self) -> "DemoAssessmentCatalogData":
         source_types = self.required_verified_sources
         if len(source_types) != len(set(source_types)):
             raise ValueError("required verified sourceType values must be unique")
-        profile_ids = [item.demo_profile_id for item in self.assessments]
-        if len(profile_ids) != len(set(profile_ids)):
-            raise ValueError("demoProfileId values must be unique")
+        assessment_ids = [item.source_credit_assessment_id for item in self.assessments]
+        if len(assessment_ids) != len(set(assessment_ids)):
+            raise ValueError("sourceCreditAssessmentId values must be unique")
         return self
 
 
@@ -184,6 +221,7 @@ class AssessmentState(ApiModel):
     model_version: str | None = None
     reason_code: str | None = None
     uncertainty: AssessmentUncertainty | None = None
+    source_assessment: ExistingAssessmentReference | None = None
     demo_only: Literal[True] = True
 
     @model_validator(mode="after")
@@ -202,6 +240,8 @@ class AssessmentState(ApiModel):
                 raise ValueError("NOT_RUN assessment cannot have a result")
             if self.uncertainty is not None:
                 raise ValueError("NOT_RUN assessment cannot have uncertainty")
+            if self.source_assessment is not None:
+                raise ValueError("NOT_RUN assessment cannot have a source assessment")
             return self
         if any(value is None for value in execution_fields):
             raise ValueError("executed assessment requires execution metadata")
@@ -263,6 +303,7 @@ class SupplementalAssessmentInputSnapshot(ApiModel):
     baseline_assessment_id: str = Field(min_length=1)
     baseline_input_snapshot_id: str = Field(min_length=1)
     baseline_uncertainty: AssessmentUncertainty
+    baseline_source_assessment: ExistingAssessmentReference | None = None
     feature_cutoff_at: datetime | None = None
     data_sources: list[DataSourceState]
     source_snapshots: list[AssessmentDataSnapshotReference] = Field(default_factory=list)

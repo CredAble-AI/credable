@@ -254,6 +254,11 @@ def test_supplemental_assessment_uses_only_accepted_evidence(
     assert snapshot.baseline_assessment_id == baseline["assessmentId"]
     assert snapshot.baseline_input_snapshot_id == baseline["inputSnapshotId"]
     assert snapshot.baseline_uncertainty.grade_set == ["DEMO_GRADE_B", "DEMO_GRADE_C"]
+    assert snapshot.baseline_source_assessment is not None
+    assert (
+        snapshot.baseline_source_assessment.credit_assessment_id
+        == baseline["sourceAssessment"]["creditAssessmentId"]
+    )
     assert snapshot.accepted_evidence.quality_check_id == quality["qualityCheckId"]
     assert snapshot.accepted_evidence.submission_id == submission["submissionId"]
     assert snapshot.accepted_evidence_set == [snapshot.accepted_evidence]

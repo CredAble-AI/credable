@@ -282,6 +282,7 @@ def assessment_service(
     assessment_data_lineage_service: AssessmentDataLineageService,
     feature_snapshot_service: FeatureSnapshotService,
     model_registry_service: ModelRegistryService,
+    credit_history_repository: SqliteCreditHistoryRepository,
 ) -> AssessmentService:
     return AssessmentService(
         repository=assessment_repository,
@@ -291,6 +292,7 @@ def assessment_service(
         data_lineage_service=assessment_data_lineage_service,
         feature_snapshot_service=feature_snapshot_service,
         model_registry_service=model_registry_service,
+        credit_history_repository=credit_history_repository,
     )
 
 

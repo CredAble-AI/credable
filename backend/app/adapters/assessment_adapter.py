@@ -77,11 +77,16 @@ class DemoAssessmentAdapter(AssessmentAdapter):
                     status=AssessmentStatus.INSUFFICIENT_DATA,
                     reason_code="DEMO_REQUIRED_DATA_SNAPSHOT_NOT_AVAILABLE",
                 )
+        if snapshot.source_assessment is None:
+            return AdapterAssessmentResult(
+                status=AssessmentStatus.INSUFFICIENT_DATA,
+                reason_code="EXISTING_BANK_ASSESSMENT_NOT_AVAILABLE",
+            )
         return self._results.get(
-            snapshot.demo_profile_id,
+            snapshot.source_assessment.credit_assessment_id,
             AdapterAssessmentResult(
-                status=AssessmentStatus.UNSUPPORTED_CUSTOMER_TYPE,
-                reason_code="DEMO_CUSTOMER_TYPE_NOT_CONFIGURED",
+                status=AssessmentStatus.MODEL_NOT_CONFIGURED,
+                reason_code="DEMO_SOURCE_ASSESSMENT_NOT_CONFIGURED",
             ),
         )
 
@@ -99,7 +104,9 @@ class DemoAssessmentAdapter(AssessmentAdapter):
             self.catalog_path.read_text(encoding="utf-8")
         )
         self._catalog = catalog
-        self._results = {item.demo_profile_id: item.result for item in catalog.assessments}
+        self._results = {
+            item.source_credit_assessment_id: item.result for item in catalog.assessments
+        }
 
 
 class SupplementalAssessmentAdapter(ABC):
