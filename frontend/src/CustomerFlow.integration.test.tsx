@@ -107,16 +107,11 @@ describe('customer journey integration', () => {
     fireEvent.click(screen.getByRole('button', { name: '데이터 연결로 이동' }))
 
     expect(await screen.findByRole('heading', { level: 1, name: '기준평가에 사용할 데이터 출처를 확인합니다' })).toBeInTheDocument()
-    const refreshSources = await screen.findByRole('button', { name: '전체 출처 새로고침' })
-    await waitFor(() => expect(refreshSources).toBeEnabled())
-    fireEvent.click(refreshSources)
-    await waitFor(
-      () => expect(screen.getAllByText('연결 상태 · 조회 완료')).toHaveLength(3),
-      { timeout: 2_000 },
-    )
-    fireEvent.click(screen.getByRole('link', { name: '기준평가 실행' }))
+    const continueToAssessment = await screen.findByRole('button', { name: '데이터 확인 후 기준평가 시작' })
+    await waitFor(() => expect(continueToAssessment).toBeEnabled())
+    fireEvent.click(continueToAssessment)
 
-    fireEvent.click(await screen.findByRole('button', { name: '기준평가 시작' }))
+    fireEvent.click(await screen.findByRole('button', { name: '기준평가 시작' }, { timeout: 3_000 }))
     fireEvent.click(await screen.findByRole('button', { name: '다음 단계 확인' }))
     fireEvent.click(await screen.findByRole('button', { name: '평가 결과 설명 보기' }))
     expect(await screen.findByRole('heading', { level: 3, name: '정책 경계에 불확실성이 남아 있습니다' })).toBeInTheDocument()
@@ -126,7 +121,7 @@ describe('customer journey integration', () => {
     expect(await screen.findByRole('heading', { level: 2, name: '최근 매출·입금 요약' })).toBeInTheDocument()
     fireEvent.click(await screen.findByRole('button', { name: '이 범위에 동의' }))
 
-    const download = await screen.findByRole('link', { name: '시연용 PDF 내려받기' })
+    const download = await screen.findByRole('link', { name: '시연용 PDF 다운로드' })
     expect(download).toHaveAttribute('download', 'recent-revenue-demo.pdf')
     expect(download.getAttribute('href')).toMatch(/^\/v1\/sessions\/[^/]+\/evidence\/selections\/[^/]+\/demo-file\/download$/)
 

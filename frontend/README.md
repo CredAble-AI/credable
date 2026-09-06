@@ -4,6 +4,8 @@ This template provides a minimal setup to get React working in Vite with HMR and
 
 Copy `.env.example` to `.env` and set `VITE_API_MODE=live` to switch API providers from the built-in mock fixtures to the backend. Any unset or unrecognized value keeps the default `mock` mode.
 
+Customer-facing technical metadata is hidden by default. Set `VITE_SHOW_CUSTOMER_TECHNICAL_DETAILS=true` only during local debugging; keep it disabled in the judging demo.
+
 During local development, Vite proxies `/v1` to `CREDABLE_BACKEND_ORIGIN`, which defaults to `http://127.0.0.1:8000`. Start the backend on that origin before starting the frontend. A deployed frontend still requires its web server or gateway to route the same-origin `/v1` path to the backend.
 
 In live mode, the Evidence submission screen renders the backend-provided `demoFiles` list. It lets a reviewer download and re-upload normal, point-in-time mismatch, required-field-missing, and hash-mismatch synthetic PDFs. The labels show the expected demo path, while the actual quality status always comes from the backend response. Older backends that only return `demoFile` remain supported.

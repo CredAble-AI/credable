@@ -32,7 +32,7 @@ describe('AssessmentComparisonPanel', () => {
     await waitFor(() => expect(assessmentComparisonProvider.compare).toHaveBeenCalledWith('ses_demo', { baselineAssessmentId: 'asm_demo', supplementalAssessmentId: 'sam_demo', qualityCheckId: 'evq_demo' }, expect.any(AbortSignal)))
     expect(await screen.findByRole('heading', { name: '가능한 결과 범위가 줄었습니다' })).toBeInTheDocument()
     expect(screen.getByText('DEMO_GRADE_B · DEMO_GRADE_C')).toBeInTheDocument()
-    expect(screen.getByText('GRADE_SET_PROPER_SUBSET')).toBeInTheDocument()
+    expect(screen.getByText('DEMO_GRADE_B')).toBeInTheDocument()
     expect(screen.getByText(/승인 가능성 상승/)).toBeInTheDocument()
     expect(screen.getByText('Evidence 수집 판단 패널')).toBeInTheDocument()
   })
@@ -51,7 +51,7 @@ describe('AssessmentComparisonPanel', () => {
 
     expect(await screen.findByRole('heading', { name: '같은 기준으로 비교할 수 없습니다' })).toBeInTheDocument()
     expect(screen.getAllByText('비교 가능한 범위 없음')).toHaveLength(2)
-    expect(screen.getByText('CALIBRATION_VERSION_MISMATCH')).toBeInTheDocument()
+    expect(screen.getByText('두 평가의 기준 또는 결과 형태가 달라 직접 비교하지 않습니다.')).toBeInTheDocument()
   })
 
   it('rejects a newly created comparison returned for another assessment lineage', async () => {

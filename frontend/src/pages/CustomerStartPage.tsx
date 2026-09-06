@@ -68,6 +68,11 @@ function CustomerStartPage() {
             <p>CredAble은 사업자금 대출을 탐색하는 등록 사업자를 위한 서비스입니다. 선택한 사업자 유형에 맞는 합성 사례로 평가 흐름을 확인합니다.</p>
           </div>
 
+          <aside className="demo-journey-note" aria-label="시연 자료 이용 방법">
+            <strong>시연 중 직접 확인할 수 있습니다</strong>
+            <p>최소 증빙이 필요한 단계에서 정상·기준시점 오류·변조 의심 PDF를 화면에서 내려받고, 같은 화면에서 다시 업로드해 검증 결과를 확인합니다.</p>
+          </aside>
+
           {profilesLoading && <p role="status" aria-live="polite">사업자 유형을 불러오고 있습니다.</p>}
           {profilesError && (
             <div className="flow-actions">

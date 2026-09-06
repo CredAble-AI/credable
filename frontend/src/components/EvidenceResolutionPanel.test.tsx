@@ -29,7 +29,7 @@ describe('EvidenceResolutionPanel', () => {
 
     await waitFor(() => expect(evidenceResolutionProvider.resolve).toHaveBeenCalledWith('ses_demo', { comparisonId: 'acp_demo', supplementalAssessmentId: 'sam_demo' }, expect.any(AbortSignal)))
     expect(await screen.findByRole('heading', { name: '추가 자료 확인을 마쳤습니다' })).toBeInTheDocument()
-    expect(screen.getByText('PATH_STABLE')).toBeInTheDocument()
+    expect(screen.getByText('결과 범위가 충분히 확인되어 더 이상 자료를 요청하지 않습니다.')).toBeInTheDocument()
     expect(screen.getByRole('link', { name: '자사 상품 조건 확인' })).toHaveAttribute('href', '/products')
     expect(screen.queryByRole('link', { name: '다음 자료 한 건 확인' })).not.toBeInTheDocument()
   })
@@ -40,7 +40,7 @@ describe('EvidenceResolutionPanel', () => {
 
     expect(await screen.findByRole('heading', { name: '자료 한 건을 더 확인할 수 있습니다' })).toBeInTheDocument()
     expect(screen.getByRole('link', { name: '다음 자료 한 건 확인' })).toHaveAttribute('href', '/evidence?selectNext=1')
-    expect(screen.getByText('DEMO_BOUNDARY_1_2')).toBeInTheDocument()
+    expect(screen.getByText('결과 범위를 더 명확히 하기 위해 다음으로 필요한 자료 한 건을 안내합니다.')).toBeInTheDocument()
   })
 
   it('shows human review without offering another Evidence request', async () => {
@@ -48,7 +48,7 @@ describe('EvidenceResolutionPanel', () => {
     renderPanel()
 
     expect(await screen.findByRole('heading', { name: '담당자 확인으로 전환했습니다' })).toBeInTheDocument()
-    expect(screen.getByText('UNCERTAINTY_COMPARISON_NOT_RELIABLE')).toBeInTheDocument()
+    expect(screen.getByText('자동 확인을 중단하고 담당자가 직접 살펴보는 단계로 전환했습니다.')).toBeInTheDocument()
     expect(screen.queryByRole('link', { name: '다음 자료 한 건 확인' })).not.toBeInTheDocument()
   })
 

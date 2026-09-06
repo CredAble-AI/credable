@@ -123,7 +123,7 @@ describe('AssessmentPage', () => {
     renderPage()
 
     expect(await screen.findByRole('heading', { name: '평가 준비 완료' })).toBeInTheDocument()
-    expect(screen.getByText('시연 기술 정보 보기')).toBeInTheDocument()
+    expect(screen.queryByText('시연 기술 정보 보기')).not.toBeInTheDocument()
     expect(assessmentProvider.get).toHaveBeenCalledTimes(1)
     expect(assessmentProvider.run).not.toHaveBeenCalled()
     expect(policyBoundaryProvider.get).not.toHaveBeenCalled()
@@ -145,8 +145,8 @@ describe('AssessmentPage', () => {
     expect(screen.getByText('DEMO_GRADE_C')).toBeInTheDocument()
     expect(screen.getByRole('heading', { name: '추가 자료 확인 필요' })).toBeInTheDocument()
     expect(screen.getByText('심사역 재확인 패널')).toBeInTheDocument()
-    expect(screen.getByText((content) => content.includes('DEMO_PATH_1'))).toBeInTheDocument()
-    expect(screen.getByText('DEMO_BOUNDARY_1_2')).toBeInTheDocument()
+    expect(screen.getByText('2개 경로가 남아 있습니다.')).toBeInTheDocument()
+    expect(screen.getByText('결과를 좁히기 위한 자료 한 건을 확인합니다.')).toBeInTheDocument()
     expect(screen.getByRole('link', { name: '필요한 자료 확인' })).toHaveAttribute('href', '/evidence')
   })
 
@@ -169,7 +169,7 @@ describe('AssessmentPage', () => {
 
     fireEvent.click(await screen.findByRole('button', { name: '기준평가 시작' }))
 
-    expect((await screen.findAllByText('DEMO_VERIFIED_DATA_INSUFFICIENT')).length).toBeGreaterThan(0)
+    expect(await screen.findByRole('heading', { name: '현재 데이터로 산출 불가' })).toBeInTheDocument()
     expect(screen.getByText('이 상태는 신용이 낮거나 대출 자격이 없다는 의미가 아닙니다.')).toBeInTheDocument()
     expect(screen.queryByText('심사역 재확인 패널')).not.toBeInTheDocument()
     expect(policyBoundaryProvider.get).not.toHaveBeenCalled()

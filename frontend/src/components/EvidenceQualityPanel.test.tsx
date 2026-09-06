@@ -49,8 +49,8 @@ describe('EvidenceQualityPanel', () => {
     expect(screen.getAllByText('확인 완료')).toHaveLength(6)
     expect(screen.getByText('서버가 서명한 Demo 검증정보를 확인했습니다')).toBeInTheDocument()
     expect(screen.getByText('Demo 발급 서버')).toBeInTheDocument()
-    expect(screen.getByText('SERVER_SIGNED_MANIFEST')).toBeInTheDocument()
-    expect(screen.getByText('RUN_REASSESSMENT')).toBeInTheDocument()
+    expect(screen.getByText('업로드 후 변경 여부')).toBeInTheDocument()
+    expect(screen.getByText('문서와 검증정보 연결')).toBeInTheDocument()
     expect(screen.getByText('보완평가 패널')).toBeInTheDocument()
   })
 
@@ -59,9 +59,8 @@ describe('EvidenceQualityPanel', () => {
     renderPanel()
 
     expect(await screen.findByRole('heading', { name: '담당자 확인이 필요합니다' })).toBeInTheDocument()
-    expect(screen.getAllByText('DEMO_AUTHENTICITY_FAILED')).toHaveLength(3)
-    expect(screen.getByText('UNDERWRITER_REVIEW')).toBeInTheDocument()
-    expect(screen.getByText('필요')).toBeInTheDocument()
+    expect(screen.getByText('이상 징후가 있어 자동 평가를 진행하지 않습니다.')).toBeInTheDocument()
+    expect(screen.getByText('확인 필요')).toBeInTheDocument()
   })
 
   it('offers the server-driven next selection path for rejected Evidence', async () => {

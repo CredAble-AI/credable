@@ -6,6 +6,9 @@
 .demo-badge i { width: 7px; height: 7px; border-radius: 50%; background: var(--color-sky); }
 .flow-heading h1 { margin-top: 24px; font-size: clamp(38px, 5vw, 58px); line-height: 1.15; letter-spacing: -.05em; }
 .flow-heading > p:last-child { margin-top: 20px; color: var(--color-hero-text); font-size: 17px; line-height: 1.7; word-break: keep-all; }
+.demo-journey-note { margin-top: 28px; padding: 18px 20px; border: 1px solid rgba(183,222,250,.18); border-radius: var(--radius-sm); background: rgba(10,37,72,.55); }
+.demo-journey-note strong { color: var(--color-ice); font-size: 14px; }
+.demo-journey-note p { margin-top: 7px; color: #a9bed2; font-size: 13px; line-height: 1.65; word-break: keep-all; }
 .borrower-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; margin: 42px 0 0; padding: 0; border: 0; }
 .borrower-card { position: relative; min-height: 255px; padding: 30px; border: 1px solid rgba(183,222,250,.14); border-radius: var(--radius-md); background: rgba(10,37,72,.72); cursor: pointer; transition: border-color .2s, background-color .2s, transform .2s; }
 .borrower-card:hover { border-color: rgba(85,184,248,.5); transform: translateY(-2px); }
