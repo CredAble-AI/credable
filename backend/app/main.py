@@ -207,6 +207,7 @@ def build_assessment_service(
     data_lineage_service: AssessmentDataLineageService,
     feature_snapshot_service: FeatureSnapshotService,
     model_registry_service: ModelRegistryService,
+    credit_history_service: CreditHistoryService,
 ) -> AssessmentService:
     return AssessmentService(
         repository=SqliteAssessmentRepository(settings.database_path),
@@ -216,6 +217,7 @@ def build_assessment_service(
         data_lineage_service=data_lineage_service,
         feature_snapshot_service=feature_snapshot_service,
         model_registry_service=model_registry_service,
+        credit_history_repository=credit_history_service.repository,
     )
 
 
@@ -456,11 +458,16 @@ def create_app(
         resolved_assessment_data_lineage_service,
         resolved_feature_snapshot_service,
         resolved_model_registry_service,
+        resolved_credit_history_service,
     )
     if resolved_assessment_service.feature_snapshot_service is None:
         resolved_assessment_service.feature_snapshot_service = resolved_feature_snapshot_service
     if resolved_assessment_service.model_registry_service is None:
         resolved_assessment_service.model_registry_service = resolved_model_registry_service
+    if resolved_assessment_service.credit_history_repository is None:
+        resolved_assessment_service.credit_history_repository = (
+            resolved_credit_history_service.repository
+        )
     resolved_policy_boundary_service = policy_boundary_service or build_policy_boundary_service(
         resolved_session_service,
         resolved_assessment_service,

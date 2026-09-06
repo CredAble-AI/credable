@@ -7,6 +7,7 @@ from uuid import uuid4
 from app.adapters.assessment_adapter import AssessmentAdapter, SupplementalAssessmentAdapter
 from app.core.errors import EvidenceSubmissionNotFoundError, ResourceConflictError
 from app.repositories.assessment_repository import AssessmentRepository
+from app.repositories.credit_history_repository import CreditHistoryRepository
 from app.repositories.evidence_consent_repository import EvidenceConsentRepository
 from app.repositories.evidence_quality_repository import EvidenceQualityRepository
 from app.repositories.evidence_selection_repository import EvidenceSelectionRepository
@@ -18,12 +19,15 @@ from app.schemas.assessment import (
     AssessmentComparisonBasis,
     AssessmentComparisonResponse,
     AssessmentComparisonState,
+    AssessmentDataSnapshotReference,
     AssessmentInputSnapshot,
     AssessmentResponse,
+    AssessmentSnapshotType,
     AssessmentState,
     AssessmentStatus,
     AssessmentUncertainty,
     AssessmentUncertaintyChange,
+    ExistingAssessmentReference,
     SupplementalAssessmentInputSnapshot,
     SupplementalAssessmentResponse,
     SupplementalAssessmentState,
@@ -118,6 +122,7 @@ class AssessmentService:
         data_lineage_service: AssessmentDataLineageService | None = None,
         feature_snapshot_service: FeatureSnapshotService | None = None,
         model_registry_service: ModelRegistryService | None = None,
+        credit_history_repository: CreditHistoryRepository | None = None,
     ) -> None:
         self.repository = repository
         self.session_service = session_service
@@ -126,6 +131,7 @@ class AssessmentService:
         self.data_lineage_service = data_lineage_service
         self.feature_snapshot_service = feature_snapshot_service
         self.model_registry_service = model_registry_service
+        self.credit_history_repository = credit_history_repository
 
     def initialize(self) -> None:
         self.repository.initialize()
@@ -159,6 +165,11 @@ class AssessmentService:
             if self.feature_snapshot_service is not None and available_source_snapshots
             else None
         )
+        source_assessment = self._resolve_source_assessment(
+            session_id=session_id,
+            feature_cutoff_at=feature_cutoff_at,
+            source_snapshots=source_snapshots,
+        )
         snapshot = AssessmentInputSnapshot(
             session_id=session_id,
             demo_profile_id=session.demo_profile.demo_profile_id,
@@ -171,6 +182,7 @@ class AssessmentService:
                 if self.feature_snapshot_service is not None and feature_snapshot is not None
                 else None
             ),
+            source_assessment=source_assessment,
         )
         snapshot_json = json.dumps(
             snapshot.model_dump(mode="json", by_alias=True),
@@ -204,6 +216,7 @@ class AssessmentService:
             model_version=result.model_version,
             reason_code=result.reason_code,
             uncertainty=result.uncertainty,
+            source_assessment=source_assessment,
         )
         output_summary: dict[str, str | bool | int] = {
             "assessmentStatus": state.status.value,
@@ -216,6 +229,16 @@ class AssessmentService:
                 {
                     "calibrationMode": state.uncertainty.calibration_mode.value,
                     "calibrationVersion": state.uncertainty.calibration_version,
+                }
+            )
+        if source_assessment is not None:
+            output_summary.update(
+                {
+                    "sourceCreditAssessmentId": source_assessment.credit_assessment_id,
+                    "sourceAssessmentDataVersion": source_assessment.data_version,
+                    "sourceAssessmentModelVersion": source_assessment.model_version,
+                    "sourceAssessmentFeatureSetVersion": source_assessment.feature_set_version,
+                    "sourceAssessmentPolicyVersion": source_assessment.policy_version,
                 }
             )
         self._add_governance_summary(output_summary, governance)
@@ -239,6 +262,57 @@ class AssessmentService:
             audit_event=audit_event,
         )
         return AssessmentResponse(session_id=session_id, assessment=saved)
+
+    def _resolve_source_assessment(
+        self,
+        *,
+        session_id: str,
+        feature_cutoff_at: datetime,
+        source_snapshots: list[AssessmentDataSnapshotReference],
+    ) -> ExistingAssessmentReference | None:
+        if self.credit_history_repository is None:
+            return None
+        credit_history_reference = next(
+            (
+                item
+                for item in source_snapshots
+                if item.snapshot_type == AssessmentSnapshotType.BANK_CREDIT_HISTORY
+            ),
+            None,
+        )
+        if credit_history_reference is None:
+            return None
+        credit_history = self.credit_history_repository.get_snapshot(session_id)
+        if (
+            credit_history is None
+            or credit_history.data_version != credit_history_reference.data_version
+        ):
+            return None
+        eligible = [
+            item
+            for item in credit_history.credit_assessments
+            if item.assessed_at <= feature_cutoff_at and item.feature_cutoff_at <= feature_cutoff_at
+        ]
+        if not eligible:
+            return None
+        selected = max(
+            eligible,
+            key=lambda item: (item.assessed_at, item.credit_assessment_id),
+        )
+        return ExistingAssessmentReference(
+            credit_assessment_id=selected.credit_assessment_id,
+            data_version=credit_history.data_version,
+            application_id=selected.application_id,
+            assessment_type=selected.assessment_type,
+            assessed_at=selected.assessed_at,
+            feature_cutoff_at=selected.feature_cutoff_at,
+            grade_code=selected.grade_code,
+            grade_scale_version=selected.grade_scale_version,
+            reason_codes=selected.reason_codes,
+            model_version=selected.model_version,
+            feature_set_version=selected.feature_set_version,
+            policy_version=selected.policy_version,
+        )
 
     def readiness(self) -> dict[str, bool]:
         return {
@@ -401,6 +475,7 @@ class SupplementalAssessmentService:
             baseline_assessment_id=baseline.assessment_id,
             baseline_input_snapshot_id=baseline.input_snapshot_id,
             baseline_uncertainty=baseline.uncertainty,
+            baseline_source_assessment=baseline.source_assessment,
             feature_cutoff_at=feature_cutoff_at,
             data_sources=baseline_snapshot.data_sources,
             source_snapshots=baseline_snapshot.source_snapshots,

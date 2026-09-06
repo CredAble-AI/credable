@@ -1,12 +1,12 @@
 {
-  "dataVersion": "demo-assessments-v1",
+  "dataVersion": "demo-assessments-v2",
   "requiredVerifiedSources": [
     "BANK_INTERNAL",
     "CREDIT_INFORMATION"
   ],
   "assessments": [
     {
-      "demoProfileId": "small-business",
+      "sourceCreditAssessmentId": "bca_demo_001",
       "result": {
         "status": "COMPLETED",
         "modelVersion": "demo-small-business-assessment-v1",
@@ -25,7 +25,7 @@
       }
     },
     {
-      "demoProfileId": "startup",
+      "sourceCreditAssessmentId": "bca_demo_002",
       "result": {
         "status": "INSUFFICIENT_DATA",
         "reasonCode": "DEMO_VERIFIED_DATA_INSUFFICIENT"
