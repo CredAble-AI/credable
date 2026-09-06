@@ -17,12 +17,15 @@ from app.repositories.session_repository import SqliteCustomerSessionRepository
 from app.schemas.assessment import (
     AssessmentUncertainty,
     CalibrationMode,
+    DemoAssessmentCatalogData,
     DemoSupplementalAssessmentCatalogData,
     SupplementalAssessmentInputSnapshot,
 )
 from app.schemas.audit import AuditStage
 from app.schemas.consent import ConsentSourceType
+from app.schemas.credit_history import DemoCreditHistoryCatalog
 from app.schemas.evidence_selection import DemoEvidenceCandidateCatalogData
+from app.schemas.policy_boundary import BoundaryStatus
 from app.schemas.session import DemoProfileCatalogData
 from app.services.assessment_service import (
     AssessmentService,
@@ -34,6 +37,7 @@ from app.services.evidence_quality_service import (
     DemoEvidenceQualityCatalog,
     EvidenceQualityService,
 )
+from app.services.policy_boundary_service import DemoPolicyBoundaryCatalog
 
 
 def create_session(client: TestClient) -> str:
@@ -971,15 +975,25 @@ def test_non_comparable_assessments_are_routed_to_underwriter(
     assert resolution["crossedBoundaryCodes"] == []
 
 
-def test_every_selectable_evidence_candidate_has_a_supplemental_result() -> None:
-    """Each Evidence a profile can be asked for must have a configured supplemental result.
+def test_every_evidence_candidate_of_an_ambiguous_profile_can_be_reassessed() -> None:
+    """A profile that can be asked for Evidence must be able to finish the reassessment.
 
     Without this the second request of a scenario silently falls back to
-    MODEL_NOT_CONFIGURED instead of showing the reassessment.
+    MODEL_NOT_CONFIGURED instead of showing the reassessment result.
     """
-    profiles = DemoProfileCatalogData.model_validate_json(
-        settings.demo_profiles_path.read_text(encoding="utf-8")
-    ).profiles
+    boundary_catalog = DemoPolicyBoundaryCatalog(settings.demo_policy_boundaries_path)
+    baseline_by_source = {
+        item.source_credit_assessment_id: item.result
+        for item in DemoAssessmentCatalogData.model_validate_json(
+            settings.demo_assessments_path.read_text(encoding="utf-8")
+        ).assessments
+    }
+    history_by_profile = {
+        item.demo_profile_id: item
+        for item in DemoCreditHistoryCatalog.model_validate_json(
+            settings.demo_credit_history_path.read_text(encoding="utf-8")
+        ).profiles
+    }
     candidates = DemoEvidenceCandidateCatalogData.model_validate_json(
         settings.demo_evidence_candidates_path.read_text(encoding="utf-8")
     ).candidates
@@ -990,11 +1004,24 @@ def test_every_selectable_evidence_candidate_has_a_supplemental_result() -> None
         ).assessments
     }
 
-    missing = [
-        (profile.demo_profile_id, candidate.evidence_type)
-        for profile in profiles
-        for candidate in candidates
-        if (profile.demo_profile_id, (candidate.evidence_type,)) not in configured
-    ]
+    missing: list[tuple[str, str]] = []
+    ambiguous_profiles: list[str] = []
+    for profile in DemoProfileCatalogData.model_validate_json(
+        settings.demo_profiles_path.read_text(encoding="utf-8")
+    ).profiles:
+        history = history_by_profile[profile.demo_profile_id]
+        source = max(history.credit_assessments, key=lambda item: item.assessed_at)
+        baseline = baseline_by_source[source.credit_assessment_id]
+        assert baseline.uncertainty is not None
+        decision = boundary_catalog.evaluate(baseline.uncertainty, source.reason_codes)
+        if decision.status != BoundaryStatus.AMBIGUOUS:
+            continue
+        ambiguous_profiles.append(profile.demo_profile_id)
+        missing.extend(
+            (profile.demo_profile_id, candidate.evidence_type)
+            for candidate in candidates
+            if (profile.demo_profile_id, (candidate.evidence_type,)) not in configured
+        )
 
+    assert ambiguous_profiles == ["small-business", "startup"]
     assert missing == []

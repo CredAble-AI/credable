@@ -18,6 +18,7 @@ function CustomerStartPage() {
   const [profilesLoading, setProfilesLoading] = useState(true)
   const [profilesError, setProfilesError] = useState<ApiError | null>(null)
   const [selected, setSelected] = useState<BusinessBorrowerType | null>(null)
+  const [selectedProfileId, setSelectedProfileId] = useState<string | null>(null)
   const [error, setError] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const sequenceRef = useRef(0)
@@ -49,10 +50,14 @@ function CustomerStartPage() {
       setError('개인사업자 또는 법인사업자를 선택해주세요.')
       return
     }
+    if (!selectedProfileId) {
+      setError('확인할 시연 사례를 선택해주세요.')
+      return
+    }
     setSubmitting(true)
     setError('')
     try {
-      await sessionProvider.create(selected, new AbortController().signal)
+      await sessionProvider.create(selectedProfileId, new AbortController().signal)
       navigate('/consent')
     } catch (caught) {
       setError(normalizeSessionError(caught).message)
@@ -60,6 +65,12 @@ function CustomerStartPage() {
       setSubmitting(false)
     }
   }
+
+  const profilesByType = profiles.reduce<Record<BusinessBorrowerType, DemoProfile[]>>((grouped, profile) => {
+    (grouped[profile.businessBorrowerType] ??= []).push(profile)
+    return grouped
+  }, {} as Record<BusinessBorrowerType, DemoProfile[]>)
+  const borrowerTypes = Object.keys(profilesByType) as BusinessBorrowerType[]
 
   return (
     <div className="workspace-shell customer-flow">
@@ -82,28 +93,53 @@ function CustomerStartPage() {
           {!profilesLoading && !profilesError && profiles.length === 0 && <p role="status">현재 선택할 수 있는 사업자 유형이 없습니다.</p>}
 
           {!profilesLoading && !profilesError && profiles.length > 0 && (
-            <fieldset className="borrower-grid">
-              <legend className="sr-only">대출 계약 주체 선택</legend>
-              {profiles.map((profile) => {
-                const isSelected = selected === profile.businessBorrowerType
-                return (
-                  <label className={`borrower-card${isSelected ? ' borrower-card--selected' : ''}`} key={profile.businessBorrowerType}>
-                    <input
-                      type="radio"
-                      name="business-borrower-type"
-                      value={profile.businessBorrowerType}
-                      checked={isSelected}
-                      onChange={() => { setSelected(profile.businessBorrowerType); setError('') }}
-                    />
-                    <span className="borrower-card__marker" aria-hidden="true">{isSelected ? '✓' : ''}</span>
-                    <span className="borrower-card__tag">서비스 대상</span>
-                    <h2>{profile.displayName}</h2>
-                    <p>{borrowerDescriptions[profile.businessBorrowerType]}</p>
-                    <small>선택한 유형에 맞춰 평가 주체와 사용 데이터를 구분합니다.</small>
-                  </label>
-                )
-              })}
-            </fieldset>
+            <>
+              <fieldset className="borrower-grid">
+                <legend className="sr-only">대출 계약 주체 선택</legend>
+                {borrowerTypes.map((borrowerType) => {
+                  const isSelected = selected === borrowerType
+                  const [first] = profilesByType[borrowerType]
+                  return (
+                    <label className={`borrower-card${isSelected ? ' borrower-card--selected' : ''}`} key={borrowerType}>
+                      <input
+                        type="radio"
+                        name="business-borrower-type"
+                        value={borrowerType}
+                        checked={isSelected}
+                        onChange={() => { setSelected(borrowerType); setSelectedProfileId(first.demoProfileId); setError('') }}
+                      />
+                      <span className="borrower-card__marker" aria-hidden="true">{isSelected ? '✓' : ''}</span>
+                      <span className="borrower-card__tag">서비스 대상</span>
+                      <h2>{first.displayName}</h2>
+                      <p>{borrowerDescriptions[borrowerType]}</p>
+                      <small>선택한 유형에 맞춰 평가 주체와 사용 데이터를 구분합니다.</small>
+                    </label>
+                  )
+                })}
+              </fieldset>
+
+              {selected && (
+                <fieldset className="scenario-picker">
+                  <legend><span className="scenario-picker__tag">DEMO</span> 확인할 시연 사례를 선택해주세요</legend>
+                  <p className="scenario-picker__note">실제 서비스에서는 고객의 기존 평가 결과에 따라 상태가 정해집니다. 공모전 시연에서는 정책 경계 상태별 흐름을 직접 확인할 수 있도록 합성 사례를 골라 시작합니다.</p>
+                  {profilesByType[selected].map((profile) => {
+                    const isSelected = selectedProfileId === profile.demoProfileId
+                    return (
+                      <label className={`scenario-option${isSelected ? ' scenario-option--selected' : ''}`} key={profile.demoProfileId}>
+                        <input
+                          type="radio"
+                          name="demo-profile-id"
+                          value={profile.demoProfileId}
+                          checked={isSelected}
+                          onChange={() => { setSelectedProfileId(profile.demoProfileId); setError('') }}
+                        />
+                        <span><strong>{profile.scenarioLabel}</strong><small>{profile.description}</small><p>{profile.scenarioSummary}</p></span>
+                      </label>
+                    )
+                  })}
+                </fieldset>
+              )}
+            </>
           )}
 
           <div className="flow-actions">

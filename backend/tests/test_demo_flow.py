@@ -334,3 +334,82 @@ def test_complete_demo_journey_connects_evidence_products_and_admin(
         "PRODUCT_CATALOG_REFRESHED",
         "PRODUCT_CONDITIONS_QUERIED",
     ]
+
+
+def test_stable_demo_case_finishes_without_requesting_evidence(
+    client: TestClient,
+    data_source_service: DataSourceService,
+    assessment_service: AssessmentService,
+    product_catalog_service: ProductCatalogService,
+    product_condition_service: ProductConditionService,
+) -> None:
+    configure_demo_adapters(
+        data_source_service,
+        assessment_service,
+        product_catalog_service,
+        product_condition_service,
+    )
+    session_id = create_session(client, "small-business-stable")
+    grant_sources(
+        client,
+        session_id,
+        (ConsentSourceType.BANK_INTERNAL, ConsentSourceType.CREDIT_INFORMATION),
+    )
+    assert client.post(f"/v1/sessions/{session_id}/data-sources/refresh").status_code == 200
+    assert client.post(f"/v1/sessions/{session_id}/assessment/run").status_code == 200
+
+    response = client.post(f"/v1/sessions/{session_id}/assessment/boundary-check")
+
+    assert response.status_code == 200
+    decision = response.json()["boundaryCheck"]["decision"]
+    assert decision["status"] == "STABLE"
+    assert decision["possibleRoutes"] == ["DEMO_PATH_1"]
+    assert decision["stopReason"] == "PATH_STABLE"
+    assert decision["underwriterRequired"] is False
+
+    selection = client.post(f"/v1/sessions/{session_id}/evidence/next").json()["selection"]
+    assert selection["status"] == "NOT_REQUIRED"
+    assert selection["selectedEvidence"] is None
+    assert selection["underwriterRequired"] is False
+
+
+def test_policy_blocked_demo_case_explains_the_restriction_without_collecting_evidence(
+    client: TestClient,
+    data_source_service: DataSourceService,
+    assessment_service: AssessmentService,
+    product_catalog_service: ProductCatalogService,
+    product_condition_service: ProductConditionService,
+) -> None:
+    configure_demo_adapters(
+        data_source_service,
+        assessment_service,
+        product_catalog_service,
+        product_condition_service,
+    )
+    session_id = create_session(client, "startup-policy-blocked")
+    grant_sources(
+        client,
+        session_id,
+        (ConsentSourceType.BANK_INTERNAL, ConsentSourceType.CREDIT_INFORMATION),
+    )
+    assert client.post(f"/v1/sessions/{session_id}/data-sources/refresh").status_code == 200
+    assert client.post(f"/v1/sessions/{session_id}/assessment/run").status_code == 200
+
+    response = client.post(f"/v1/sessions/{session_id}/assessment/boundary-check")
+
+    assert response.status_code == 200
+    decision = response.json()["boundaryCheck"]["decision"]
+    assert decision["status"] == "POLICY_BLOCKED"
+    assert decision["restrictionCode"] == "DEMO_POLICY_RESTRICTION_ACTIVE_DELINQUENCY"
+    assert decision["followUpCodes"] == [
+        "DEMO_FOLLOW_UP_RESOLVE_DELINQUENCY",
+        "DEMO_FOLLOW_UP_BRANCH_CONSULTATION",
+    ]
+    # A confirmed restriction is explained to the customer, not queued for review.
+    assert decision["underwriterRequired"] is False
+
+    selection = client.post(f"/v1/sessions/{session_id}/evidence/next").json()["selection"]
+    assert selection["status"] == "POLICY_BLOCKED"
+    assert selection["selectedEvidence"] is None
+    assert selection["evaluatedCandidateCount"] == 0
+    assert selection["underwriterRequired"] is False

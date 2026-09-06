@@ -34,6 +34,10 @@ def test_create_and_restore_small_business_demo_session(
         "businessBorrowerType": "SOLE_PROPRIETOR",
         "displayName": "개인사업자",
         "description": "개업 초기 소상공인을 예시로 한 개인사업자 합성 Demo 사례",
+        "scenarioLabel": "정책 경계에 걸린 사례",
+        "scenarioSummary": (
+            "기존 평가 구간이 두 정책 경로에 걸쳐 있어 최소 증빙 한 건을 요청하는 흐름을 확인합니다."
+        ),
     }
     assert created["session"]["customerSubject"] == {
         "borrower": {
@@ -65,7 +69,7 @@ def test_create_and_restore_small_business_demo_session(
         "demoOnly": True,
     }
     assert created["session"]["status"] == "CREATED"
-    assert created["session"]["dataVersion"] == "demo-profiles-v3"
+    assert created["session"]["dataVersion"] == "demo-profiles-v4"
     assert created["session"]["demoOnly"] is True
     assert created["session"]["createdAt"].endswith("Z")
 
@@ -119,7 +123,7 @@ def test_same_demo_profile_creates_a_fresh_session_each_time(
     assert len(first_events) == 1
     assert len(second_events) == 1
     assert first_events[0].stage == AuditStage.SESSION_CREATED
-    assert first_events[0].input_version == "demo-profiles-v3"
+    assert first_events[0].input_version == "demo-profiles-v4"
     assert first_events[0].output_summary == {
         "demoProfileId": "startup",
         "businessBorrowerType": "CORPORATION",
@@ -138,7 +142,12 @@ def test_catalog_contains_only_approved_demo_profiles(
 ) -> None:
     session_service.initialize()
 
-    assert session_service.catalog.profile_ids == ("small-business", "startup")
+    assert session_service.catalog.profile_ids == (
+        "small-business",
+        "small-business-stable",
+        "startup",
+        "startup-policy-blocked",
+    )
     assert tuple(value.value for value in session_service.catalog.business_borrower_types) == (
         "SOLE_PROPRIETOR",
         "CORPORATION",

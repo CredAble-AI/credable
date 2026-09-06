@@ -58,24 +58,30 @@ uv run uvicorn app.main:app --reload
 사업자등록 전 예비창업자는 포함하지 않습니다. 소상공인과 스타트업은 법적 유형이 아니라 각각
 개업 초기 개인사업자와 설립 초기 법인사업자를 보여주는 합성 Demo 사례입니다.
 
-세션 생성 요청은 `businessBorrowerType`으로 두 사업자 유형 중 하나를 선택할 수 있습니다.
-기존 `demoProfileId`는 다른 Fixture가 참조하는 내부 시나리오 키와 기존 Frontend의 호환을 위해
-유지하지만, 두 선택자를 동시에 보낼 수는 없습니다. 같은 유형이나 Profile을 다시 요청해도
-새로운 세션을 생성하며 생성된 세션은 `sessionId`로 복구할 수 있습니다.
+각 사업자 유형에는 정책 경계 상태별 Demo 사례가 있습니다. 개인사업자는 정책 경계에 걸린 사례
+(`small-business`)와 추가 증빙이 필요 없는 사례(`small-business-stable`)를, 법인사업자는 정책
+경계에 걸린 사례(`startup`)와 대출정책상 제한 사례(`startup-policy-blocked`)를 제공합니다.
+정책 경계 상태는 Fixture가 아니라 서버가 기존 평가 결과로 판정합니다.
+
+세션 생성 요청은 `demoProfileId`로 사례 하나를 지정합니다. `businessBorrowerType`으로도 시작할
+수 있으며 이때는 해당 유형의 첫 번째 사례를 사용합니다. 두 선택자를 동시에 보낼 수는 없습니다.
+같은 유형이나 Profile을 다시 요청해도 새로운 세션을 생성하며 생성된 세션은 `sessionId`로
+복구할 수 있습니다.
 
 ```bash
 curl http://127.0.0.1:8000/v1/demo-profiles
 
 curl -X POST http://127.0.0.1:8000/v1/sessions/demo \
   -H 'Content-Type: application/json' \
-  -d '{"businessBorrowerType":"SOLE_PROPRIETOR"}'
+  -d '{"demoProfileId":"small-business"}'
 
 curl http://127.0.0.1:8000/v1/sessions/<sessionId>
 ```
 
-`GET /v1/demo-profiles`는 각 사례의 `businessBorrowerType`, 표시명과 설명을 제공합니다. 표시명은
-개인사업자·법인사업자이며 소상공인·스타트업은 설명용 사례에만 나타납니다. 응답의
-`demoProfileId`, `dataVersion`, `demoOnly`는 Demo 실행과 호환성 확인에만 사용합니다.
+`GET /v1/demo-profiles`는 각 사례의 `businessBorrowerType`, 표시명과 설명에 더해 시연 사례를
+구분하는 `scenarioLabel`과 `scenarioSummary`를 제공합니다. 표시명은 개인사업자·법인사업자이며
+소상공인·스타트업은 설명용 사례에만 나타납니다. 응답의 `demoProfileId`, `dataVersion`,
+`demoOnly`는 Demo 실행과 호환성 확인에만 사용합니다.
 
 세션에는 서버가 확정한 `customerSubject`가 포함됩니다. 고객, 주사업체와 고객-사업체 관계를
 각각 `borrowers`, `businesses`, `borrower_business_roles`에 정규화하고

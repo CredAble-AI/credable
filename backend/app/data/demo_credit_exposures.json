@@ -66,6 +66,72 @@
       "exposures": [],
       "delinquencies": [],
       "guarantees": []
+    },
+    {
+      "demoProfileId": "small-business-stable",
+      "borrowerId": "bor_demo_003",
+      "primaryBusinessId": "biz_demo_003",
+      "providerCode": "DEMO_CREDIT_INFORMATION_PROVIDER",
+      "reportId": "cir_demo_003",
+      "reportedAt": "2026-08-31T23:59:59+09:00",
+      "exposures": [
+        {
+          "exposureId": "ext_demo_003",
+          "sourceRecordId": "src_demo_ext_003",
+          "borrowerId": "bor_demo_003",
+          "primaryBusinessId": "biz_demo_003",
+          "reportingInstitutionCode": "DEMO_SAVINGS_BANK",
+          "institutionSector": "SAVINGS_BANK",
+          "productType": "BUSINESS_LOAN",
+          "openedOn": "2025-09-10",
+          "maturityOn": "2027-09-10",
+          "originalPrincipalAmount": "10000000",
+          "outstandingBalance": "8000000",
+          "annualInterestRatePercent": null,
+          "currency": "KRW",
+          "securityType": "GUARANTEE",
+          "status": "ACTIVE"
+        }
+      ],
+      "delinquencies": [
+        {
+          "delinquencyId": "ext_dq_demo_003",
+          "exposureId": "ext_demo_003",
+          "startedOn": "2025-12-10",
+          "curedOn": "2025-12-12",
+          "maxDaysPastDue": 2,
+          "overduePrincipalAmount": "200000",
+          "overdueInterestAmount": "0",
+          "currency": "KRW",
+          "status": "CURED",
+          "reasonCode": null
+        }
+      ],
+      "guarantees": [
+        {
+          "guaranteeId": "ext_gua_demo_003",
+          "exposureId": "ext_demo_003",
+          "guarantorInstitutionCode": "DEMO_GUARANTEE_INSTITUTION",
+          "guaranteeTypeCode": "DEMO_POLICY_GUARANTEE",
+          "startedOn": "2025-09-10",
+          "endedOn": null,
+          "guaranteedAmount": "9000000",
+          "outstandingGuaranteedAmount": "7200000",
+          "currency": "KRW",
+          "status": "ACTIVE"
+        }
+      ]
+    },
+    {
+      "demoProfileId": "startup-policy-blocked",
+      "borrowerId": "bor_demo_004",
+      "primaryBusinessId": "biz_demo_004",
+      "providerCode": "DEMO_CREDIT_INFORMATION_PROVIDER",
+      "reportId": "cir_demo_004",
+      "reportedAt": "2026-08-31T23:59:59+09:00",
+      "exposures": [],
+      "delinquencies": [],
+      "guarantees": []
     }
   ],
   "demoOnly": true

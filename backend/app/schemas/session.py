@@ -21,6 +21,8 @@ class DemoProfile(ApiModel):
     business_borrower_type: BusinessLegalForm | None = None
     display_name: str = Field(min_length=1)
     description: str = Field(min_length=1)
+    scenario_label: str = Field(min_length=1)
+    scenario_summary: str = Field(min_length=1)
 
 
 class CustomerSession(ApiModel):
@@ -48,6 +50,8 @@ class DemoProfileDefinition(ApiModel):
     business_borrower_type: BusinessLegalForm
     display_name: str = Field(min_length=1)
     description: str = Field(min_length=1)
+    scenario_label: str = Field(min_length=1)
+    scenario_summary: str = Field(min_length=1)
     customer_subject: CustomerSubject
 
     @model_validator(mode="after")
@@ -77,6 +81,8 @@ class DemoProfileDefinition(ApiModel):
             business_borrower_type=self.business_borrower_type,
             display_name=self.display_name,
             description=self.description,
+            scenario_label=self.scenario_label,
+            scenario_summary=self.scenario_summary,
         )
 
 

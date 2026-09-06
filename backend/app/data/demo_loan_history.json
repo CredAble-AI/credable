@@ -85,6 +85,125 @@
       "repaymentSchedules": [],
       "repaymentEvents": [],
       "delinquencyEvents": []
+    },
+    {
+      "demoProfileId": "small-business-stable",
+      "borrowerId": "bor_demo_003",
+      "primaryBusinessId": "biz_demo_003",
+      "observedAt": "2026-08-31T23:59:59+09:00",
+      "loanAccounts": [
+        {
+          "loanAccountId": "loa_demo_003",
+          "borrowerId": "bor_demo_003",
+          "primaryBusinessId": "biz_demo_003",
+          "productId": null,
+          "originatedOn": "2026-06-15",
+          "maturityOn": "2027-07-15",
+          "originalPrincipalAmount": "14000000",
+          "outstandingPrincipalAmount": "12000000",
+          "currency": "KRW",
+          "status": "ACTIVE"
+        }
+      ],
+      "repaymentSchedules": [
+        {
+          "scheduleId": "rps_demo_003_01",
+          "loanAccountId": "loa_demo_003",
+          "dueOn": "2026-07-15",
+          "scheduledPrincipalAmount": "1000000",
+          "currency": "KRW",
+          "status": "PAID"
+        },
+        {
+          "scheduleId": "rps_demo_003_02",
+          "loanAccountId": "loa_demo_003",
+          "dueOn": "2026-08-15",
+          "scheduledPrincipalAmount": "1000000",
+          "currency": "KRW",
+          "status": "PAID"
+        }
+      ],
+      "repaymentEvents": [
+        {
+          "repaymentEventId": "rpe_demo_003_01",
+          "loanAccountId": "loa_demo_003",
+          "scheduleId": "rps_demo_003_01",
+          "paidAt": "2026-07-15T09:10:00+09:00",
+          "principalPaidAmount": "1000000",
+          "interestPaidAmount": "0",
+          "feePaidAmount": "0",
+          "currency": "KRW",
+          "sourceTransactionId": null
+        },
+        {
+          "repaymentEventId": "rpe_demo_003_02",
+          "loanAccountId": "loa_demo_003",
+          "scheduleId": "rps_demo_003_02",
+          "paidAt": "2026-08-17T09:20:00+09:00",
+          "principalPaidAmount": "1000000",
+          "interestPaidAmount": "0",
+          "feePaidAmount": "0",
+          "currency": "KRW",
+          "sourceTransactionId": null
+        }
+      ],
+      "delinquencyEvents": [
+        {
+          "delinquencyEventId": "dle_demo_003_01",
+          "loanAccountId": "loa_demo_003",
+          "scheduleId": "rps_demo_003_02",
+          "startedAt": "2026-08-16T00:00:00+09:00",
+          "curedAt": "2026-08-17T09:20:00+09:00",
+          "maxDaysPastDue": 1,
+          "overduePrincipalAmount": "1000000",
+          "currency": "KRW",
+          "status": "CURED"
+        }
+      ]
+    },
+    {
+      "demoProfileId": "startup-policy-blocked",
+      "borrowerId": "bor_demo_004",
+      "primaryBusinessId": "biz_demo_004",
+      "observedAt": "2026-08-31T23:59:59+09:00",
+      "loanAccounts": [
+        {
+          "loanAccountId": "loa_demo_004",
+          "borrowerId": "bor_demo_004",
+          "primaryBusinessId": "biz_demo_004",
+          "productId": null,
+          "originatedOn": "2026-02-10",
+          "maturityOn": "2027-02-10",
+          "originalPrincipalAmount": "20000000",
+          "outstandingPrincipalAmount": "18500000",
+          "currency": "KRW",
+          "status": "ACTIVE"
+        }
+      ],
+      "repaymentSchedules": [
+        {
+          "scheduleId": "rps_demo_004_01",
+          "loanAccountId": "loa_demo_004",
+          "dueOn": "2026-07-10",
+          "scheduledPrincipalAmount": "1500000",
+          "currency": "KRW",
+          "status": "OVERDUE"
+        }
+      ],
+      "repaymentEvents": [],
+      "delinquencyEvents": [
+        {
+          "delinquencyEventId": "dle_demo_004_01",
+          "loanAccountId": "loa_demo_004",
+          "scheduleId": "rps_demo_004_01",
+          "startedAt": "2026-07-11T00:00:00+09:00",
+          "curedAt": null,
+          "maxDaysPastDue": 52,
+          "overduePrincipalAmount": "1500000",
+          "currency": "KRW",
+          "status": "ACTIVE"
+        }
+      ]
     }
   ],
   "demoOnly": true

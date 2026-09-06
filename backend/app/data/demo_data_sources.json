@@ -81,6 +81,87 @@
         "observedAt": "2026-08-31T23:59:59+09:00",
         "dataVersion": "synthetic-demo-v1"
       }
+    },
+    {
+      "demoProfileId": "small-business-stable",
+      "sourceType": "BANK_INTERNAL",
+      "result": {
+        "retrievalStatus": "RETRIEVED",
+        "verificationStatus": "VERIFIED",
+        "observedAt": "2026-08-31T23:59:59+09:00",
+        "dataVersion": "synthetic-bank-data-v1"
+      }
+    },
+    {
+      "demoProfileId": "small-business-stable",
+      "sourceType": "CREDIT_INFORMATION",
+      "result": {
+        "retrievalStatus": "RETRIEVED",
+        "verificationStatus": "VERIFIED",
+        "observedAt": "2026-08-31T23:59:59+09:00",
+        "dataVersion": "synthetic-credit-information-v1"
+      }
+    },
+    {
+      "demoProfileId": "small-business-stable",
+      "sourceType": "CUSTOMER_SUBMITTED",
+      "result": {
+        "retrievalStatus": "RETRIEVED",
+        "verificationStatus": "VERIFIED",
+        "observedAt": "2026-08-31T23:59:59+09:00",
+        "dataVersion": "synthetic-demo-v1"
+      }
+    },
+    {
+      "demoProfileId": "small-business-stable",
+      "sourceType": "EXTERNAL_CONNECTED",
+      "result": {
+        "retrievalStatus": "RETRIEVED",
+        "verificationStatus": "VERIFIED",
+        "observedAt": "2026-08-31T23:59:59+09:00",
+        "dataVersion": "synthetic-demo-v1"
+      }
+    },
+    {
+      "demoProfileId": "startup-policy-blocked",
+      "sourceType": "BANK_INTERNAL",
+      "result": {
+        "retrievalStatus": "RETRIEVED",
+        "verificationStatus": "VERIFIED",
+        "observedAt": "2026-08-31T23:59:59+09:00",
+        "dataVersion": "synthetic-bank-data-v1"
+      }
+    },
+    {
+      "demoProfileId": "startup-policy-blocked",
+      "sourceType": "CREDIT_INFORMATION",
+      "result": {
+        "retrievalStatus": "RETRIEVED",
+        "verificationStatus": "VERIFIED",
+        "observedAt": "2026-08-31T23:59:59+09:00",
+        "dataVersion": "synthetic-credit-information-v1"
+      }
+    },
+    {
+      "demoProfileId": "startup-policy-blocked",
+      "sourceType": "CUSTOMER_SUBMITTED",
+      "result": {
+        "retrievalStatus": "RETRIEVED",
+        "verificationStatus": "STALE",
+        "observedAt": "2025-12-31T23:59:59+09:00",
+        "dataVersion": "synthetic-demo-v1",
+        "reasonCode": "DEMO_OBSERVATION_STALE"
+      }
+    },
+    {
+      "demoProfileId": "startup-policy-blocked",
+      "sourceType": "EXTERNAL_CONNECTED",
+      "result": {
+        "retrievalStatus": "RETRIEVED",
+        "verificationStatus": "VERIFIED",
+        "observedAt": "2026-08-31T23:59:59+09:00",
+        "dataVersion": "synthetic-demo-v1"
+      }
     }
   ]
 }

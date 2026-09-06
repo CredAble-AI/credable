@@ -10,9 +10,12 @@ const wait = (signal: AbortSignal, milliseconds = 300) => new Promise<void>((res
   signal.addEventListener('abort', () => { window.clearTimeout(timer); reject(new DOMException('Aborted', 'AbortError')) }, { once: true })
 })
 
+const ambiguousScenario = { scenarioLabel: '정책 경계에 걸린 사례', scenarioSummary: '기존 평가 구간이 두 정책 경로에 걸쳐 있어 최소 증빙 한 건을 요청하는 흐름을 확인합니다.' }
 const mockProfiles: DemoProfile[] = [
-  { demoProfileId: 'small-business', businessBorrowerType: 'SOLE_PROPRIETOR', displayName: '개인사업자', description: '개업 초기 소상공인을 예시로 한 개인사업자 합성 Demo 사례' },
-  { demoProfileId: 'startup', businessBorrowerType: 'CORPORATION', displayName: '법인사업자', description: '설립 초기 스타트업을 예시로 한 법인사업자 합성 Demo 사례' },
+  { demoProfileId: 'small-business', businessBorrowerType: 'SOLE_PROPRIETOR', displayName: '개인사업자', description: '개업 초기 소상공인을 예시로 한 개인사업자 합성 Demo 사례', ...ambiguousScenario },
+  { demoProfileId: 'small-business-stable', businessBorrowerType: 'SOLE_PROPRIETOR', displayName: '개인사업자', description: '기존 평가만으로 처리 경로가 확인되는 개인사업자 합성 Demo 사례', scenarioLabel: '추가 증빙이 필요 없는 사례', scenarioSummary: '기존 평가만으로 하나의 정책 경로가 확인되어 추가 자료를 요청하지 않는 흐름을 확인합니다.' },
+  { demoProfileId: 'startup', businessBorrowerType: 'CORPORATION', displayName: '법인사업자', description: '설립 초기 스타트업을 예시로 한 법인사업자 합성 Demo 사례', ...ambiguousScenario },
+  { demoProfileId: 'startup-policy-blocked', businessBorrowerType: 'CORPORATION', displayName: '법인사업자', description: '대출정책상 제한이 확인된 법인사업자 합성 Demo 사례', scenarioLabel: '대출정책상 제한 사례', scenarioSummary: '추가 증빙으로 해소할 수 없는 정책상 제한을 안내하고 증빙 수집을 시작하지 않는 흐름을 확인합니다.' },
 ]
 
 const isBusinessBorrowerType = (value: unknown): value is BusinessBorrowerType => value === 'SOLE_PROPRIETOR' || value === 'CORPORATION'
@@ -24,6 +27,8 @@ const isDemoProfile = (value: unknown): value is DemoProfile => {
     && isBusinessBorrowerType(profile.businessBorrowerType)
     && typeof profile.displayName === 'string'
     && typeof profile.description === 'string'
+    && typeof profile.scenarioLabel === 'string'
+    && typeof profile.scenarioSummary === 'string'
 }
 const hasBooleanValues = (value: unknown, keys: string[]) => {
   if (!value || typeof value !== 'object') return false
@@ -68,10 +73,10 @@ export const mockCustomerSessionProvider: CustomerSessionProvider = {
     await wait(signal)
     return mockProfiles
   },
-  async create(businessBorrowerType, signal) {
+  async create(demoProfileId, signal) {
     await wait(signal)
-    const profile = mockProfiles.find((item) => item.businessBorrowerType === businessBorrowerType)
-    if (!profile) throw { code: 'BUSINESS_BORROWER_TYPE_NOT_FOUND', message: '선택한 사업자 유형을 찾을 수 없습니다.', retryable: false } satisfies ApiError
+    const profile = mockProfiles.find((item) => item.demoProfileId === demoProfileId)
+    if (!profile) throw { code: 'DEMO_PROFILE_NOT_FOUND', message: '선택한 시연 사례를 찾을 수 없습니다.', retryable: false } satisfies ApiError
     localStorage.removeItem(STORAGE_KEY)
     const now = new Date().toISOString()
     const session: CustomerSession = {

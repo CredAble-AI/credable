@@ -166,8 +166,13 @@ class EvidenceSelectionState(ApiModel):
         elif self.status == EvidenceSelectionStatus.NOT_REQUIRED:
             if self.stop_reason != "PATH_STABLE" or self.underwriter_required:
                 raise ValueError("NOT_REQUIRED state must stop on PATH_STABLE")
+        elif self.status == EvidenceSelectionStatus.POLICY_BLOCKED:
+            # A confirmed policy restriction is answered with guidance, so the
+            # handoff follows the boundary decision instead of being assumed.
+            if not self.stop_reason:
+                raise ValueError("POLICY_BLOCKED state requires a stop reason")
         elif not self.stop_reason or not self.underwriter_required:
-            raise ValueError("blocked selection requires a stop reason and review")
+            raise ValueError("HUMAN_REVIEW state requires a stop reason and review")
         return self
 
 

@@ -15,7 +15,7 @@ vi.mock('../hooks/useCustomerSession', () => ({ useCustomerSession: vi.fn() }))
 
 const session: CustomerSession = {
   sessionId: 'ses_demo', selectedProfileType: 'small-business', demoOnly: true,
-  demoProfile: { demoProfileId: 'small-business', businessBorrowerType: 'SOLE_PROPRIETOR', displayName: '개인사업자', description: '개업 초기 소상공인을 예시로 한 개인사업자 합성 Demo 사례' },
+  demoProfile: { demoProfileId: 'small-business', businessBorrowerType: 'SOLE_PROPRIETOR', displayName: '개인사업자', description: '개업 초기 소상공인을 예시로 한 개인사업자 합성 Demo 사례', scenarioLabel: '정책 경계에 걸린 사례', scenarioSummary: '기존 평가 구간이 두 정책 경로에 걸쳐 있어 최소 증빙 한 건을 요청하는 흐름을 확인합니다.' },
   consents: { required: { customerIdentity: false, accountSummary: false, creditInformation: false }, optional: { submittedDocuments: false, otherInstitutions: false, partnerData: false } },
   createdAt: '2026-09-06T00:00:00+09:00', updatedAt: '2026-09-06T00:00:00+09:00',
 }

@@ -80,6 +80,61 @@
           "policyVersion": "demo-bank-credit-policy-v1"
         }
       ]
+    },
+    {
+      "demoProfileId": "small-business-stable",
+      "borrowerId": "bor_demo_003",
+      "primaryBusinessId": "biz_demo_003",
+      "observedAt": "2026-08-31T23:59:59+09:00",
+      "applications": [],
+      "decisions": [],
+      "creditAssessments": [
+        {
+          "creditAssessmentId": "bca_demo_003",
+          "borrowerId": "bor_demo_003",
+          "primaryBusinessId": "biz_demo_003",
+          "applicationId": null,
+          "assessmentType": "PERIODIC",
+          "assessedAt": "2026-08-21T14:20:00+09:00",
+          "featureCutoffAt": "2026-08-20T23:59:59+09:00",
+          "gradeCode": "DEMO_GRADE_B",
+          "gradeScaleVersion": "demo-bank-grade-scale-v1",
+          "reasonCodes": [
+            "DEMO_RECENT_PERFORMANCE_REFLECTED"
+          ],
+          "modelVersion": "demo-bank-champion-v1",
+          "featureSetVersion": "demo-bank-feature-set-v1",
+          "policyVersion": "demo-bank-credit-policy-v1"
+        }
+      ]
+    },
+    {
+      "demoProfileId": "startup-policy-blocked",
+      "borrowerId": "bor_demo_004",
+      "primaryBusinessId": "biz_demo_004",
+      "observedAt": "2026-08-31T23:59:59+09:00",
+      "applications": [],
+      "decisions": [],
+      "creditAssessments": [
+        {
+          "creditAssessmentId": "bca_demo_004",
+          "borrowerId": "bor_demo_004",
+          "primaryBusinessId": "biz_demo_004",
+          "applicationId": null,
+          "assessmentType": "PERIODIC",
+          "assessedAt": "2026-08-25T10:00:00+09:00",
+          "featureCutoffAt": "2026-08-24T23:59:59+09:00",
+          "gradeCode": "DEMO_GRADE_C",
+          "gradeScaleVersion": "demo-bank-grade-scale-v1",
+          "reasonCodes": [
+            "DEMO_FINANCIAL_HISTORY_THIN",
+            "DEMO_ACTIVE_DELINQUENCY_ON_RECORD"
+          ],
+          "modelVersion": "demo-bank-champion-v1",
+          "featureSetVersion": "demo-bank-feature-set-v1",
+          "policyVersion": "demo-bank-credit-policy-v1"
+        }
+      ]
     }
   ],
   "demoOnly": true

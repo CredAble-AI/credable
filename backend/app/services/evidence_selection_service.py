@@ -377,7 +377,7 @@ class EvidenceSelectionService:
                     status=EvidenceSelectionStatus.POLICY_BLOCKED,
                     evaluated_candidate_count=0,
                     stop_reason=decision.stop_reason or "POLICY_BLOCKED",
-                    underwriter_required=True,
+                    underwriter_required=decision.underwriter_required,
                 ),
                 None,
             )
