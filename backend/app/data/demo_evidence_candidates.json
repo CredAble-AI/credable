@@ -1,6 +1,15 @@
 {
-  "dataVersion": "demo-evidence-candidates-v2",
-  "selectionPolicyVersion": "demo-gap-aware-evidence-selection-v2",
+  "dataVersion": "demo-evidence-candidates-v3",
+  "selectionPolicyVersion": "demo-novel-evidence-selection-v3",
+  "baselineInformationCoverageRules": [
+    {
+      "informationContentCode": "BANK_CASH_FLOW_TOTALS",
+      "requiredFeatureCodes": [
+        "BANK_SNAPSHOT_CREDIT_AMOUNT",
+        "BANK_SNAPSHOT_DEBIT_AMOUNT"
+      ]
+    }
+  ],
   "candidates": [
     {
       "evidenceType": "CUSTOMER_SUBMITTED_RECENT_REVENUE_SUMMARY",
@@ -12,6 +21,11 @@
       "applicableInformationGapCodes": [
         "DEMO_INFORMATION_GAP",
         "DEMO_RECENT_PERFORMANCE_NOT_REFLECTED"
+      ],
+      "informationContentCodes": [
+        "RECENT_REVENUE_SERIES",
+        "DEPOSIT_TO_REVENUE_RECONCILIATION",
+        "BANK_CASH_FLOW_TOTALS"
       ],
       "boundaryResolutionValue": 0.9,
       "qualityReliability": 0.9,
@@ -48,6 +62,11 @@
       "applicableInformationGapCodes": [
         "DEMO_INFORMATION_GAP",
         "DEMO_RECENT_PERFORMANCE_NOT_REFLECTED"
+      ],
+      "informationContentCodes": [
+        "RECENT_SETTLEMENT_SERIES",
+        "SETTLEMENT_TO_DEPOSIT_RECONCILIATION",
+        "BANK_CASH_FLOW_TOTALS"
       ],
       "boundaryResolutionValue": 0.85,
       "qualityReliability": 0.85,
