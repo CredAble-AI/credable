@@ -15,6 +15,7 @@ from app.core.admin_auth import AdminApiKeyAuthenticator
 from app.core.config import settings
 from app.main import create_app
 from app.repositories.assessment_repository import SqliteAssessmentRepository
+from app.repositories.assessment_review_repository import SqliteAssessmentReviewRepository
 from app.repositories.bank_data_repository import SqliteBankDataRepository
 from app.repositories.consent_repository import SqliteConsentRepository
 from app.repositories.credit_exposure_repository import SqliteCreditExposureRepository
@@ -36,6 +37,7 @@ from app.services.assessment_data_lineage_service import (
     AssessmentDataLineageService,
     SnapshotSource,
 )
+from app.services.assessment_review_service import AssessmentReviewRequestService
 from app.services.assessment_service import (
     AssessmentComparisonService,
     AssessmentService,
@@ -443,6 +445,24 @@ def assessment_comparison_service(
 
 
 @pytest.fixture
+def assessment_review_repository(tmp_path) -> SqliteAssessmentReviewRepository:
+    return SqliteAssessmentReviewRepository(tmp_path / "test.db")
+
+
+@pytest.fixture
+def assessment_review_request_service(
+    assessment_review_repository: SqliteAssessmentReviewRepository,
+    assessment_repository: SqliteAssessmentRepository,
+    session_service: CustomerSessionService,
+) -> AssessmentReviewRequestService:
+    return AssessmentReviewRequestService(
+        repository=assessment_review_repository,
+        assessment_repository=assessment_repository,
+        session_service=session_service,
+    )
+
+
+@pytest.fixture
 def evidence_resolution_service(
     policy_boundary_repository: SqlitePolicyBoundaryRepository,
     assessment_repository: SqliteAssessmentRepository,
@@ -514,6 +534,7 @@ def client(
     evidence_quality_service: EvidenceQualityService,
     supplemental_assessment_service: SupplementalAssessmentService,
     assessment_comparison_service: AssessmentComparisonService,
+    assessment_review_request_service: AssessmentReviewRequestService,
     evidence_resolution_service: EvidenceResolutionService,
     product_catalog_service: ProductCatalogService,
     product_condition_service: ProductConditionService,
@@ -536,6 +557,7 @@ def client(
             evidence_quality_service=evidence_quality_service,
             supplemental_assessment_service=supplemental_assessment_service,
             assessment_comparison_service=assessment_comparison_service,
+            assessment_review_request_service=assessment_review_request_service,
             evidence_resolution_service=evidence_resolution_service,
             product_catalog_service=product_catalog_service,
             product_condition_service=product_condition_service,

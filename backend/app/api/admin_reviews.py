@@ -17,6 +17,7 @@ def get_underwriter_review_queue_service(request: Request) -> UnderwriterReviewQ
 @router.get(
     "/underwriter-reviews",
     response_model=UnderwriterReviewQueueResponse,
+    response_model_exclude_none=True,
     responses={
         401: {"model": ApiErrorResponse},
         503: {"model": ApiErrorResponse},

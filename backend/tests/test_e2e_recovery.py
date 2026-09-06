@@ -61,6 +61,9 @@ def execute_complete_journey(client: TestClient) -> tuple[str, str, dict[str, di
     recovered["resolution"] = assert_ok(
         client.post(f"/v1/sessions/{session_id}/assessment/resolution")
     )
+    recovered["assessmentReviewRequest"] = assert_ok(
+        client.post(f"/v1/sessions/{session_id}/assessment/review-request")
+    )
     recovered["products"] = assert_ok(client.post(f"/v1/sessions/{session_id}/products/refresh"))
     recovered["productConditions"] = assert_ok(
         client.post(f"/v1/sessions/{session_id}/product-conditions/query")
@@ -78,6 +81,9 @@ def execute_complete_journey(client: TestClient) -> tuple[str, str, dict[str, di
             f"/v1/admin/sessions/{session_id}/evidence-burden",
             headers=ADMIN_HEADERS,
         )
+    )
+    recovered["underwriterReviews"] = assert_ok(
+        client.get("/v1/admin/underwriter-reviews", headers=ADMIN_HEADERS)
     )
     return session_id, submission_id, recovered
 
@@ -131,6 +137,9 @@ def test_complete_journey_is_restored_after_application_restart(
             "resolution": assert_ok(
                 restarted_client.get(f"/v1/sessions/{session_id}/assessment/resolution")
             ),
+            "assessmentReviewRequest": assert_ok(
+                restarted_client.get(f"/v1/sessions/{session_id}/assessment/review-request")
+            ),
             "products": assert_ok(restarted_client.get(f"/v1/sessions/{session_id}/products")),
             "productConditions": assert_ok(
                 restarted_client.get(f"/v1/sessions/{session_id}/product-conditions")
@@ -148,6 +157,12 @@ def test_complete_journey_is_restored_after_application_restart(
             "burden": assert_ok(
                 restarted_client.get(
                     f"/v1/admin/sessions/{session_id}/evidence-burden",
+                    headers=ADMIN_HEADERS,
+                )
+            ),
+            "underwriterReviews": assert_ok(
+                restarted_client.get(
+                    "/v1/admin/underwriter-reviews",
                     headers=ADMIN_HEADERS,
                 )
             ),

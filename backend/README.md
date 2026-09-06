@@ -249,6 +249,26 @@ curl -X POST \
 `CONFORMAL_CALIBRATED`를 사용하지 않습니다. 이전 실행 이력에는 `uncertainty: null`이 적용돼
 기존 SQLite JSON 상태를 그대로 읽을 수 있습니다.
 
+## 고객 평가 결과 재확인 요청 API
+
+고객은 완료된 최신 평가 결과에 대해 재확인을 요청할 수 있습니다. 요청 본문에서 평가 ID나
+판단 사유를 받지 않고 서버가 최신 완료 결과를 선택하므로, 다른 세션의 평가를 지정하거나
+클라이언트가 검토 대상을 바꿀 수 없습니다. 보완평가가 완료됐다면 보완평가를, 그렇지 않으면
+기준평가를 대상으로 고정합니다.
+
+```bash
+curl http://127.0.0.1:8000/v1/sessions/<sessionId>/assessment/review-request
+
+curl -X POST \
+  http://127.0.0.1:8000/v1/sessions/<sessionId>/assessment/review-request
+```
+
+요청에는 대상 유형·평가 ID, 요청시각, 데이터·모델·요청 정책 버전과 Snapshot Hash를
+보존하고 고객 행위로 Audit을 남깁니다. 같은 평가 결과에 반복 요청하면 기존 요청을 반환해
+중복 큐와 중복 Audit을 만들지 않습니다. 완료된 평가가 없으면
+`ASSESSMENT_REVIEW_TARGET_NOT_READY`로 차단합니다. 이 기능은 평가값을 다시 계산하거나 금융
+판단을 변경하지 않고 은행 심사역 검토 큐에 요청을 추가하는 역할만 수행합니다.
+
 ## Demo 정책 경계 판정 API
 
 정책 경계 판정은 완료된 기준평가의 가능한 등급 집합을 버전이 고정된 Demo 정책표와
@@ -561,9 +581,9 @@ curl \
 
 ## 은행 심사역 검토 큐 API
 
-은행 관리자는 Evidence 품질 결과가 `REVIEW_REQUIRED`인 건만 최신순으로 조회할 수 있습니다.
-이 API는 기존 품질 검증 이력을 조회 시점에 읽으므로 별도의 금융 판단이나 중복 검토 요청을
-생성하지 않습니다.
+은행 관리자는 Evidence 품질 결과가 `REVIEW_REQUIRED`인 건과 고객이 평가 결과 재확인을
+요청한 건을 최신순으로 조회할 수 있습니다. 이 API는 기존 품질 검증·재확인 요청 이력을 조회
+시점에 합치므로 별도의 금융 판단이나 중복 검토 요청을 생성하지 않습니다.
 
 ```bash
 curl \
@@ -571,10 +591,10 @@ curl \
   'http://127.0.0.1:8000/v1/admin/underwriter-reviews?limit=50&offset=0'
 ```
 
-응답에는 결정 가능한 금융 원문 대신 `reviewId`, 세션·품질 검증 ID, Evidence 유형,
-이상 징후 사유 코드, 검토 요청 시점과 데이터·정책 버전만 포함합니다. 기본 조회 개수는
-50개이고 최대 100개이며 `offset`으로 다음 구간을 조회합니다. 현재 큐의 Trigger는
-`EVIDENCE_QUALITY`만 지원합니다.
+응답에는 결정 가능한 금융 원문 대신 `reviewId`, 세션·Trigger ID, Evidence 유형 또는 평가
+대상, 사유 코드, 검토 요청 시점과 데이터·정책 버전만 포함합니다. 기본 조회 개수는 50개이고
+최대 100개이며 `offset`으로 다음 구간을 조회합니다. Trigger는 `EVIDENCE_QUALITY`와
+`CUSTOMER_ASSESSMENT_REVIEW`를 구분합니다.
 
 이번 API는 검토 대상 조회 전용입니다. 심사역의 접수·배정·처리 상태, 최종 판단, 사유 코드와
 처리 Audit은 은행 운영 규칙이 확정된 후 별도 API로 추가해야 합니다. 실제 운영 인증은 Demo
@@ -619,7 +639,7 @@ uv run pytest
 
 현재 FastAPI 애플리케이션, liveness/readiness API, Demo 고객 세션, 데이터 출처별 기본 동의와 선택된 증빙별 동의,
 조회·검증 상태, 기준평가, Demo 정책 경계 판정·반복 최소 증빙 선택·제출·품질 검증·보완평가·전후 비교·수집 종료 판단,
-합성 자사 상품 카탈로그·비교 API와 관리자 Evidence 부담 지표·심사역 검토 큐를 제공합니다. 합성 데이터 출처 상태와 평가
+합성 자사 상품 카탈로그·비교 API, 고객 평가 재확인 요청과 관리자 Evidence 부담 지표·심사역 검토 큐를 제공합니다. 합성 데이터 출처 상태와 평가
 상태, 개인사업자 사례용 개인화 상품 조건은 기존 Frontend Fixture와 일치합니다. Legacy
 `/v1/cases/*` 흐름은 제거됐습니다. 실제 평가모델·은행 상품정책·Evidence 품질 검증·은행
 연동과 Frontend의 Backend API 전환은 별도 작업으로 진행합니다.

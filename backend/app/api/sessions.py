@@ -9,6 +9,7 @@ from app.schemas.assessment import (
     SupplementalAssessmentResponse,
     SupplementalAssessmentRunRequest,
 )
+from app.schemas.assessment_review import AssessmentReviewRequestResponse
 from app.schemas.comparison import ProductComparisonResponse
 from app.schemas.consent import ConsentListResponse, ConsentState
 from app.schemas.data_source import DataSourceListResponse
@@ -29,6 +30,7 @@ from app.schemas.session import (
     DemoSessionCreateRequest,
     DemoSessionCreateResponse,
 )
+from app.services.assessment_review_service import AssessmentReviewRequestService
 from app.services.assessment_service import (
     AssessmentComparisonService,
     AssessmentService,
@@ -63,6 +65,10 @@ def get_data_source_service(request: Request) -> DataSourceService:
 
 def get_assessment_service(request: Request) -> AssessmentService:
     return request.app.state.assessment_service
+
+
+def get_assessment_review_request_service(request: Request) -> AssessmentReviewRequestService:
+    return request.app.state.assessment_review_request_service
 
 
 def get_supplemental_assessment_service(request: Request) -> SupplementalAssessmentService:
@@ -234,6 +240,36 @@ async def run_assessment(
     request: Request,
 ) -> AssessmentResponse:
     return get_assessment_service(request).run(
+        session_id,
+        request.state.request_id,
+    )
+
+
+@router.get(
+    "/{session_id}/assessment/review-request",
+    response_model=AssessmentReviewRequestResponse,
+    responses={404: {"model": ApiErrorResponse}},
+)
+async def get_assessment_review_request(
+    session_id: str,
+    request: Request,
+) -> AssessmentReviewRequestResponse:
+    return get_assessment_review_request_service(request).get_latest(session_id)
+
+
+@router.post(
+    "/{session_id}/assessment/review-request",
+    response_model=AssessmentReviewRequestResponse,
+    responses={
+        404: {"model": ApiErrorResponse},
+        409: {"model": ApiErrorResponse},
+    },
+)
+async def request_assessment_review(
+    session_id: str,
+    request: Request,
+) -> AssessmentReviewRequestResponse:
+    return get_assessment_review_request_service(request).request(
         session_id,
         request.state.request_id,
     )
