@@ -543,6 +543,35 @@ Demo 경로와 정책·보정 버전을 보존합니다. 신용 승인·거절�
 심사역 확인 상태로 종료합니다. 최대 요청 횟수는 은행 운영정책 확정이 필요하므로 아직
 적용하지 않습니다.
 
+## 통제 가능한 평가 결과 설명 API
+
+기준평가와 최신 보완평가·정책 경계·전후 비교·수집 판정 중 현재 세션에 연결된
+구조화 결과만 설명 입력으로 사용합니다. 생성 전에는 `GET`이 `explanation: null`을
+반환하며, 실행된 기준평가가 없는 `POST`는
+`ASSESSMENT_EXPLANATION_TARGET_NOT_READY`로 차단합니다.
+
+```bash
+curl \
+  http://127.0.0.1:8000/v1/sessions/<sessionId>/assessment/explanation
+
+curl -X POST \
+  http://127.0.0.1:8000/v1/sessions/<sessionId>/assessment/explanation/generate
+```
+
+현재 Demo Provider는 자유 문장을 반환하지 않고, 서버가 현재 평가 사실에서 허용한
+`messageCode`만 선택합니다. 제공자가 허용되지 않은 코드를 선택하거나 오류가 나면
+규칙 기반 `RULE_FALLBACK`으로 전환하고 사유 코드를 응답과 Audit에 보존합니다.
+실제 출력 문구는 서버 템플릿에서 렌더링하므로 Provider가 신용점수·등급,
+승인·부결, 금리·한도, 증빙 선택과 정책 경로를 새로 만들거나 변경할 수 없습니다.
+
+응답은 설명 대상, 서버 메시지 코드와 근거 ID, 입력 Snapshot 해시,
+`renderingMode`, fallback 여부, Provider·Prompt·정책 버전과 `demoOnly`를 포함합니다.
+같은 입력 Snapshot을 다시 요청하면 기존 설명을 반환해 중복 생성과 Audit을 막습니다.
+평가·경계·비교·수집 판정 중 하나라도 바뀌어 최신 입력 해시와 저장된 설명이 다르면
+`GET`은 이전 설명을 노출하지 않고 `explanation: null`을 반환합니다.
+실제 생성형 AI 연결은 `ExplanationProvider` 계약을 구현하는 후속 범위이며,
+현재 `DEMO_TEMPLATE`을 실제 AI 결과로 표현해서는 안 됩니다.
+
 ## 자사 상품 카탈로그 API
 
 상품 카탈로그는 세션별 최신 상태 조회와 새로고침을 지원합니다. 기본 Demo Adapter는
@@ -710,12 +739,14 @@ uv run pytest
 
 현재 FastAPI 애플리케이션, liveness/readiness API, Demo 고객 세션, 데이터 출처별 기본 동의와 선택된 증빙별 동의,
 조회·검증 상태, 기준평가, Demo 정책 경계 판정·반복 최소 증빙 선택·제출·품질 검증·보완평가·전후 비교·수집 종료 판단,
-합성 자사 상품 카탈로그·비교 API, 고객 평가 재확인 요청과 관리자 Evidence 부담 지표·심사역 검토 큐를 제공합니다. 합성 데이터 출처 상태와 평가
-상태, 개인사업자 사례용 개인화 상품 조건은 기존 Frontend Fixture와 일치합니다. Legacy
+합성 자사 상품 카탈로그·비교 API, 통제 가능한 평가 결과 설명 API, 고객 평가 재확인 요청과
+관리자 Evidence 부담 지표·심사역 검토 큐를 제공합니다. 합성 데이터 출처 상태와 평가 상태,
+개인사업자 사례용 개인화 상품 조건은 기존 Frontend Fixture와 일치합니다. 평가 결과 설명
+화면 연결은 다음 Frontend 작업 범위입니다. Legacy
 `/v1/cases/*` 흐름은 제거됐습니다. 실제 평가모델·은행 상품정책·Evidence 품질 검증·은행
 연동은 별도 작업으로 진행합니다. 고객 재확인 요청 이후의 정정정보 수집·품질 검증·재평가 흐름과
-생성형 AI 설명 Adapter도 아직 구현 범위에 포함되지 않았으므로, 현재 구조화 Reason Code와 화면
-안내문을 실제 생성형 AI 설명 결과로 표현해서는 안 됩니다.
+실제 생성형 AI 설명 Provider도 아직 구현 범위에 포함되지 않았으므로, 현재
+`DEMO_TEMPLATE`과 화면 안내문을 실제 생성형 AI 설명 결과로 표현해서는 안 됩니다.
 
 기존 SQLite 파일에 남아 있을 수 있는 Legacy Case 테이블과 데이터는 보존·삭제 정책이 정해질
 때까지 애플리케이션이 자동으로 삭제하지 않습니다.
