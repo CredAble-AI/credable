@@ -1,6 +1,6 @@
 {
-  "dataVersion": "demo-evidence-candidates-v1",
-  "selectionPolicyVersion": "demo-active-evidence-selection-v1",
+  "dataVersion": "demo-evidence-candidates-v2",
+  "selectionPolicyVersion": "demo-gap-aware-evidence-selection-v2",
   "candidates": [
     {
       "evidenceType": "CUSTOMER_SUBMITTED_RECENT_REVENUE_SUMMARY",
@@ -9,6 +9,10 @@
       "sourceType": "CUSTOMER_SUBMITTED",
       "collectionMode": "DEMO_FILE_UPLOAD",
       "boundaryCodes": ["DEMO_BOUNDARY_1_2"],
+      "applicableInformationGapCodes": [
+        "DEMO_INFORMATION_GAP",
+        "DEMO_RECENT_PERFORMANCE_NOT_REFLECTED"
+      ],
       "boundaryResolutionValue": 0.9,
       "qualityReliability": 0.9,
       "customerEffort": 0.15,
@@ -41,6 +45,10 @@
       "sourceType": "EXTERNAL_CONNECTED",
       "collectionMode": "DEMO_CONNECTION",
       "boundaryCodes": ["DEMO_BOUNDARY_1_2"],
+      "applicableInformationGapCodes": [
+        "DEMO_INFORMATION_GAP",
+        "DEMO_RECENT_PERFORMANCE_NOT_REFLECTED"
+      ],
       "boundaryResolutionValue": 0.85,
       "qualityReliability": 0.85,
       "customerEffort": 0.18,
