@@ -6,6 +6,7 @@ import Header from './components/Header'
 import RouteAnnouncement from './components/RouteAnnouncement'
 import AdminReviewDetailPage from './pages/AdminReviewDetailPage'
 import AdminReviewListPage from './pages/AdminReviewListPage'
+import AdminSessionAuditPage from './pages/AdminSessionAuditPage'
 import AssessmentPage from './pages/AssessmentPage'
 import ApplicationHandoffPage from './pages/ApplicationHandoffPage'
 import ConsentPage from './pages/ConsentPage'
@@ -112,6 +113,6 @@ function LandingPage() {
 }
 
 function App() {
-  return <><RouteAnnouncement /><Routes><Route path="/" element={<LandingPage />} /><Route path="/start" element={<CustomerStartPage />} /><Route path="/consent" element={<ConsentPage />} /><Route path="/data-connection" element={<DataConnectionPage />} /><Route path="/assessment" element={<AssessmentPage />} /><Route path="/evidence" element={<EvidenceSelectionPage />} /><Route path="/products" element={<ProductComparisonPage />} /><Route path="/products/:productId" element={<ProductDetailPage />} /><Route path="/products/:productId/apply" element={<ApplicationHandoffPage />} /><Route path="/admin" element={<AdminShell />}><Route index element={<Navigate to="reviews" replace />} /><Route path="reviews" element={<AdminReviewListPage />} /><Route path="reviews/:reviewId" element={<AdminReviewDetailPage />} /></Route><Route path="*" element={<NotFoundPage />} /></Routes></>
+  return <><RouteAnnouncement /><Routes><Route path="/" element={<LandingPage />} /><Route path="/start" element={<CustomerStartPage />} /><Route path="/consent" element={<ConsentPage />} /><Route path="/data-connection" element={<DataConnectionPage />} /><Route path="/assessment" element={<AssessmentPage />} /><Route path="/evidence" element={<EvidenceSelectionPage />} /><Route path="/products" element={<ProductComparisonPage />} /><Route path="/products/:productId" element={<ProductDetailPage />} /><Route path="/products/:productId/apply" element={<ApplicationHandoffPage />} /><Route path="/admin" element={<AdminShell />}><Route index element={<Navigate to="reviews" replace />} /><Route path="reviews" element={<AdminReviewListPage />} /><Route path="reviews/:reviewId" element={<AdminReviewDetailPage />} /><Route path="sessions/:sessionId/audit" element={<AdminSessionAuditPage />} /></Route><Route path="*" element={<NotFoundPage />} /></Routes></>
 }
 export default App
