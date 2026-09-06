@@ -22,6 +22,7 @@ from app.schemas.evidence_submission import (
     EvidenceSubmissionCreateRequest,
     EvidenceSubmissionResponse,
 )
+from app.schemas.explanation import AssessmentExplanationResponse
 from app.schemas.policy_boundary import EvidenceResolutionResponse, PolicyBoundaryCheckResponse
 from app.schemas.product import ProductCatalogResponse
 from app.schemas.product_condition import ProductConditionQueryResponse
@@ -43,6 +44,7 @@ from app.services.evidence_consent_service import EvidenceConsentService
 from app.services.evidence_quality_service import EvidenceQualityService
 from app.services.evidence_selection_service import EvidenceSelectionService
 from app.services.evidence_submission_service import EvidenceSubmissionService
+from app.services.explanation_service import AssessmentExplanationService
 from app.services.policy_boundary_service import EvidenceResolutionService, PolicyBoundaryService
 from app.services.product_catalog_service import ProductCatalogService
 from app.services.product_condition_service import ProductConditionService
@@ -77,6 +79,10 @@ def get_supplemental_assessment_service(request: Request) -> SupplementalAssessm
 
 def get_assessment_comparison_service(request: Request) -> AssessmentComparisonService:
     return request.app.state.assessment_comparison_service
+
+
+def get_assessment_explanation_service(request: Request) -> AssessmentExplanationService:
+    return request.app.state.assessment_explanation_service
 
 
 def get_evidence_resolution_service(request: Request) -> EvidenceResolutionService:
@@ -332,6 +338,36 @@ async def compare_assessments(
     request: Request,
 ) -> AssessmentComparisonResponse:
     return get_assessment_comparison_service(request).compare(
+        session_id,
+        request.state.request_id,
+    )
+
+
+@router.get(
+    "/{session_id}/assessment/explanation",
+    response_model=AssessmentExplanationResponse,
+    responses={404: {"model": ApiErrorResponse}},
+)
+async def get_assessment_explanation(
+    session_id: str,
+    request: Request,
+) -> AssessmentExplanationResponse:
+    return get_assessment_explanation_service(request).get_latest(session_id)
+
+
+@router.post(
+    "/{session_id}/assessment/explanation/generate",
+    response_model=AssessmentExplanationResponse,
+    responses={
+        404: {"model": ApiErrorResponse},
+        409: {"model": ApiErrorResponse},
+    },
+)
+async def generate_assessment_explanation(
+    session_id: str,
+    request: Request,
+) -> AssessmentExplanationResponse:
+    return get_assessment_explanation_service(request).generate(
         session_id,
         request.state.request_id,
     )

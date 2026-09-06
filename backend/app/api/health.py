@@ -17,6 +17,7 @@ from app.services.evidence_consent_service import EvidenceConsentService
 from app.services.evidence_quality_service import EvidenceQualityService
 from app.services.evidence_selection_service import EvidenceSelectionService
 from app.services.evidence_submission_service import EvidenceSubmissionService
+from app.services.explanation_service import AssessmentExplanationService
 from app.services.feature_snapshot_service import FeatureSnapshotService
 from app.services.loan_history_service import LoanHistoryService
 from app.services.model_registry_service import ModelRegistryService
@@ -60,6 +61,9 @@ async def get_readiness(request: Request) -> ReadinessResponse:
     assessment_comparison_service: AssessmentComparisonService = (
         request.app.state.assessment_comparison_service
     )
+    assessment_explanation_service: AssessmentExplanationService = (
+        request.app.state.assessment_explanation_service
+    )
     policy_boundary_service: PolicyBoundaryService = request.app.state.policy_boundary_service
     evidence_resolution_service: EvidenceResolutionService = (
         request.app.state.evidence_resolution_service
@@ -90,6 +94,7 @@ async def get_readiness(request: Request) -> ReadinessResponse:
         **underwriter_review_queue_service.readiness(),
         **supplemental_assessment_service.readiness(),
         **assessment_comparison_service.readiness(),
+        **assessment_explanation_service.readiness(),
         **policy_boundary_service.readiness(),
         **evidence_resolution_service.readiness(),
         **evidence_selection_service.readiness(),
