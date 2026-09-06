@@ -7,6 +7,7 @@ import type { EvidenceSubmissionOption, EvidenceSubmissionState } from '../types
 import EvidenceConsentPanel from './EvidenceConsentPanel'
 import CustomerTechnicalDetails from './CustomerTechnicalDetails'
 import EvidenceQualityPanel from './EvidenceQualityPanel'
+import { withMinimumDuration } from '../utils/pacedRequest'
 
 interface EvidenceFileSubmissionProps {
   sessionId: string
@@ -101,7 +102,7 @@ function EvidenceFileSubmission({ sessionId, selectionId, evidenceType, displayN
     const sequence = ++sequenceRef.current
     setPhase('uploading'); setError(null)
     try {
-      const response = await evidenceSubmissionProvider.upload(sessionId, selectionId, file, controller.signal)
+      const response = await withMinimumDuration(evidenceSubmissionProvider.upload(sessionId, selectionId, file, controller.signal))
       if (response.sessionId !== sessionId || response.submission?.selectionId !== selectionId || response.submission.evidenceType !== evidenceType) {
         throw { code: 'EVIDENCE_SUBMISSION_CONTEXT_MISMATCH', message: '현재 Evidence 선택과 일치하는 제출 결과를 확인할 수 없습니다.', retryable: true } satisfies ApiError
       }
@@ -120,7 +121,7 @@ function EvidenceFileSubmission({ sessionId, selectionId, evidenceType, displayN
     const sequence = ++sequenceRef.current
     setPhase('connecting'); setError(null)
     try {
-      const response = await evidenceSubmissionProvider.submitConnected(sessionId, selectionId, controller.signal)
+      const response = await withMinimumDuration(evidenceSubmissionProvider.submitConnected(sessionId, selectionId, controller.signal))
       if (response.sessionId !== sessionId || response.submission?.selectionId !== selectionId || response.submission.evidenceType !== evidenceType) {
         throw { code: 'EVIDENCE_SUBMISSION_CONTEXT_MISMATCH', message: '현재 Evidence 선택과 일치하는 연결 자료를 확인할 수 없습니다.', retryable: true } satisfies ApiError
       }

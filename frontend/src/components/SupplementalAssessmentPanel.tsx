@@ -6,6 +6,7 @@ import type { SupplementalAssessmentResponse, SupplementalAssessmentState } from
 import { assessmentGradeSetLabel } from '../utils/assessmentDisplay'
 import AssessmentComparisonPanel from './AssessmentComparisonPanel'
 import CustomerTechnicalDetails from './CustomerTechnicalDetails'
+import { withMinimumDuration } from '../utils/pacedRequest'
 
 interface SupplementalAssessmentPanelProps { sessionId: string; submissionId: string; qualityCheckId: string }
 type Phase = 'loading' | 'running' | 'idle'
@@ -41,11 +42,11 @@ function SupplementalAssessmentPanel({ sessionId, submissionId, qualityCheckId }
     setPhase(run ? 'running' : 'loading'); setError(null)
     try {
       let response = run
-        ? await supplementalAssessmentProvider.run(sessionId, submissionId, controller.signal)
+        ? await withMinimumDuration(supplementalAssessmentProvider.run(sessionId, submissionId, controller.signal))
         : await supplementalAssessmentProvider.get(sessionId, controller.signal)
       if (!run && !acceptResponse(response, false)) {
         if (sequence === sequenceRef.current) setPhase('running')
-        response = await supplementalAssessmentProvider.run(sessionId, submissionId, controller.signal)
+        response = await withMinimumDuration(supplementalAssessmentProvider.run(sessionId, submissionId, controller.signal))
         run = true
       }
       const result = acceptResponse(response, run)

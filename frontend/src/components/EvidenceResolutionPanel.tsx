@@ -7,6 +7,7 @@ import type { EvidenceResolutionContext, EvidenceResolutionResponse, EvidenceRes
 import AssessmentExplanationPanel from './AssessmentExplanationPanel'
 import AssessmentReviewPanel from './AssessmentReviewPanel'
 import CustomerTechnicalDetails from './CustomerTechnicalDetails'
+import { withMinimumDuration } from '../utils/pacedRequest'
 
 interface EvidenceResolutionPanelProps extends EvidenceResolutionContext { sessionId: string }
 type Phase = 'loading' | 'resolving' | 'idle'
@@ -47,11 +48,11 @@ function EvidenceResolutionPanel({ sessionId, comparisonId, supplementalAssessme
     setPhase(resolve ? 'resolving' : 'loading'); setError(null)
     try {
       let response = resolve
-        ? await evidenceResolutionProvider.resolve(sessionId, context, controller.signal)
+        ? await withMinimumDuration(evidenceResolutionProvider.resolve(sessionId, context, controller.signal))
         : await evidenceResolutionProvider.get(sessionId, controller.signal)
       if (!resolve && !acceptResponse(response, false)) {
         if (sequence === sequenceRef.current) setPhase('resolving')
-        response = await evidenceResolutionProvider.resolve(sessionId, context, controller.signal)
+        response = await withMinimumDuration(evidenceResolutionProvider.resolve(sessionId, context, controller.signal))
         resolve = true
       }
       const result = acceptResponse(response, resolve)

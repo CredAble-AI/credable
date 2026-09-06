@@ -12,6 +12,7 @@ import { mockProductProvider } from '../mocks/productProvider'
 import type { ApiError } from '../types/api'
 import type { AnnualRateRange, ComparisonSortField, MoneyAmount, ProductComparisonItem, ProductComparisonResult, ProductConditionStatus, ProductSortDirection, TermRangeMonths, ProductView } from '../types/product'
 import './ProductComparisonPage.css'
+import { withMinimumDuration } from '../utils/pacedRequest'
 
 const provider = selectProvider(mockProductProvider, liveProductProvider)
 const assessmentProvider = selectProvider(mockAssessmentProvider, liveAssessmentProvider)
@@ -76,7 +77,7 @@ function ProductComparisonPage() {
       const request = { sessionId: session.sessionId, profileType: session.selectedProfileType }
       const assessment = await assessmentProvider.get(request, controller.signal)
       if (assessment.assessment.status !== 'COMPLETED') { navigate('/assessment', { replace: true }); return }
-      const next = await (refresh ? provider.refresh(request, controller.signal) : provider.get(request, controller.signal))
+      const next = await (refresh ? withMinimumDuration(provider.refresh(request, controller.signal)) : provider.get(request, controller.signal))
       if (next.sessionId !== session.sessionId) throw { code: 'PRODUCT_SESSION_MISMATCH', message: '현재 세션의 상품 결과를 확인할 수 없습니다.', retryable: true } satisfies ApiError
       if (sequence === sequenceRef.current) { setResult(next); setSortField('CATALOG_ORDER'); setDirection('NONE') }
     } catch (caught) { if (!controller.signal.aborted && sequence === sequenceRef.current) setError(normalizeProductError(caught)) }

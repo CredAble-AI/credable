@@ -14,6 +14,7 @@ import type { ConsentSourceType } from '../types/consent'
 import type { EvidenceAvailability, EvidenceSelectionResponse, EvidenceSelectionStatus } from '../types/evidenceSelection'
 import './AssessmentPage.css'
 import './EvidenceSelectionPage.css'
+import { withMinimumDuration } from '../utils/pacedRequest'
 
 type Phase = 'loading' | 'selecting' | 'idle'
 
@@ -83,7 +84,7 @@ function EvidenceSelectionPage() {
       }
       stage = 'selection'
       const next = await (selectNext
-        ? evidenceSelectionProvider.selectNext(session.sessionId, controller.signal)
+        ? withMinimumDuration(evidenceSelectionProvider.selectNext(session.sessionId, controller.signal))
         : evidenceSelectionProvider.get(session.sessionId, controller.signal))
       if (next.sessionId !== session.sessionId) throw { code: 'EVIDENCE_SELECTION_SESSION_MISMATCH', message: '현재 세션의 Evidence 선택 결과를 확인할 수 없습니다.', retryable: true } satisfies ApiError
       if (next.selection && expectedBoundaryCheckId && next.selection.boundaryCheckId !== expectedBoundaryCheckId) throw { code: 'EVIDENCE_SELECTION_BOUNDARY_MISMATCH', message: '현재 정책 경계와 일치하는 Evidence 선택 결과를 확인할 수 없습니다.', retryable: true } satisfies ApiError

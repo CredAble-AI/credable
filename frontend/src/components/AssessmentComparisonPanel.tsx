@@ -7,6 +7,7 @@ import type { AssessmentComparisonContext, AssessmentComparisonResponse, Assessm
 import { assessmentGradeSetLabel } from '../utils/assessmentDisplay'
 import EvidenceResolutionPanel from './EvidenceResolutionPanel'
 import CustomerTechnicalDetails from './CustomerTechnicalDetails'
+import { withMinimumDuration } from '../utils/pacedRequest'
 
 interface AssessmentComparisonPanelProps extends AssessmentComparisonContext { sessionId: string }
 type Phase = 'loading' | 'comparing' | 'idle'
@@ -56,11 +57,11 @@ function AssessmentComparisonPanel({ sessionId, baselineAssessmentId, supplement
     setPhase(compare ? 'comparing' : 'loading'); setError(null)
     try {
       let response = compare
-        ? await assessmentComparisonProvider.compare(sessionId, context, controller.signal)
+        ? await withMinimumDuration(assessmentComparisonProvider.compare(sessionId, context, controller.signal))
         : await assessmentComparisonProvider.get(sessionId, controller.signal)
       if (!compare && !acceptResponse(response, false)) {
         if (sequence === sequenceRef.current) setPhase('comparing')
-        response = await assessmentComparisonProvider.compare(sessionId, context, controller.signal)
+        response = await withMinimumDuration(assessmentComparisonProvider.compare(sessionId, context, controller.signal))
         compare = true
       }
       const result = acceptResponse(response, compare)

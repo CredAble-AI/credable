@@ -7,6 +7,7 @@ import type { EvidenceQualityResponse, EvidenceQualityState } from '../types/evi
 import type { EvidenceSubmissionState } from '../types/evidenceSubmission'
 import CustomerTechnicalDetails from './CustomerTechnicalDetails'
 import SupplementalAssessmentPanel from './SupplementalAssessmentPanel'
+import { withMinimumDuration } from '../utils/pacedRequest'
 
 interface EvidenceQualityPanelProps { sessionId: string; submission: EvidenceSubmissionState }
 type Phase = 'loading' | 'checking' | 'idle'
@@ -57,11 +58,11 @@ function EvidenceQualityPanel({ sessionId, submission }: EvidenceQualityPanelPro
     setPhase(runCheck ? 'checking' : 'loading'); setError(null)
     try {
       let response = runCheck
-        ? await evidenceQualityProvider.check(sessionId, submission.submissionId, controller.signal)
+        ? await withMinimumDuration(evidenceQualityProvider.check(sessionId, submission.submissionId, controller.signal))
         : await evidenceQualityProvider.get(sessionId, submission.submissionId, controller.signal)
       if (!runCheck && !response.quality) {
         if (sequence === sequenceRef.current) setPhase('checking')
-        response = await evidenceQualityProvider.check(sessionId, submission.submissionId, controller.signal)
+        response = await withMinimumDuration(evidenceQualityProvider.check(sessionId, submission.submissionId, controller.signal))
         runCheck = true
       }
       const accepted = acceptResponse(response)

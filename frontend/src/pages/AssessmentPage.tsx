@@ -17,6 +17,7 @@ import type { EvidenceSelectionResponse, EvidenceSelectionState } from '../types
 import type { BoundaryStatus, PolicyBoundaryCheckResponse, PolicyBoundaryCheckState } from '../types/policyBoundary'
 import { assessmentGradeLabel } from '../utils/assessmentDisplay'
 import './AssessmentPage.css'
+import { withMinimumDuration } from '../utils/pacedRequest'
 
 type Phase = 'loading' | 'running' | 'checking' | 'selecting' | 'idle'
 type ErrorStage = 'load' | 'run' | 'boundary-load' | 'boundary-check' | 'selection'
@@ -161,7 +162,7 @@ function AssessmentPage() {
     let next = await evidenceSelectionProvider.get(session.sessionId, signal)
     validateSelection(next, boundary.boundaryCheckId, session.sessionId)
     if (!next.selection) {
-      next = await evidenceSelectionProvider.selectNext(session.sessionId, signal)
+      next = await withMinimumDuration(evidenceSelectionProvider.selectNext(session.sessionId, signal))
       validateSelection(next, boundary.boundaryCheckId, session.sessionId)
     }
     return next
@@ -233,7 +234,7 @@ function AssessmentPage() {
     let stage: ErrorStage = 'boundary-check'
     setPhase('checking'); setError(null); setErrorStage(null); setSelectionResult(null)
     try {
-      const checked = await policyBoundaryProvider.check(session.sessionId, controller.signal)
+      const checked = await withMinimumDuration(policyBoundaryProvider.check(session.sessionId, controller.signal))
       validateBoundary(checked, result.assessment, session.sessionId)
       if (sequence === sequenceRef.current) setBoundaryResult(checked)
       if (checked.boundaryCheck?.decision.status === 'AMBIGUOUS') {
@@ -274,14 +275,14 @@ function AssessmentPage() {
     let stage: ErrorStage = 'run'
     setPhase('running'); setError(null); setErrorStage(null); setBoundaryResult(null); setSelectionResult(null)
     try {
-      const next = await assessmentProvider.run({ sessionId: session.sessionId, profileType: session.selectedProfileType }, controller.signal)
+      const next = await withMinimumDuration(assessmentProvider.run({ sessionId: session.sessionId, profileType: session.selectedProfileType }, controller.signal))
       validateAssessment(next, session.sessionId)
       if (sequence !== sequenceRef.current) return
       setResult(next)
       if (next.assessment.status === 'COMPLETED') {
         stage = 'boundary-check'
         setPhase('checking')
-        const checked = await policyBoundaryProvider.check(session.sessionId, controller.signal)
+        const checked = await withMinimumDuration(policyBoundaryProvider.check(session.sessionId, controller.signal))
         validateBoundary(checked, next.assessment, session.sessionId)
         if (sequence === sequenceRef.current) setBoundaryResult(checked)
         if (checked.boundaryCheck?.decision.status === 'AMBIGUOUS') {

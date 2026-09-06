@@ -6,6 +6,7 @@ import type { ApiError } from '../types/api'
 import type { AssessmentReviewProcessingStatus, AssessmentReviewRequestResponse, CustomerAssessmentReviewReason } from '../types/assessmentReview'
 import CustomerTechnicalDetails from './CustomerTechnicalDetails'
 import './AssessmentReviewPanel.css'
+import { withMinimumDuration } from '../utils/pacedRequest'
 
 interface AssessmentReviewPanelProps { sessionId: string }
 type Phase = 'loading' | 'requesting' | 'idle'
@@ -46,7 +47,7 @@ function AssessmentReviewPanel({ sessionId }: AssessmentReviewPanelProps) {
     setPhase(create ? 'requesting' : 'loading'); setError(null)
     try {
       const response = create
-        ? await assessmentReviewProvider.request(sessionId, create, controller.signal)
+        ? await withMinimumDuration(assessmentReviewProvider.request(sessionId, create, controller.signal))
         : await assessmentReviewProvider.get(sessionId, controller.signal)
       const accepted = acceptResponse(response, create !== null)
       if (sequence === sequenceRef.current) setResult(accepted)

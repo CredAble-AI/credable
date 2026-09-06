@@ -9,6 +9,7 @@ import { dataConnectionProvider } from '../hooks/useDataConnectionState'
 import type { ApiError } from '../types/api'
 import type { ConsentSourceType, DataSourceListResponse, DataSourceState, RetrievalStatus, VerificationStatus } from '../types/dataConnection'
 import './DataConnectionPage.css'
+import { withMinimumDuration } from '../utils/pacedRequest'
 
 const retrievalLabel: Record<RetrievalStatus, string> = {
   CONSENT_REQUIRED: '동의 필요',
@@ -112,7 +113,7 @@ function DataConnectionPage() {
     setItemErrors({})
     try {
       const next = await (refresh
-        ? dataConnectionProvider.refresh(sessionId, controller.signal)
+        ? withMinimumDuration(dataConnectionProvider.refresh(sessionId, controller.signal))
         : dataConnectionProvider.list(sessionId, controller.signal))
       if (sequence === requestSequence.current) setResult(next)
       return next
