@@ -25,7 +25,7 @@ def _run(*command: str) -> bytes:
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--private-key", type=Path, required=True)
-    parser.add_argument("--key-id", default="credable-demo-manifest-rs256-v1")
+    parser.add_argument("--key-id", required=True)
     parser.add_argument("--evidence-catalog", type=Path, default=DEFAULT_EVIDENCE_CATALOG)
     parser.add_argument("--key-catalog", type=Path, default=DEFAULT_KEY_CATALOG)
     args = parser.parse_args()

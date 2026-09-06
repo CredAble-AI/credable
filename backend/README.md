@@ -488,8 +488,9 @@ Adapter를 연결하고, 신뢰 통로가 없으면 `UNVERIFIED_DOCUMENT`로 자
 생성할 수 있습니다. 생성 후에는 `demo_evidence_files.json`의 크기와 SHA-256이 결과물과
 일치하는지 확인해야 하며, 불일치하면 서버 readiness가 실패합니다. manifest를 변경한 경우에는
 저장소 밖에서 관리하는 RSA 개인키를 사용해
-`PYTHONPATH=backend backend/.venv/bin/python backend/scripts/sign_demo_evidence_manifests.py --private-key <path>`로
-다시 서명해야 합니다. 이 명령은 공개키와 서명값만 갱신합니다.
+`PYTHONPATH=backend backend/.venv/bin/python backend/scripts/sign_demo_evidence_manifests.py --private-key <path> --key-id <new-key-id>`로
+다시 서명해야 합니다. 이 명령은 공개키와 서명값만 갱신하며 키 교체 시 새 `keyId`를 명시적으로
+요구합니다.
 
 실제 운영 규칙은 은행이 인정하는 발급처, 유효기간, 필수 필드, 교차검증 원천과 조작 탐지
 방식이 확정된 뒤 Adapter로 교체해야 합니다. 품질 검증을 통과하지 못한 Evidence는 다음
