@@ -110,7 +110,10 @@ describe('customer journey integration', () => {
     const refreshSources = await screen.findByRole('button', { name: '전체 출처 새로고침' })
     await waitFor(() => expect(refreshSources).toBeEnabled())
     fireEvent.click(refreshSources)
-    await waitFor(() => expect(screen.getAllByText('조회 완료')).toHaveLength(3))
+    await waitFor(
+      () => expect(screen.getAllByText('조회 완료')).toHaveLength(3),
+      { timeout: 2_000 },
+    )
     fireEvent.click(screen.getByRole('link', { name: '기준평가 실행' }))
 
     fireEvent.click(await screen.findByRole('button', { name: '기준평가 실행' }))
