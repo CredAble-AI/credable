@@ -9,9 +9,9 @@ import type { ConsentSourceType, ConsentState } from '../types/consent'
 import './ConsentPage.css'
 
 const requirementLabel = (required: boolean | null) => {
-  if (required === true) return '필수 · Demo 데이터'
-  if (required === false) return '선택 · Demo 데이터'
-  return '필수 여부 미확정 · Demo 데이터'
+  if (required === true) return '필수 · 시연 데이터'
+  if (required === false) return '선택 · 시연 데이터'
+  return '필수 여부 확인 중 · 시연 데이터'
 }
 
 const statusLabel = (status: ConsentState['status']) => {
@@ -101,9 +101,9 @@ function ConsentPage() {
       ? '데이터 이용 동의 범위를 불러오는 중입니다.'
       : requiredComplete
         ? requiredConsents.length === 0
-          ? '서버에서 필수로 지정한 항목이 없습니다. 현재 동의한 범위로 계속할 수 있습니다.'
-          : '서버에서 필수로 지정한 항목이 모두 충족되었습니다. 현재 동의한 범위로 계속할 수 있습니다.'
-      : '계속하려면 서버에서 필수로 지정한 항목에 동의해주세요.')
+          ? '필수 동의 항목이 없습니다. 현재 동의한 범위로 계속할 수 있습니다.'
+          : '필수 동의 항목을 모두 확인했습니다. 현재 동의한 범위로 계속할 수 있습니다.'
+      : '계속하려면 필수 항목에 동의해주세요.')
 
   return (
     <div className="workspace-shell customer-flow">
@@ -111,8 +111,8 @@ function ConsentPage() {
       <main id="main-content" tabIndex={-1} className="consent-page">
         <div className="container consent-page__inner">
           <header className="consent-heading">
-            <div><p className="flow-kicker">DATA CONSENT</p><h1>연결할 데이터의 이용 범위를 확인해주세요</h1><p>각 항목의 설명과 필수 여부는 서버가 제공한 동의 범위를 그대로 표시합니다. 동의는 실제 데이터 연결 성공을 보장하지 않습니다.</p></div>
-            <div className="session-summary"><span>Demo Only</span><strong>{session.demoProfile.displayName}</strong><small>{scopeVersion ? `동의 범위 ${scopeVersion}` : '동의 범위 확인 중'}</small></div>
+            <div><p className="flow-kicker">데이터 이용 동의</p><h1>연결할 데이터의 이용 범위를 확인해주세요</h1><p>평가에 사용할 정보와 필수·선택 여부를 확인합니다. 동의해도 실제 데이터 연결을 보장하지는 않습니다.</p></div>
+            <div className="session-summary"><span>시연용 합성 데이터</span><strong>{session.demoProfile.displayName}</strong><small>{scopeVersion ? '동의 범위 확인 완료' : '동의 범위 확인 중'}</small></div>
           </header>
 
           {loading && <p className="consent-state" role="status" aria-live="polite">데이터 이용 동의 상태를 불러오고 있습니다.</p>}
@@ -127,7 +127,7 @@ function ConsentPage() {
 
           {!loading && consents.length > 0 && (
             <fieldset className="consent-group">
-              <legend><span>데이터 이용 동의</span><strong>서버에 등록된 범위와 현재 상태입니다</strong></legend>
+              <legend><span>데이터 이용 동의</span><strong>평가에 필요한 범위와 현재 상태입니다</strong></legend>
               {consents.map((consent) => {
                 const checked = consent.status === 'GRANTED'
                 const isUpdating = updatingSource === consent.sourceType

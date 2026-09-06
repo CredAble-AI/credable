@@ -4,6 +4,7 @@ import { evidenceSubmissionProvider } from '../hooks/useEvidenceSubmissionState'
 import type { ApiError } from '../types/api'
 import type { EvidenceSubmissionOption, EvidenceSubmissionState } from '../types/evidenceSubmission'
 import EvidenceConsentPanel from './EvidenceConsentPanel'
+import CustomerTechnicalDetails from './CustomerTechnicalDetails'
 import EvidenceQualityPanel from './EvidenceQualityPanel'
 
 interface EvidenceFileSubmissionProps {
@@ -73,7 +74,7 @@ function EvidenceFileSubmission({ sessionId, selectionId, evidenceType }: Eviden
     if (!nextFile || !option?.uploadPolicy) return
     const extension = nextFile.name.includes('.') ? `.${nextFile.name.split('.').pop()?.toLowerCase()}` : ''
     if (!option.uploadPolicy.allowedExtensions.includes(extension) || !option.uploadPolicy.allowedContentTypes.includes(nextFile.type)) {
-      setFileError('서버가 허용한 PDF 파일만 선택할 수 있습니다.')
+      setFileError('PDF 파일만 선택할 수 있습니다.')
       return
     }
     if (nextFile.size > option.uploadPolicy.maxSizeBytes) {
@@ -102,32 +103,33 @@ function EvidenceFileSubmission({ sessionId, selectionId, evidenceType }: Eviden
     }
   }
 
-  if (phase === 'loading' && !option) return <section className="evidence-submission evidence-submission--loading" aria-label="Demo 증빙 제출 준비"><span /><span /></section>
+  if (phase === 'loading' && !option) return <section className="evidence-submission evidence-submission--loading" aria-label="시연용 자료 제출 준비"><span /><span /></section>
 
-  if (!option) return <section className="evidence-submission" aria-labelledby="evidence-submit-title"><h2 id="evidence-submit-title">Demo 증빙 제출</h2>{error && <div className="evidence-submission__error" role="alert"><strong>{error.message}</strong><small>{error.code}{error.requestId ? ` · Request ID: ${error.requestId}` : ''}</small>{error.retryable && <button type="button" onClick={() => void load()}>다시 확인</button>}</div>}</section>
+  if (!option) return <section className="evidence-submission" aria-labelledby="evidence-submit-title"><h2 id="evidence-submit-title">시연용 자료 제출</h2>{error && <div className="evidence-submission__error" role="alert"><strong>{error.message}</strong>{error.retryable && <button type="button" onClick={() => void load()}>다시 확인</button>}</div>}</section>
 
   const downloadPath = option.demoFile ? safeDownloadPath(option.demoFile.downloadUrl) : null
   const requirement = option.submissionRequirement
 
   return <section className="evidence-submission" aria-labelledby="evidence-submit-title">
-    <div className="evidence-submission__heading"><div><span>DEMO FILE SUBMISSION</span><h2 id="evidence-submit-title">시연용 증빙을 직접 제출합니다</h2></div><span className={`evidence-submission__status evidence-submission__status--${requirement.status.toLowerCase()}`}>{requirement.status}</span></div>
-    <p>서버가 제공한 합성 파일을 내려받아 그대로 업로드하세요. 선택한 파일은 프론트가 아니라 백엔드에서 다시 검증합니다.</p>
+    <div className="evidence-submission__heading"><div><span>자료 제출</span><h2 id="evidence-submit-title">시연용 자료를 직접 제출해보세요</h2></div></div>
+    <p>합성 자료를 내려받은 뒤 그대로 제출하면, 실제 업로드 파일의 형식·출처·내용 일관성을 확인합니다.</p>
 
-    {error && <div className="evidence-submission__error" role="alert"><strong>{error.message}</strong><small>{error.code}{error.requestId ? ` · Request ID: ${error.requestId}` : ''}</small></div>}
+    {error && <div className="evidence-submission__error" role="alert"><strong>{error.message}</strong></div>}
 
     {option.collectionMode === 'DEMO_FILE_UPLOAD' && option.demoFile && option.uploadPolicy && <>
-      <div className="evidence-file-card"><div><strong>{option.demoFile.displayName}</strong><p>{option.demoFile.description}</p><small>{option.demoFile.fileName} · PDF · {formatBytes(option.demoFile.sizeBytes)}</small></div>{requirement.status !== 'READY' ? <span className="button button--secondary" aria-disabled="true">동의 후 다운로드</span> : downloadPath ? <a className="button button--secondary" href={downloadPath} download={option.demoFile.fileName}>Demo 증빙 PDF 내려받기</a> : <span className="evidence-file-card__invalid" role="alert">안전한 다운로드 주소를 확인할 수 없습니다.</span>}</div>
+      <div className="evidence-file-card"><div><strong>{option.demoFile.displayName}</strong><p>{option.demoFile.description}</p><small>{option.demoFile.fileName} · PDF · {formatBytes(option.demoFile.sizeBytes)}</small></div>{requirement.status !== 'READY' ? <span className="button button--secondary" aria-disabled="true">동의 후 다운로드</span> : downloadPath ? <a className="button button--secondary" href={downloadPath} download={option.demoFile.fileName}>시연용 PDF 내려받기</a> : <span className="evidence-file-card__invalid" role="alert">다운로드 주소를 확인할 수 없습니다.</span>}</div>
       <EvidenceConsentPanel sessionId={sessionId} selectionId={selectionId} evidenceType={evidenceType} onConsentChanged={load} />
 
-      {requirement.status === 'UNAVAILABLE' && <div className="evidence-submission__notice evidence-submission__notice--blocked"><strong>현재 파일을 제출할 수 없습니다</strong><p>{requirement.reasonCode ?? '서버에서 제출 가능한 상태를 확인하지 못했습니다.'}</p></div>}
+      {requirement.status === 'UNAVAILABLE' && <div className="evidence-submission__notice evidence-submission__notice--blocked"><strong>현재 파일을 제출할 수 없습니다</strong><p>자료 제출 가능 상태를 확인해주세요.</p></div>}
 
-      {requirement.status === 'READY' && !submission && <div className="evidence-upload-control"><label htmlFor={inputId}>제출할 PDF 선택</label><input id={inputId} type="file" accept={option.uploadPolicy.allowedContentTypes.join(',')} onChange={(event) => selectFile(event.target.files?.[0] ?? null)} disabled={phase === 'uploading'} /><small>허용 형식 PDF · 최대 {formatBytes(option.uploadPolicy.maxSizeBytes)}</small>{file && <p>선택 파일: <strong>{file.name}</strong> · {formatBytes(file.size)}</p>}{fileError && <p className="evidence-upload-control__error" role="alert">{fileError}</p>}<button className="button button--primary" type="button" onClick={() => void upload()} disabled={!file || phase === 'uploading'}>{phase === 'uploading' ? '백엔드에서 검증하는 중…' : '선택한 파일 제출'}</button></div>}
+      {requirement.status === 'READY' && !submission && <div className="evidence-upload-control"><label htmlFor={inputId}>제출할 PDF 선택</label><input id={inputId} type="file" accept={option.uploadPolicy.allowedContentTypes.join(',')} onChange={(event) => selectFile(event.target.files?.[0] ?? null)} disabled={phase === 'uploading'} /><small>PDF · 최대 {formatBytes(option.uploadPolicy.maxSizeBytes)}</small>{file && <p>선택 파일: <strong>{file.name}</strong> · {formatBytes(file.size)}</p>}{fileError && <p className="evidence-upload-control__error" role="alert">{fileError}</p>}<button className="button button--primary" type="button" onClick={() => void upload()} disabled={!file || phase === 'uploading'}>{phase === 'uploading' ? '파일을 확인하는 중…' : '선택한 파일 제출'}</button></div>}
     </>}
 
-    {option.collectionMode === 'DEMO_CONNECTION' && <div className="evidence-submission__notice"><strong>연결 데이터로 확인하는 자료입니다</strong><p>서버가 지정한 연결 흐름을 사용하며 파일 업로드는 받지 않습니다.</p></div>}
-    {option.collectionMode === 'UNAVAILABLE' && <div className="evidence-submission__notice evidence-submission__notice--blocked"><strong>현재 이용할 수 없는 제출 방식입니다</strong><p>{requirement.reasonCode ?? '백엔드에서 사용 가능한 수집 방식을 제공하지 않았습니다.'}</p></div>}
+    {option.collectionMode === 'DEMO_CONNECTION' && <div className="evidence-submission__notice"><strong>연결된 정보로 확인합니다</strong><p>별도의 파일을 제출하지 않아도 됩니다.</p></div>}
+    {option.collectionMode === 'UNAVAILABLE' && <div className="evidence-submission__notice evidence-submission__notice--blocked"><strong>현재 이용할 수 없는 제출 방식입니다</strong><p>다른 확인 방법이 제공되는지 확인해주세요.</p></div>}
 
-    {submission && <div className="evidence-submission__complete" role="status"><span aria-hidden="true">✓</span><div><strong>파일 제출을 확인했습니다</strong><p>백엔드가 제출 ID와 파일 메타데이터를 저장했습니다. 품질 검증 결과는 다음 단계에서 확인합니다.</p><small>{submission.uploadedFile?.fileName ?? submission.evidenceType} · {submission.status} · {submission.submissionId}</small></div></div>}
+    {submission && <><div className="evidence-submission__complete" role="status"><span aria-hidden="true">✓</span><div><strong>파일 제출을 완료했습니다</strong><p>제출한 파일의 품질을 다음 단계에서 확인할 수 있습니다.</p><small>{submission.uploadedFile?.fileName ?? '제출 자료'}</small></div></div><CustomerTechnicalDetails><dl><div><dt>제출 상태</dt><dd><code>{submission.status}</code></dd></div><div><dt>제출 ID</dt><dd><code>{submission.submissionId}</code></dd></div><div><dt>파일 해시</dt><dd><code>{submission.submissionSnapshotHash}</code></dd></div><div><dt>수집 방식</dt><dd><code>{submission.submissionMode}</code></dd></div></dl></CustomerTechnicalDetails></>}
+    <CustomerTechnicalDetails><dl><div><dt>제출 가능 상태</dt><dd><code>{requirement.status}</code></dd></div><div><dt>수집 방식</dt><dd><code>{option.collectionMode}</code></dd></div>{requirement.reasonCode && <div><dt>상태 코드</dt><dd><code>{requirement.reasonCode}</code></dd></div>}{error && <><div><dt>오류 코드</dt><dd><code>{error.code}</code></dd></div>{error.requestId && <div><dt>요청 ID</dt><dd><code>{error.requestId}</code></dd></div>}</>}</dl></CustomerTechnicalDetails>
     {submission && <EvidenceQualityPanel sessionId={sessionId} submission={submission} />}
   </section>
 }

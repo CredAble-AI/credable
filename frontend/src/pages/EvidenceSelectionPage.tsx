@@ -3,6 +3,7 @@ import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { normalizeEvidenceSelectionError } from '../api/evidenceSelectionClient'
 import { normalizePolicyBoundaryError } from '../api/policyBoundaryClient'
 import Header from '../components/Header'
+import CustomerTechnicalDetails from '../components/CustomerTechnicalDetails'
 import EvidenceFileSubmission from '../components/EvidenceFileSubmission'
 import { isMockMode } from '../config/providerMode'
 import { policyBoundaryProvider } from '../hooks/useAssessmentState'
@@ -17,10 +18,10 @@ import './EvidenceSelectionPage.css'
 type Phase = 'loading' | 'selecting' | 'idle'
 
 const statusCopy: Record<EvidenceSelectionStatus, { label: string; description: string }> = {
-  SELECTED: { label: '다음 Evidence 선택 완료', description: '서버가 현재 불확실한 항목을 확인할 Evidence 한 건을 선택했습니다.' },
-  NOT_REQUIRED: { label: '추가 Evidence 불필요', description: '서버가 현재 경로가 안정적이라고 판단해 추가 자료를 선택하지 않았습니다.' },
-  POLICY_BLOCKED: { label: '자동 선택 중단', description: '정책에 따라 Evidence 자동 선택이 중단되었습니다.' },
-  HUMAN_REVIEW: { label: '심사역 확인 필요', description: '유효한 다음 Evidence를 선택하지 않고 심사역 확인 단계로 전환했습니다.' },
+  SELECTED: { label: '필요한 자료 한 건을 확인했습니다', description: '현재 결과 범위를 더 명확히 하는 데 가장 필요한 자료입니다.' },
+  NOT_REQUIRED: { label: '추가 자료가 필요하지 않습니다', description: '현재 정보만으로 평가 범위가 충분히 확인됐습니다.' },
+  POLICY_BLOCKED: { label: '담당자 확인이 필요합니다', description: '자동으로 자료를 요청하지 않고 담당자의 확인을 기다립니다.' },
+  HUMAN_REVIEW: { label: '담당자 확인이 필요합니다', description: '추가 자료를 자동으로 요청하지 않고 담당자 확인 단계로 전환했습니다.' },
 }
 const availabilityCopy: Record<EvidenceAvailability, { label: string; description: string }> = {
   AVAILABLE: { label: '현재 이용 가능', description: '현재 연결 상태에서 확인할 수 있는 자료입니다.' },
@@ -36,7 +37,7 @@ const sourceLabels: Record<ConsentSourceType, string> = {
 }
 const rationaleCopy: Record<string, string> = {
   DEMO_RESOLVE_BOUNDARY_1_2: '현재 가능한 경로를 구분하는 데 필요한 항목입니다.',
-  DEMO_MINIMUM_SINGLE_REQUEST: '추가 요청을 한 건으로 제한한 Demo 선택 결과입니다.',
+  DEMO_MINIMUM_SINGLE_REQUEST: '불필요한 추가 요청을 막기 위해 한 건만 선택했습니다.',
   DEMO_CROSS_CHECK_SETTLEMENT: '정산과 입금 흐름을 교차 확인하기 위한 항목입니다.',
 }
 const formatDate = (value: string) => new Intl.DateTimeFormat('ko-KR', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(value))
@@ -103,23 +104,23 @@ function EvidenceSelectionPage() {
   const availability = selectedEvidence ? availabilityCopy[selectedEvidence.availability] : null
 
   return <div className="workspace-shell customer-flow"><Header /><main id="main-content" tabIndex={-1} className="assessment-page evidence-page"><div className="container assessment-page__inner">
-    <nav className="assessment-steps" aria-label="진행 단계"><span>시작</span><span>동의</span><span>데이터 연결</span><span>기준평가</span><strong aria-current="step">Evidence 선택</strong><span>품질 확인</span></nav>
-    <header className="assessment-heading"><div>{isMockMode && <span className="assessment-badge">Mock result · Demo Only</span>}<p className="flow-kicker">MINIMUM EVIDENCE</p><h1>다음으로 확인할 자료 한 건을 보여드립니다</h1><p>서버가 현재 정책 경계를 확인하기 위해 선택한 한 건만 표시합니다. 프론트엔드는 후보를 다시 계산하거나 순위를 만들지 않습니다.</p></div><aside><span>현재 Demo 사례</span><strong>{session.demoProfile.displayName}</strong><small>{session.demoProfile.description}</small></aside></header>
+    <nav className="assessment-steps" aria-label="진행 단계"><span>시작</span><span>동의</span><span>데이터 연결</span><span>기준평가</span><strong aria-current="step">추가 자료</strong><span>품질 확인</span></nav>
+    <header className="assessment-heading"><div>{isMockMode && <span className="assessment-badge">시연용 합성 데이터</span>}<p className="flow-kicker">최소 자료 확인</p><h1>결과를 더 명확히 하는 자료 한 건을 확인합니다</h1><p>불필요한 자료를 여러 개 요구하지 않고, 현재 평가에서 가장 필요한 자료 한 건만 안내합니다.</p></div><aside><span>현재 시연 사례</span><strong>{session.demoProfile.displayName}</strong><small>{session.demoProfile.description}</small></aside></header>
 
-    <div className="assessment-live" role="status" aria-live="polite">{phase === 'loading' ? '저장된 Evidence 선택 상태를 확인하고 있습니다.' : phase === 'selecting' ? '서버에서 다음 Evidence 한 건을 선택하고 있습니다.' : error ? 'Evidence 선택 상태를 확인하지 못했습니다.' : selection ? 'Evidence 선택 상태를 확인했습니다.' : '아직 선택된 Evidence가 없습니다.'}</div>
+    <div className="assessment-live" role="status" aria-live="polite">{phase === 'loading' ? '필요한 자료를 확인하고 있습니다.' : phase === 'selecting' ? '다음으로 확인할 자료 한 건을 찾고 있습니다.' : error ? '필요한 자료를 확인하지 못했습니다.' : selection ? '필요한 자료를 확인했습니다.' : '아직 선택된 자료가 없습니다.'}</div>
     {error && <section className="assessment-error" role="alert"><div><strong>{error.message}</strong><small>오류 코드: {error.code}{error.requestId ? ` · Request ID: ${error.requestId}` : ''}</small></div>{error.retryable && <button type="button" onClick={() => void requestSelection(selectNextRequested)}>다시 확인</button>}</section>}
     {phase !== 'idle' && !result && <div className="assessment-skeleton" aria-hidden="true"><span /><span /></div>}
 
-    {!error && phase === 'idle' && !selection && <section className="evidence-empty"><span aria-hidden="true">1</span><div><h2>다음 Evidence를 아직 선택하지 않았습니다</h2><p>자동으로 요청하지 않습니다. 아래 버튼을 선택하면 서버가 현재 경계를 기준으로 한 건만 선택합니다.</p></div><button className="button button--primary" type="button" onClick={() => void requestSelection(true)}>다음 Evidence 확인</button></section>}
+    {!error && phase === 'idle' && !selection && <section className="evidence-empty"><span aria-hidden="true">1</span><div><h2>추가로 확인할 자료를 선택할 수 있습니다</h2><p>버튼을 누르면 현재 평가 결과를 좁히는 데 필요한 자료 한 건만 확인합니다.</p></div><button className="button button--primary" type="button" onClick={() => void requestSelection(true)}>필요한 자료 확인</button></section>}
 
     {selection && copy && <>
-      <section className={`assessment-result evidence-status evidence-status--${selection.status.toLowerCase()}`}><div className="assessment-result__icon" aria-hidden="true">{selection.status === 'SELECTED' ? '✓' : 'i'}</div><div><span>{selection.status}</span><h2>{copy.label}</h2><p>{copy.description}</p>{selection.stopReason && <p>서버 상태 코드 <code>{selection.stopReason}</code></p>}</div></section>
-      {selectedEvidence && availability && <section className="evidence-card" aria-labelledby="selected-evidence-title"><div className="evidence-card__top"><div><span>{sourceLabels[selectedEvidence.sourceType]}</span><h2 id="selected-evidence-title">{selectedEvidence.displayName}</h2></div><span className={`evidence-availability evidence-availability--${selectedEvidence.availability.toLowerCase()}`}>{availability.label}</span></div><p>{selectedEvidence.description}</p><p className="evidence-availability-note">{availability.description}</p><section><h3>선택 근거</h3><ul>{selectedEvidence.rationaleCodes.map((code) => <li key={code}><span>{rationaleCopy[code] ?? '서버가 제공한 선택 근거입니다.'}</span><code>{code}</code></li>)}</ul></section></section>}
+      <section className={`assessment-result evidence-status evidence-status--${selection.status.toLowerCase()}`}><div className="assessment-result__icon" aria-hidden="true">{selection.status === 'SELECTED' ? '✓' : 'i'}</div><div><span>추가 자료 확인 결과</span><h2>{copy.label}</h2><p>{copy.description}</p></div></section>
+      {selectedEvidence && availability && <section className="evidence-card" aria-labelledby="selected-evidence-title"><div className="evidence-card__top"><div><span>{sourceLabels[selectedEvidence.sourceType]}</span><h2 id="selected-evidence-title">{selectedEvidence.displayName}</h2></div><span className={`evidence-availability evidence-availability--${selectedEvidence.availability.toLowerCase()}`}>{availability.label}</span></div><p>{selectedEvidence.description}</p><p className="evidence-availability-note">{availability.description}</p><section><h3>이 자료가 필요한 이유</h3><ul>{selectedEvidence.rationaleCodes.map((code) => <li key={code}><span>{rationaleCopy[code] ?? '현재 결과 범위를 더 명확히 하는 데 필요한 자료입니다.'}</span></li>)}</ul></section></section>}
       {selectedEvidence && <EvidenceFileSubmission sessionId={session.sessionId} selectionId={selection.selectionId} evidenceType={selectedEvidence.evidenceType} />}
-      <div className="assessment-detail-grid evidence-metadata"><section className="assessment-panel"><div className="assessment-panel__heading"><div><span>SELECTION SCOPE</span><h2>선택 범위</h2></div><span className="demo-chip">Demo Only</span></div><dl><div><dt>현재 반복 차수</dt><dd>{selection.iteration}</dd></div><div><dt>검토 후보 수</dt><dd>{selection.evaluatedCandidateCount}건</dd></div><div><dt>심사역 확인</dt><dd>{selection.underwriterRequired ? '필요' : '서버 응답상 필요 없음'}</dd></div><div><dt>선택 시점</dt><dd>{formatDate(selection.selectedAt)}</dd></div></dl><p>검토 후보 수는 서버가 비교한 후보 개수이며 순위나 추천 점수가 아닙니다.</p></section><section className="assessment-panel"><div className="assessment-panel__heading"><div><span>TRACEABILITY</span><h2>선택 메타데이터</h2></div></div><dl><div><dt>선택 ID</dt><dd>{selection.selectionId}</dd></div><div><dt>정책 경계 ID</dt><dd>{selection.boundaryCheckId}</dd></div>{selection.rejectedQualityCheckId && <div><dt>제외된 품질검증 ID</dt><dd>{selection.rejectedQualityCheckId}</dd></div>}<div><dt>보정 버전</dt><dd>{selection.calibrationVersion}</dd></div><div><dt>경계 정책 버전</dt><dd>{selection.boundaryPolicyVersion}</dd></div><div><dt>선택 정책 버전</dt><dd>{selection.selectionPolicyVersion}</dd></div></dl></section></div>
+      <CustomerTechnicalDetails><dl><div><dt>처리 상태</dt><dd><code>{selection.status}</code></dd></div>{selection.stopReason && <div><dt>중단 사유</dt><dd><code>{selection.stopReason}</code></dd></div>}<div><dt>현재 확인 차수</dt><dd>{selection.iteration}</dd></div><div><dt>검토 후보 수</dt><dd>{selection.evaluatedCandidateCount}건</dd></div><div><dt>담당자 확인</dt><dd>{selection.underwriterRequired ? '필요' : '필요 없음'}</dd></div><div><dt>선택 시점</dt><dd>{formatDate(selection.selectedAt)}</dd></div><div><dt>선택 ID</dt><dd><code>{selection.selectionId}</code></dd></div><div><dt>정책 경계 ID</dt><dd><code>{selection.boundaryCheckId}</code></dd></div>{selection.rejectedQualityCheckId && <div><dt>제외된 품질검증 ID</dt><dd><code>{selection.rejectedQualityCheckId}</code></dd></div>}<div><dt>보정 버전</dt><dd><code>{selection.calibrationVersion}</code></dd></div><div><dt>경계 정책 버전</dt><dd><code>{selection.boundaryPolicyVersion}</code></dd></div><div><dt>선택 정책 버전</dt><dd><code>{selection.selectionPolicyVersion}</code></dd></div>{selectedEvidence?.rationaleCodes.map((code) => <div key={code}><dt>선택 근거 코드</dt><dd><code>{code}</code></dd></div>)}</dl></CustomerTechnicalDetails>
     </>}
 
-    <section className="assessment-actions"><div><strong>{selection?.status === 'SELECTED' ? '선택된 한 건을 제출해주세요' : '서버 선택 상태를 확인해주세요'}</strong><p>{selection?.status === 'SELECTED' ? '서버가 제공한 Demo 자료를 내려받아 같은 파일을 제출하면 백엔드가 실제 파일을 검증합니다.' : '선택 결과가 없거나 자동 처리가 중단된 경우 Evidence를 임의로 고르지 않습니다.'}</p></div><div><Link className="button button--secondary" to="/assessment">기준평가로 돌아가기</Link></div></section>
+    <section className="assessment-actions"><div><strong>{selection?.status === 'SELECTED' ? '선택된 자료를 제출해주세요' : '추가 자료 확인 상태를 확인해주세요'}</strong><p>{selection?.status === 'SELECTED' ? '시연용 자료를 내려받아 제출하면 파일의 출처와 품질을 실제로 확인합니다.' : '자동 확인이 중단된 경우 임의의 자료를 요구하지 않습니다.'}</p></div><div><Link className="button button--secondary" to="/assessment">기준평가로 돌아가기</Link></div></section>
   </div></main></div>
 }
 

@@ -62,8 +62,8 @@ function CustomerStartPage() {
       <main id="main-content" tabIndex={-1} className="customer-page">
         <div className="container customer-page__inner">
           <div className="flow-heading">
-            <p className="flow-kicker">NEW CUSTOMER SESSION</p>
-            <span className="demo-badge"><i aria-hidden="true" />Demo Only</span>
+            <p className="flow-kicker">평가 시작</p>
+            <span className="demo-badge"><i aria-hidden="true" />시연용 합성 데이터</span>
             <h1>대출 계약의 주체를 선택해주세요</h1>
             <p>CredAble은 사업자금 대출을 탐색하는 등록 사업자를 위한 서비스입니다. 선택한 사업자 유형에 맞는 합성 사례로 평가 흐름을 확인합니다.</p>
           </div>
@@ -92,7 +92,7 @@ function CustomerStartPage() {
                       onChange={() => { setSelected(profile.businessBorrowerType); setError('') }}
                     />
                     <span className="borrower-card__marker" aria-hidden="true">{isSelected ? '✓' : ''}</span>
-                    <span className="borrower-card__tag">합성 Demo 사례</span>
+                    <span className="borrower-card__tag">시연용 사례</span>
                     <h2>{profile.displayName}</h2>
                     <p>{profile.description}</p>
                     <small>등록 사업자 대상 · 실제 고객 정보를 사용하지 않습니다.</small>
