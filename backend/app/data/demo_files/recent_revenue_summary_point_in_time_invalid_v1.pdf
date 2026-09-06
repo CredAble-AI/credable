@@ -1,0 +1,55 @@
+%PDF-1.4
+% CredAble synthetic demo
+1 0 obj
+<< /Type /Catalog /Pages 2 0 R >>
+endobj
+2 0 obj
+<< /Type /Pages /Kids [3 0 R] /Count 1 >>
+endobj
+3 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 5 0 R >> >> /Contents 4 0 R >>
+endobj
+4 0 obj
+<< /Length 447 >>
+stream
+BT
+/F1 18 Tf
+72 760 Td
+(CredAble Synthetic Demo Evidence) Tj
+0 -34 Td
+/F1 12 Tf
+(Scenario: Point-in-time mismatch) Tj
+0 -34 Td
+/F1 12 Tf
+(Business: Dodam Store \(synthetic\)) Tj
+0 -34 Td
+/F1 12 Tf
+(Observed at: 2026-09-05) Tj
+0 -34 Td
+/F1 12 Tf
+(Quality reference at: 2026-08-31) Tj
+0 -34 Td
+/F1 12 Tf
+(This document is intentionally later than the policy cutoff.) Tj
+0 -34 Td
+/F1 12 Tf
+(Demo only - not for an actual financial application.) Tj
+ET
+endstream
+endobj
+5 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>
+endobj
+xref
+0 6
+0000000000 65535 f 
+0000000035 00000 n 
+0000000084 00000 n 
+0000000141 00000 n 
+0000000267 00000 n 
+0000000765 00000 n 
+trailer
+<< /Size 6 /Root 1 0 R >>
+startxref
+835
+%%EOF

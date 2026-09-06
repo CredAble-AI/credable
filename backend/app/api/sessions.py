@@ -563,6 +563,32 @@ async def download_demo_evidence_file(
 
 
 @router.get(
+    "/{session_id}/evidence/selections/{selection_id}/demo-files/{demo_file_id}/download",
+    response_class=FileResponse,
+    responses={
+        404: {"model": ApiErrorResponse},
+        409: {"model": ApiErrorResponse},
+    },
+)
+async def download_demo_evidence_scenario_file(
+    session_id: str,
+    selection_id: str,
+    demo_file_id: str,
+    request: Request,
+) -> FileResponse:
+    file_path, definition = get_evidence_submission_service(request).get_demo_file(
+        session_id,
+        selection_id,
+        demo_file_id,
+    )
+    return FileResponse(
+        path=file_path,
+        media_type=definition.content_type,
+        filename=definition.file_name,
+    )
+
+
+@router.get(
     "/{session_id}/evidence/submissions/latest",
     response_model=EvidenceSubmissionResponse,
     responses={404: {"model": ApiErrorResponse}},
