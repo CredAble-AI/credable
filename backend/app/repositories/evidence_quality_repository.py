@@ -3,7 +3,7 @@ from abc import ABC, abstractmethod
 from pathlib import Path
 
 from app.schemas.audit import SessionAuditEvent
-from app.schemas.evidence_quality import EvidenceQualityState
+from app.schemas.evidence_quality import EvidenceQualityState, EvidenceQualityStatus
 
 
 class EvidenceQualityRepository(ABC):
@@ -36,6 +36,19 @@ class EvidenceQualityRepository(ABC):
     @abstractmethod
     def count_checks(self, session_id: str) -> int:
         """Return the number of preserved quality checks for a session."""
+
+    @abstractmethod
+    def list_review_required(
+        self,
+        *,
+        limit: int,
+        offset: int,
+    ) -> list[tuple[str, EvidenceQualityState]]:
+        """Return one newest-first page of Evidence requiring human review."""
+
+    @abstractmethod
+    def count_review_required(self) -> int:
+        """Return the total number of Evidence quality results requiring review."""
 
     @abstractmethod
     def is_ready(self) -> bool:
@@ -153,6 +166,40 @@ class SqliteEvidenceQualityRepository(EvidenceQualityRepository):
             row = connection.execute(
                 "SELECT COUNT(*) AS count FROM evidence_quality_checks WHERE session_id = ?",
                 (session_id,),
+            ).fetchone()
+        return int(row["count"])
+
+    def list_review_required(
+        self,
+        *,
+        limit: int,
+        offset: int,
+    ) -> list[tuple[str, EvidenceQualityState]]:
+        with self._connect() as connection:
+            rows = connection.execute(
+                """
+                SELECT session_id, state_json
+                FROM evidence_quality_checks
+                WHERE json_extract(state_json, '$.status') = ?
+                ORDER BY check_order DESC
+                LIMIT ? OFFSET ?
+                """,
+                (EvidenceQualityStatus.REVIEW_REQUIRED.value, limit, offset),
+            ).fetchall()
+        return [
+            (row["session_id"], EvidenceQualityState.model_validate_json(row["state_json"]))
+            for row in rows
+        ]
+
+    def count_review_required(self) -> int:
+        with self._connect() as connection:
+            row = connection.execute(
+                """
+                SELECT COUNT(*) AS count
+                FROM evidence_quality_checks
+                WHERE json_extract(state_json, '$.status') = ?
+                """,
+                (EvidenceQualityStatus.REVIEW_REQUIRED.value,),
             ).fetchone()
         return int(row["count"])
 

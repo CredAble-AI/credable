@@ -14,6 +14,7 @@ from app.adapters.data_source_adapter import DemoDataSourceAdapter
 from app.adapters.product_catalog_adapter import DemoProductCatalogAdapter
 from app.adapters.product_condition_adapter import DemoProductConditionAdapter
 from app.api.admin_audit import router as admin_audit_router
+from app.api.admin_reviews import router as admin_reviews_router
 from app.api.demo_profiles import router as demo_profiles_router
 from app.api.health import router as health_router
 from app.api.sessions import router as sessions_router
@@ -87,6 +88,7 @@ from app.services.policy_boundary_service import (
 from app.services.product_catalog_service import ProductCatalogService
 from app.services.product_condition_service import ProductConditionService
 from app.services.session_service import CustomerSessionService, DemoProfileCatalog
+from app.services.underwriter_review_service import UnderwriterReviewQueueService
 
 
 def build_session_service() -> CustomerSessionService:
@@ -558,6 +560,9 @@ def create_app(
         assessment_repository=resolved_assessment_service.repository,
         resolution_repository=resolved_policy_boundary_service.repository,
     )
+    resolved_underwriter_review_queue_service = UnderwriterReviewQueueService(
+        quality_repository=resolved_evidence_quality_service.repository,
+    )
 
     @asynccontextmanager
     async def lifespan(_: FastAPI) -> AsyncIterator[None]:
@@ -615,6 +620,7 @@ def create_app(
     application.state.admin_authenticator = resolved_admin_authenticator
     application.state.admin_audit_service = resolved_admin_audit_service
     application.state.admin_evidence_burden_service = resolved_admin_evidence_burden_service
+    application.state.underwriter_review_queue_service = resolved_underwriter_review_queue_service
 
     @application.middleware("http")
     async def attach_request_id(request: FastAPIRequest, call_next):
@@ -645,6 +651,7 @@ def create_app(
     application.include_router(demo_profiles_router)
     application.include_router(sessions_router)
     application.include_router(admin_audit_router)
+    application.include_router(admin_reviews_router)
     return application
 
 
