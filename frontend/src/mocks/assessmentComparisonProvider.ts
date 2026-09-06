@@ -2,6 +2,7 @@ import type { AssessmentComparisonProvider } from '../api/assessmentComparisonCl
 import type { AssessmentComparisonState } from '../types/assessmentComparison'
 
 const results = new Map<string, AssessmentComparisonState>()
+export const getMockAssessmentComparisonResult = (sessionId: string) => results.get(sessionId) ?? null
 
 export const mockAssessmentComparisonProvider: AssessmentComparisonProvider = {
   async get(sessionId, signal) {

@@ -2,6 +2,7 @@ import type { SupplementalAssessmentProvider } from '../api/supplementalAssessme
 import type { SupplementalAssessmentState } from '../types/supplementalAssessment'
 
 const results = new Map<string, SupplementalAssessmentState>()
+export const getMockSupplementalAssessmentResult = (sessionId: string) => results.get(sessionId) ?? null
 
 export const mockSupplementalAssessmentProvider: SupplementalAssessmentProvider = {
   async get(sessionId, signal) {
