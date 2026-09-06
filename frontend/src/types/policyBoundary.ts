@@ -6,6 +6,8 @@ export interface BoundaryDecision {
   crossedBoundaryCodes: string[]
   stopReason: string | null
   underwriterRequired: boolean
+  restrictionCode?: string | null
+  followUpCodes?: string[]
 }
 
 export interface PolicyBoundaryCheckState {

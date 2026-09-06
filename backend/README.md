@@ -40,6 +40,14 @@ CREDABLE_GEMINI_TIMEOUT_SECONDS=10
 오류로 중단합니다. Gemini 호출 실패, 시간 초과 또는 구조화 출력 검증 실패는 평가 결과를
 바꾸지 않고 기존 `RULE_FALLBACK` 설명으로 전환됩니다.
 
+Gemini 호출은 Generative Language API의 Interactions API
+(`POST /v1beta/interactions`)를 사용하며 실제 키로 동작을 확인했습니다. 모델 이름은
+`CREDABLE_GEMINI_MODEL`로 바꿀 수 있고 기본값은 `gemini-3.5-flash-lite`입니다. 모델을 바꿀
+때는 계정에서 사용할 수 있는지 실제 키로 한 번 확인해야 합니다. 전환이 일어나면
+`renderingMode`가 `RULE_FALLBACK`이 되고 `fallbackReasonCode`가 응답과 Audit에 남으며,
+서버 로그에도 경고가 기록됩니다. 즉 Endpoint나 모델 설정이 잘못돼 매 요청이 실패하면 조용히
+넘어가지 않고 드러납니다.
+
 ## 개발 서버 실행
 
 ```bash
@@ -58,24 +66,30 @@ uv run uvicorn app.main:app --reload
 사업자등록 전 예비창업자는 포함하지 않습니다. 소상공인과 스타트업은 법적 유형이 아니라 각각
 개업 초기 개인사업자와 설립 초기 법인사업자를 보여주는 합성 Demo 사례입니다.
 
-세션 생성 요청은 `businessBorrowerType`으로 두 사업자 유형 중 하나를 선택할 수 있습니다.
-기존 `demoProfileId`는 다른 Fixture가 참조하는 내부 시나리오 키와 기존 Frontend의 호환을 위해
-유지하지만, 두 선택자를 동시에 보낼 수는 없습니다. 같은 유형이나 Profile을 다시 요청해도
-새로운 세션을 생성하며 생성된 세션은 `sessionId`로 복구할 수 있습니다.
+각 사업자 유형에는 정책 경계 상태별 Demo 사례가 있습니다. 개인사업자는 정책 경계에 걸린 사례
+(`small-business`)와 추가 증빙이 필요 없는 사례(`small-business-stable`)를, 법인사업자는 정책
+경계에 걸린 사례(`startup`)와 대출정책상 제한 사례(`startup-policy-blocked`)를 제공합니다.
+정책 경계 상태는 Fixture가 아니라 서버가 기존 평가 결과로 판정합니다.
+
+세션 생성 요청은 `demoProfileId`로 사례 하나를 지정합니다. `businessBorrowerType`으로도 시작할
+수 있으며 이때는 해당 유형의 첫 번째 사례를 사용합니다. 두 선택자를 동시에 보낼 수는 없습니다.
+같은 유형이나 Profile을 다시 요청해도 새로운 세션을 생성하며 생성된 세션은 `sessionId`로
+복구할 수 있습니다.
 
 ```bash
 curl http://127.0.0.1:8000/v1/demo-profiles
 
 curl -X POST http://127.0.0.1:8000/v1/sessions/demo \
   -H 'Content-Type: application/json' \
-  -d '{"businessBorrowerType":"SOLE_PROPRIETOR"}'
+  -d '{"demoProfileId":"small-business"}'
 
 curl http://127.0.0.1:8000/v1/sessions/<sessionId>
 ```
 
-`GET /v1/demo-profiles`는 각 사례의 `businessBorrowerType`, 표시명과 설명을 제공합니다. 표시명은
-개인사업자·법인사업자이며 소상공인·스타트업은 설명용 사례에만 나타납니다. 응답의
-`demoProfileId`, `dataVersion`, `demoOnly`는 Demo 실행과 호환성 확인에만 사용합니다.
+`GET /v1/demo-profiles`는 각 사례의 `businessBorrowerType`, 표시명과 설명에 더해 시연 사례를
+구분하는 `scenarioLabel`과 `scenarioSummary`를 제공합니다. 표시명은 개인사업자·법인사업자이며
+소상공인·스타트업은 설명용 사례에만 나타납니다. 응답의 `demoProfileId`, `dataVersion`,
+`demoOnly`는 Demo 실행과 호환성 확인에만 사용합니다.
 
 세션에는 서버가 확정한 `customerSubject`가 포함됩니다. 고객, 주사업체와 고객-사업체 관계를
 각각 `borrowers`, `businesses`, `borrower_business_roles`에 정규화하고
@@ -284,10 +298,13 @@ curl -X POST \
 
 ## 고객 평가 결과 재확인 요청 API
 
-고객은 완료된 최신 평가 결과에 대해 재확인을 요청할 수 있습니다. 요청 본문에서 평가 ID나
-판단 사유를 받지 않고 서버가 최신 완료 결과를 선택하므로, 다른 세션의 평가를 지정하거나
-클라이언트가 검토 대상을 바꿀 수 없습니다. 보완평가가 완료됐다면 보완평가를, 그렇지 않으면
-기준평가를 대상으로 고정합니다.
+고객은 완료된 최신 평가 결과에 대해 재확인을 요청할 수 있습니다. 요청 본문은 무엇을 다시
+확인해야 하는지를 나타내는 `customerReasonCode`만 받습니다. 값은 `INCORRECT_INFORMATION`,
+`MISSING_RECENT_INFORMATION`, `EXCLUDED_EVIDENCE_DISPUTED` 중 하나이며 자유 입력은 받지
+않습니다. 평가 ID는 받지 않고 서버가 최신 완료 결과를 선택하므로, 다른 세션의 평가를
+지정하거나 클라이언트가 검토 대상을 바꿀 수 없습니다. 보완평가가 완료됐다면 보완평가를,
+그렇지 않으면 기준평가를 대상으로 고정합니다. 선택한 사유는 심사역 대기열의 `reasonCodes`에
+함께 전달합니다.
 
 ```bash
 curl http://127.0.0.1:8000/v1/sessions/<sessionId>/assessment/review-request
@@ -349,6 +366,11 @@ curl -X POST \
   http://127.0.0.1:8000/v1/sessions/<sessionId>/evidence/next
 ```
 
+후보는 먼저 세션의 사업자 유형으로 거릅니다. 개인사업자에게는 최근 매출·입금 요약과 외부
+정산 입금 요약을, 법인사업자에게는 최근 매출 자료와 법인 계좌 거래 요약 및 계약·주문 내역
+요약을 후보로 둡니다. 사업자 유형은 클라이언트 입력이 아니라 세션의 Demo Profile에서
+확인합니다.
+
 Demo 후보 순서는 신규 정보가 하나 이상 남은 후보에 한해 `경계 해소값 × 예상 품질
 신뢰도 - 고객 노력 - 개인정보 민감도 - 획득 지연 - 획득 비용`으로 계산합니다.
 정보 코드 간 가치가 동일하다는 근거가 없으므로 신규 정보의 개수나 비율을 임의 가중치로
@@ -366,13 +388,16 @@ Demo이며 실제 정보가치나 승인 효과를 의미하지 않습니다.
 `MORE_EVIDENCE_REQUIRED`이거나 최신 증빙 품질이 `REJECTED`이면 같은
 `POST /evidence/next`를 호출해 다음 후보를 선택할 수 있습니다. 서버는 이미 제출한
 Evidence 유형을 제외하고 남은 후보 중 한 건만 선택하며, 새로운 유효 후보가 없으면
-`NO_NEW_USEFUL_EVIDENCE`와 `HUMAN_REVIEW`로 자동 수집을 중단합니다.
+`NO_NEW_USEFUL_EVIDENCE`와 `HUMAN_REVIEW`로 자동 수집을 중단합니다. 확인할 후보가 남아
+있어도 요청 차수가 정책표의 `maxEvidenceRequests`를 넘으면
+`EVIDENCE_REQUEST_LIMIT_REACHED`와 `HUMAN_REVIEW`로 자동 판단을 중단합니다. 남은 후보가
+없을 때는 한도가 아니라 사실에 맞는 기존 중단 사유를 그대로 사용합니다.
 
 최신 보완평가·전후 비교·수집 판단의 연결이 완성되기 전에는 이전 요청을 재사용하지 않고
 `EVIDENCE_RESOLUTION_NOT_READY`를 반환합니다. 수집이 이미 `RESOLVED` 또는
 `HUMAN_REVIEW`로 끝났다면 `EVIDENCE_COLLECTION_CLOSED`를 반환합니다. 실제 후보 목록과
-가중치, 최대 요청 횟수는 은행 운영정책 확정이 필요한 항목이며 이번 구현은 임의의 최대
-횟수를 두지 않습니다.
+가중치, 최대 요청 횟수는 은행 운영정책 확정이 필요한 항목입니다. 현재 값은 합성 Demo
+정책표이며 실제 여신정책을 의미하지 않습니다.
 
 ## Demo Evidence 제출 상태 API
 
@@ -660,22 +685,29 @@ curl -X POST \
 카탈로그가 없으면 `CATALOG_UNAVAILABLE`, 상품은 있지만 정책이 없으면 상품별
 `POLICY_NOT_CONFIGURED`를 반환합니다. Demo Adapter는 기존 Frontend Mock에 정의된 개인사업자
 사례 조건만 파일에서 불러오며, 정의되지 않은 법인사업자 사례 조건은 값을 만들지 않고
-`POLICY_NOT_CONFIGURED`로 남깁니다. 보완평가가 완료되지 않은 세션에도 개인화 값을 제공하지
-않습니다. 한 상품의 조회 실패는 다른 상품 결과를 숨기지 않으며, 개인화 조건에는 항상 최종
-은행 심사가 필요하다는 표시를 포함합니다. 추천·적합도·최적 상품 필드는 제공하지 않습니다.
+`POLICY_NOT_CONFIGURED`로 남깁니다. 한 상품의 조회 실패는 다른 상품 결과를 숨기지 않으며,
+모든 조건에는 항상 최종 은행 심사가 필요하다는 표시를 포함합니다. 추천·적합도·최적 상품
+필드는 제공하지 않습니다.
+
+MVP는 고객별 한도·금리·기간을 산출하지 않습니다. 기획서의 다른 대출 경로 확인은 "공개
+조건과 확인 상태를 비교"하는 기능이고, 기능명세서도 MVP가 승인 가능성과 대출 금리·한도를
+제공하지 않는다고 정합니다. 따라서 Demo 정책표는 개인화 값을 담지 않으며 모든 상품이
+공개 조건과 확인 상태로만 응답합니다. 응답 스키마의 `personalized*` 필드는 실제 은행 정책
+연동을 위해 남겨 두지만 MVP에서는 항상 `null`이고, Frontend 타입에는 포함하지 않아 화면이
+값을 만들어 낼 수 없습니다.
 
 ## 상품 비교 통합 응답 API
 
-비교 응답은 최신 카탈로그의 공개 조건과 같은 카탈로그 Snapshot에서 조회한 개인화 조건을
-상품별로 결합합니다. 오래된 조건 결과는 연결하지 않으며 공개 조건만 표시합니다.
+비교 응답은 최신 카탈로그의 공개 조건과 같은 카탈로그 Snapshot에서 조회한 상품별 확인
+상태를 결합합니다. 오래된 조건 결과는 연결하지 않으며 공개 조건만 표시합니다.
 
 ```bash
 curl http://127.0.0.1:8000/v1/sessions/<sessionId>/comparison
 ```
 
 Backend는 카탈로그 원본 순서를 유지하고 실제 정렬은 수행하지 않습니다. 대신 응답 데이터에
-존재하는 공개·개인화 한도와 최저금리의 정렬 가능 여부를 제공합니다. 값이 없는 항목은
-Frontend에서 마지막에 배치해야 하며, 원본 순서에는 추천·순위 의미가 없습니다.
+존재하는 정렬 가능 항목만 제공하며, MVP에서는 공개 한도와 공개 최저금리 두 가지입니다. 값이
+없는 항목은 Frontend에서 마지막에 배치해야 하며, 원본 순서에는 추천·순위 의미가 없습니다.
 
 ## 은행 관리자 감사 이력 API
 
@@ -729,7 +761,7 @@ curl -X POST \
 
 curl -X POST \
   -H 'Content-Type: application/json' \
-  -d '{"resultCode":"ASSESSMENT_CONFIRMED"}' \
+  -d '{"resultCode":"ASSESSMENT_CONFIRMED","decisionNote":"확인한 자료와 판단 근거"}' \
   http://127.0.0.1:8000/v1/admin/underwriter-reviews/<reviewId>/complete
 ```
 
@@ -738,6 +770,10 @@ curl -X POST \
 고객 재확인 요청에는 해당 평가, Evidence 품질 검토에는 해당 제출 파일과 6개 품질검증 결과,
 보완평가 검토에는 해당 전·후 비교와 후속 처리 상태가 연결됩니다. 화면에서는 이 자료를 우선
 표시하고 ID·정책·데이터 버전은 접힌 감사·문의용 기술 정보로 분리합니다.
+
+완료 처리에는 `decisionNote`가 필수입니다(1~500자). 판단 사유는 검토 상태에 저장해 심사역
+화면에서 결과와 함께 보여주며, 감사 로그에는 원문 대신 길이만 남깁니다. 사유가 없던 기존
+검토 이력은 `null`로 읽습니다.
 
 상태는 `PENDING → IN_REVIEW → COMPLETED` 순서만 허용합니다. `EVIDENCE_QUALITY`에는
 `EVIDENCE_CONFIRMED`, `EVIDENCE_EXCLUDED`를 사용할 수 있고, 나머지 네 Trigger에는
@@ -791,7 +827,7 @@ uv run pytest
 조회·검증 상태, 기준평가, Demo 정책 경계 판정·반복 최소 증빙 선택·제출·품질 검증·보완평가·전후 비교·수집 종료 판단,
 합성 자사 상품 카탈로그·비교 API, 통제 가능한 평가 결과 설명 API, 고객 평가 재확인 요청과
 관리자 Evidence 부담 지표·심사역 검토 큐를 제공합니다. 합성 데이터 출처 상태와 평가 상태,
-개인사업자 사례용 개인화 상품 조건은 기존 Frontend Fixture와 일치합니다. 평가 결과 설명
+개인사업자 사례용 상품 조건은 기존 Frontend Fixture와 일치합니다. 평가 결과 설명
 화면은 Frontend의 기준평가·보완평가 화면에 연결되어 합성 Demo 표현으로 확인할 수 있습니다. Legacy
 `/v1/cases/*` 흐름은 제거됐습니다. 실제 평가모델·은행 상품정책·Evidence 품질 검증·은행
 연동은 별도 작업으로 진행합니다. 고객 재확인 요청 이후의 정정정보 수집·품질 검증·재평가 흐름과

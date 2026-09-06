@@ -99,10 +99,10 @@ def test_small_business_demo_flow_reaches_partial_comparison(
     assert comparison["status"] == "PARTIAL"
     assert len(comparison["items"]) == 4
     items = {item["productId"]: item for item in comparison["items"]}
-    assert items["demo-working-capital"]["personalizedConditions"]["maxAmount"] == {
-        "amount": "24000000",
-        "currency": "KRW",
-    }
+    # The MVP compares published conditions and confirmation status only; it
+    # never returns a per-customer amount or rate.
+    assert all(item["personalizedConditions"] is None for item in comparison["items"])
+    assert items["demo-working-capital"]["conditionStatus"] == "PUBLIC_ONLY"
     assert items["demo-daily-bridge"]["conditionStatus"] == "PUBLIC_ONLY"
     assert items["demo-steady-business"]["conditionStatus"] == "INSUFFICIENT_DATA"
     assert items["demo-balance-partner"]["conditionStatus"] == "QUERY_FAILED"
@@ -122,14 +122,17 @@ def test_small_business_demo_flow_reaches_partial_comparison(
         AuditStage.PRODUCT_CONDITIONS_QUERIED,
     ]
     assert events[-3].model_version == "demo-small-business-assessment-v1"
-    assert events[-1].policy_version == "demo-policy-v1"
+    # No condition carries a per-customer policy version any more, so the query
+    # audit records none instead of inventing one.
+    assert events[-1].policy_version is None
     assert all(event.output_summary["demoOnly"] is True for event in events)
 
 
-def test_corporate_demo_flow_routes_exhausted_evidence_to_review_without_invented_values(
+def test_corporate_demo_flow_stops_collecting_once_the_route_is_stable(
     client: TestClient,
     data_source_service: DataSourceService,
     assessment_service: AssessmentService,
+    supplemental_assessment_service: SupplementalAssessmentService,
     product_catalog_service: ProductCatalogService,
     product_condition_service: ProductConditionService,
 ) -> None:
@@ -138,6 +141,9 @@ def test_corporate_demo_flow_routes_exhausted_evidence_to_review_without_invente
         assessment_service,
         product_catalog_service,
         product_condition_service,
+    )
+    supplemental_assessment_service.adapter = DemoSupplementalAssessmentAdapter(
+        settings.demo_supplemental_assessments_path
     )
     session_id = create_session(client, "startup")
     grant_sources(client, session_id, tuple(ConsentSourceType))
@@ -161,9 +167,12 @@ def test_corporate_demo_flow_routes_exhausted_evidence_to_review_without_invente
     assert boundary_response.json()["boundaryCheck"]["decision"]["status"] == "AMBIGUOUS"
     selection = selection_response.json()["selection"]
     assert selection["status"] == "SELECTED"
+    # Corporations are asked for corporate information, not a sole proprietor's
+    # settlement feed, and more than one candidate applied.
     assert selection["selectedEvidence"]["evidenceType"] == (
-        "EXTERNAL_CONNECTED_SETTLEMENT_SUMMARY"
+        "EXTERNAL_CONNECTED_CORPORATE_ACCOUNT_ACTIVITY"
     )
+    assert selection["evaluatedCandidateCount"] == 3
 
     submission_response = client.post(
         f"/v1/sessions/{session_id}/evidence/submissions",
@@ -178,25 +187,27 @@ def test_corporate_demo_flow_routes_exhausted_evidence_to_review_without_invente
         f"/v1/sessions/{session_id}/evidence/submissions/{submission['submissionId']}/quality"
     )
     assert quality_response.status_code == 200
-    assert quality_response.json()["quality"]["status"] == "REJECTED"
+    assert quality_response.json()["quality"]["status"] == "ACCEPTED"
 
-    fallback_response = client.post(f"/v1/sessions/{session_id}/evidence/next")
-    assert fallback_response.status_code == 200
-    fallback = fallback_response.json()["selection"]
-    assert fallback["status"] == "HUMAN_REVIEW"
-    assert (
-        fallback["rejectedQualityCheckId"] == quality_response.json()["quality"]["qualityCheckId"]
+    supplemental_response = client.post(
+        f"/v1/sessions/{session_id}/assessment/supplemental/run",
+        json={"submissionId": submission["submissionId"]},
     )
-    assert fallback["selectedEvidence"] is None
-    assert fallback["underwriterRequired"] is True
-    assert fallback["stopReason"] == "NO_USEFUL_EVIDENCE"
+    assert supplemental_response.status_code == 200
+    assert client.post(f"/v1/sessions/{session_id}/assessment/comparison").status_code == 200
+    resolution_response = client.post(f"/v1/sessions/{session_id}/assessment/resolution")
 
-    review_response = client.get("/v1/admin/underwriter-reviews")
-    assert review_response.status_code == 200
-    review = review_response.json()["items"][0]
-    assert review["sessionId"] == session_id
-    assert review["triggerType"] == "EVIDENCE_SELECTION"
-    assert review["triggerId"] == fallback["selectionId"]
+    assert resolution_response.status_code == 200
+    resolution = resolution_response.json()["resolution"]
+    assert resolution["status"] == "RESOLVED"
+    assert resolution["stopEvidenceCollection"] is True
+    assert resolution["underwriterRequired"] is False
+
+    # 계약·주문 내역 후보가 남아 있어도 경로가 안정되면 더 요청하지 않는다.
+    closed = client.post(f"/v1/sessions/{session_id}/evidence/next")
+    assert closed.status_code == 409
+    assert closed.json()["error"]["code"] == "EVIDENCE_COLLECTION_CLOSED"
+    assert client.get("/v1/admin/underwriter-reviews").json()["totalCount"] == 0
 
     conditions = condition_response.json()["query"]
     assert conditions["status"] == "COMPLETED"
@@ -334,3 +345,82 @@ def test_complete_demo_journey_connects_evidence_products_and_admin(
         "PRODUCT_CATALOG_REFRESHED",
         "PRODUCT_CONDITIONS_QUERIED",
     ]
+
+
+def test_stable_demo_case_finishes_without_requesting_evidence(
+    client: TestClient,
+    data_source_service: DataSourceService,
+    assessment_service: AssessmentService,
+    product_catalog_service: ProductCatalogService,
+    product_condition_service: ProductConditionService,
+) -> None:
+    configure_demo_adapters(
+        data_source_service,
+        assessment_service,
+        product_catalog_service,
+        product_condition_service,
+    )
+    session_id = create_session(client, "small-business-stable")
+    grant_sources(
+        client,
+        session_id,
+        (ConsentSourceType.BANK_INTERNAL, ConsentSourceType.CREDIT_INFORMATION),
+    )
+    assert client.post(f"/v1/sessions/{session_id}/data-sources/refresh").status_code == 200
+    assert client.post(f"/v1/sessions/{session_id}/assessment/run").status_code == 200
+
+    response = client.post(f"/v1/sessions/{session_id}/assessment/boundary-check")
+
+    assert response.status_code == 200
+    decision = response.json()["boundaryCheck"]["decision"]
+    assert decision["status"] == "STABLE"
+    assert decision["possibleRoutes"] == ["DEMO_PATH_1"]
+    assert decision["stopReason"] == "PATH_STABLE"
+    assert decision["underwriterRequired"] is False
+
+    selection = client.post(f"/v1/sessions/{session_id}/evidence/next").json()["selection"]
+    assert selection["status"] == "NOT_REQUIRED"
+    assert selection["selectedEvidence"] is None
+    assert selection["underwriterRequired"] is False
+
+
+def test_policy_blocked_demo_case_explains_the_restriction_without_collecting_evidence(
+    client: TestClient,
+    data_source_service: DataSourceService,
+    assessment_service: AssessmentService,
+    product_catalog_service: ProductCatalogService,
+    product_condition_service: ProductConditionService,
+) -> None:
+    configure_demo_adapters(
+        data_source_service,
+        assessment_service,
+        product_catalog_service,
+        product_condition_service,
+    )
+    session_id = create_session(client, "startup-policy-blocked")
+    grant_sources(
+        client,
+        session_id,
+        (ConsentSourceType.BANK_INTERNAL, ConsentSourceType.CREDIT_INFORMATION),
+    )
+    assert client.post(f"/v1/sessions/{session_id}/data-sources/refresh").status_code == 200
+    assert client.post(f"/v1/sessions/{session_id}/assessment/run").status_code == 200
+
+    response = client.post(f"/v1/sessions/{session_id}/assessment/boundary-check")
+
+    assert response.status_code == 200
+    decision = response.json()["boundaryCheck"]["decision"]
+    assert decision["status"] == "POLICY_BLOCKED"
+    assert decision["restrictionCode"] == "DEMO_POLICY_RESTRICTION_ACTIVE_DELINQUENCY"
+    assert decision["followUpCodes"] == [
+        "DEMO_FOLLOW_UP_RESOLVE_DELINQUENCY",
+        "DEMO_FOLLOW_UP_BRANCH_CONSULTATION",
+    ]
+    # A confirmed restriction is explained to the customer, not queued for review.
+    assert decision["underwriterRequired"] is False
+
+    selection = client.post(f"/v1/sessions/{session_id}/evidence/next").json()["selection"]
+    assert selection["status"] == "POLICY_BLOCKED"
+    assert selection["selectedEvidence"] is None
+    assert selection["evaluatedCandidateCount"] == 0
+    assert selection["underwriterRequired"] is False

@@ -110,7 +110,7 @@ def test_demo_submission_preserves_metadata_without_raw_evidence(
     assert event.stage == AuditStage.EVIDENCE_SUBMITTED
     assert event.input_snapshot_hash == state["submissionSnapshotHash"]
     assert event.data_version == "demo-recent-revenue-summary-v1"
-    assert event.policy_version == "demo-novel-evidence-selection-v3"
+    assert event.policy_version == "demo-novel-evidence-selection-v5"
     assert event.output_summary == {
         "submissionStatus": "RECEIVED",
         "evidenceType": "CUSTOMER_SUBMITTED_RECENT_REVENUE_SUMMARY",

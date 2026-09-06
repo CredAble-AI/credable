@@ -13,6 +13,7 @@ from app.repositories.feature_snapshot_repository import FeatureSnapshotReposito
 from app.repositories.policy_boundary_repository import PolicyBoundaryRepository
 from app.schemas.assessment import ExistingAssessmentReference
 from app.schemas.audit import AuditActor, AuditStage, SessionAuditEvent
+from app.schemas.customer import BusinessLegalForm
 from app.schemas.data_source import DataSourceState, RetrievalStatus, VerificationStatus
 from app.schemas.evidence_quality import EvidenceQualityState, EvidenceQualityStatus
 from app.schemas.evidence_selection import (
@@ -45,17 +46,23 @@ class DemoEvidenceCandidateCatalog:
     def selection_policy_version(self) -> str:
         return self._load().selection_policy_version
 
+    @property
+    def max_evidence_requests(self) -> int:
+        return self._load().max_evidence_requests
+
     def candidates_for(
         self,
         boundary_codes: list[str],
         information_gap_codes: list[str],
+        business_borrower_type: BusinessLegalForm,
     ) -> list[EvidenceCandidateDefinition]:
         required_codes = set(boundary_codes)
         required_gaps = set(information_gap_codes)
         return [
             candidate
             for candidate in self._load().candidates
-            if required_codes.intersection(candidate.boundary_codes)
+            if business_borrower_type in candidate.business_borrower_types
+            and required_codes.intersection(candidate.boundary_codes)
             and required_gaps.intersection(candidate.applicable_information_gap_codes)
         ]
 
@@ -125,7 +132,13 @@ class EvidenceSelectionService:
         )
 
     def select_next(self, session_id: str, request_id: str) -> EvidenceSelectionResponse:
-        self.session_service.get_session(session_id)
+        session = self.session_service.get_session(session_id).session
+        business_borrower_type = session.demo_profile.business_borrower_type
+        if business_borrower_type is None:
+            raise ResourceConflictError(
+                code="EVIDENCE_SELECTION_BORROWER_TYPE_NOT_AVAILABLE",
+                message="사업자 유형을 확인할 수 없어 최소 증빙을 선택할 수 없습니다.",
+            )
         boundary_check = self.boundary_service.get_latest(session_id).boundary_check
         if boundary_check is None:
             raise ResourceConflictError(
@@ -233,6 +246,7 @@ class EvidenceSelectionService:
             source_assessment=source_assessment,
             baseline_feature_snapshot_id=baseline_feature_snapshot_id,
             baseline_information_coverage_codes=baseline_information_coverage_codes,
+            business_borrower_type=business_borrower_type,
         )
         selection_input = resolution or rejected_quality or boundary_check
         selection_input_json = json.dumps(
@@ -254,11 +268,13 @@ class EvidenceSelectionService:
         output_summary: dict[str, str | bool | int | float] = {
             "selectionStatus": state.status.value,
             "iteration": state.iteration,
+            "maxEvidenceRequests": state.max_evidence_requests,
             "evaluatedCandidateCount": state.evaluated_candidate_count,
             "underwriterRequired": state.underwriter_required,
             "calibrationVersion": state.calibration_version,
             "informationGapCount": len(state.information_gap_codes),
             "baselineInformationCoverageCount": len(state.baseline_information_coverage_codes),
+            "businessBorrowerType": business_borrower_type.value,
             "demoOnly": state.demo_only,
         }
         if state.source_credit_assessment_id is not None:
@@ -328,6 +344,7 @@ class EvidenceSelectionService:
         source_assessment: ExistingAssessmentReference | None,
         baseline_feature_snapshot_id: str | None,
         baseline_information_coverage_codes: list[str] | None,
+        business_borrower_type: BusinessLegalForm,
     ) -> tuple[EvidenceSelectionState, float | None]:
         selected_at = datetime.now(UTC)
         common = {
@@ -336,6 +353,7 @@ class EvidenceSelectionService:
             "resolution_id": resolution_id,
             "rejected_quality_check_id": rejected_quality_check_id,
             "iteration": iteration,
+            "max_evidence_requests": self.catalog.max_evidence_requests,
             "selected_at": selected_at,
             "calibration_version": calibration_version,
             "boundary_policy_version": boundary_policy_version,
@@ -371,11 +389,10 @@ class EvidenceSelectionService:
                     status=EvidenceSelectionStatus.POLICY_BLOCKED,
                     evaluated_candidate_count=0,
                     stop_reason=decision.stop_reason or "POLICY_BLOCKED",
-                    underwriter_required=True,
+                    underwriter_required=decision.underwriter_required,
                 ),
                 None,
             )
-
         if source_assessment is None:
             return (
                 EvidenceSelectionState(
@@ -414,6 +431,7 @@ class EvidenceSelectionService:
         applicable_definitions = self.catalog.candidates_for(
             decision.crossed_boundary_codes,
             source_assessment.reason_codes,
+            business_borrower_type,
         )
 
         definitions = [
@@ -454,6 +472,17 @@ class EvidenceSelectionService:
                     status=EvidenceSelectionStatus.HUMAN_REVIEW,
                     evaluated_candidate_count=len(candidates),
                     stop_reason=stop_reason,
+                    underwriter_required=True,
+                ),
+                None,
+            )
+        if iteration > self.catalog.max_evidence_requests:
+            return (
+                EvidenceSelectionState(
+                    **common,
+                    status=EvidenceSelectionStatus.HUMAN_REVIEW,
+                    evaluated_candidate_count=len(candidates),
+                    stop_reason="EVIDENCE_REQUEST_LIMIT_REACHED",
                     underwriter_required=True,
                 ),
                 None,

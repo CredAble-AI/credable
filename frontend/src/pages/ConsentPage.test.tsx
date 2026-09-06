@@ -26,6 +26,8 @@ const session: CustomerSession = {
     businessBorrowerType: 'SOLE_PROPRIETOR',
     displayName: '개인사업자',
     description: '개업 초기 소상공인을 예시로 한 개인사업자 합성 Demo 사례',
+    scenarioLabel: '정책 경계에 걸린 사례',
+    scenarioSummary: '기존 평가 구간이 두 정책 경로에 걸쳐 있어 최소 증빙 한 건을 요청하는 흐름을 확인합니다.',
   },
   consents: {
     required: { customerIdentity: false, accountSummary: false, creditInformation: false },
@@ -81,7 +83,7 @@ describe('ConsentPage', () => {
     ]))
     renderPage()
 
-    expect(screen.getByRole('navigation', { name: '진행 단계' })).toHaveTextContent('시작동의데이터 연결기존 평가상품 비교')
+    expect(screen.getByRole('navigation', { name: '진행 단계' })).toHaveTextContent('시작동의데이터 연결기존 평가추가 자료 (필요 시)다른 대출 경로 (필요 시)')
     expect(await screen.findByRole('checkbox', { name: /은행 내부 데이터/ })).toBeInTheDocument()
     expect(screen.getByText('도입 은행이 보유한 고객·계좌·대출 관련 데이터')).toBeInTheDocument()
     expect(screen.getByText('동의 범위 확인 완료')).toBeInTheDocument()

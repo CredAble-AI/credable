@@ -12,6 +12,7 @@ from app.schemas.assessment_review import (
     AssessmentReviewRequestResponse,
     AssessmentReviewRequestState,
     AssessmentReviewTargetType,
+    CustomerAssessmentReviewReason,
 )
 from app.schemas.audit import AuditActor, AuditStage, SessionAuditEvent
 from app.schemas.review_workflow import CustomerReviewProcessing, UnderwriterReviewStatus
@@ -39,7 +40,12 @@ class AssessmentReviewRequestService:
         self.session_service.get_session(session_id)
         return self._response(session_id, self.repository.get_latest(session_id))
 
-    def request(self, session_id: str, request_id: str) -> AssessmentReviewRequestResponse:
+    def request(
+        self,
+        session_id: str,
+        customer_reason_code: CustomerAssessmentReviewReason,
+        request_id: str,
+    ) -> AssessmentReviewRequestResponse:
         session = self.session_service.get_session(session_id).session
         supplemental = self.assessment_repository.get_latest_supplemental(session_id)
         baseline = self.assessment_repository.get_latest(session_id)
@@ -68,6 +74,7 @@ class AssessmentReviewRequestService:
             "sessionId": session_id,
             "targetType": target_type.value,
             "targetAssessmentId": target_id,
+            "customerReasonCode": customer_reason_code.value,
             "dataVersion": session.data_version,
             "modelVersion": model_version,
             "requestPolicyVersion": "assessment-review-request-policy-v1",
@@ -78,6 +85,7 @@ class AssessmentReviewRequestService:
             review_request_id=f"arr_{uuid4().hex}",
             target_type=target_type,
             target_assessment_id=target_id,
+            customer_reason_code=customer_reason_code,
             requested_at=requested_at,
             request_snapshot_hash=snapshot_hash,
             data_version=session.data_version,
@@ -96,6 +104,7 @@ class AssessmentReviewRequestService:
                 "reviewRequestId": state.review_request_id,
                 "targetType": state.target_type.value,
                 "reasonCode": state.reason_code,
+                "customerReasonCode": customer_reason_code.value,
                 "demoOnly": state.demo_only,
             },
             data_version=state.data_version,

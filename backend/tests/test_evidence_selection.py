@@ -16,6 +16,7 @@ from app.repositories.evidence_selection_repository import SqliteEvidenceSelecti
 from app.repositories.session_repository import SqliteCustomerSessionRepository
 from app.schemas.audit import AuditStage
 from app.schemas.consent import ConsentSourceType
+from app.schemas.customer import BusinessLegalForm
 from app.schemas.policy_boundary import (
     BoundaryDecision,
     BoundaryStatus,
@@ -184,13 +185,14 @@ def test_ambiguous_boundary_selects_one_minimum_evidence(
     assert state["resolutionId"] is None
     assert state["rejectedQualityCheckId"] is None
     assert state["iteration"] == 1
+    assert state["maxEvidenceRequests"] == 2
     assert state["status"] == "SELECTED"
     assert state["evaluatedCandidateCount"] == 2
     assert state["stopReason"] is None
     assert state["underwriterRequired"] is False
     assert state["calibrationVersion"] == "demo-uncertainty-rule-table-v1"
-    assert state["boundaryPolicyVersion"] == "demo-policy-boundary-v1"
-    assert state["selectionPolicyVersion"] == "demo-novel-evidence-selection-v3"
+    assert state["boundaryPolicyVersion"] == "demo-policy-boundary-v2"
+    assert state["selectionPolicyVersion"] == "demo-novel-evidence-selection-v5"
     assert state["sourceCreditAssessmentId"] == "bca_demo_001"
     assert state["informationGapCodes"] == [
         "DEMO_INFORMATION_GAP",
@@ -243,15 +245,17 @@ def test_ambiguous_boundary_selects_one_minimum_evidence(
     assert evidence_selection_repository.count_selections(session_id) == 1
     event = session_repository.list_audit_events(session_id)[-1]
     assert event.stage == AuditStage.EVIDENCE_SELECTED
-    assert event.policy_version == "demo-novel-evidence-selection-v3"
+    assert event.policy_version == "demo-novel-evidence-selection-v5"
     assert event.output_summary == {
         "selectionStatus": "SELECTED",
         "iteration": 1,
+        "maxEvidenceRequests": 2,
         "evaluatedCandidateCount": 2,
         "underwriterRequired": False,
         "calibrationVersion": "demo-uncertainty-rule-table-v1",
         "informationGapCount": 2,
         "baselineInformationCoverageCount": 1,
+        "businessBorrowerType": "SOLE_PROPRIETOR",
         "demoOnly": True,
         "sourceCreditAssessmentId": "bca_demo_001",
         "selectedEvidenceType": "CUSTOMER_SUBMITTED_RECENT_REVENUE_SUMMARY",
@@ -590,7 +594,7 @@ def test_stopped_boundary_does_not_select_evidence(
         decision=decision,
         input_snapshot_id="dss_test",
         calibration_version="test-rule-v1",
-        policy_version="demo-policy-boundary-v1",
+        policy_version="demo-policy-boundary-v2",
     )
     monkeypatch.setattr(
         policy_boundary_service,
@@ -856,3 +860,94 @@ def test_repository_migrates_legacy_selection_table_without_data_loss(
         }
     assert "resolution_id" in columns
     assert "rejected_quality_check_id" in columns
+
+
+def test_request_limit_stops_selection_while_useful_candidates_remain(
+    client: TestClient,
+    data_source_service: DataSourceService,
+    assessment_service: AssessmentService,
+    supplemental_assessment_service: SupplementalAssessmentService,
+    evidence_selection_service: EvidenceSelectionService,
+    tmp_path: Path,
+) -> None:
+    catalog_data = json.loads(settings.demo_evidence_candidates_path.read_text(encoding="utf-8"))
+    spare = json.loads(json.dumps(catalog_data["candidates"][1]))
+    spare["evidenceType"] = "EXTERNAL_CONNECTED_SPARE_SUMMARY"
+    spare["informationContentCodes"] = ["SPARE_SERIES", "SPARE_RECONCILIATION"]
+    spare["consentScope"]["scopeVersion"] = "demo-spare-consent-v1"
+    catalog_data["candidates"].append(spare)
+    catalog_path = tmp_path / "three-candidates.json"
+    catalog_path.write_text(json.dumps(catalog_data), encoding="utf-8")
+    evidence_selection_service.catalog = DemoEvidenceCandidateCatalog(catalog_path)
+    assert evidence_selection_service.catalog.max_evidence_requests == 2
+
+    session_id = create_session(client)
+    _, resolution = prepare_resolution(
+        client,
+        session_id,
+        data_source_service,
+        assessment_service,
+        supplemental_assessment_service,
+        tmp_path,
+        grade_set=["DEMO_GRADE_B", "DEMO_GRADE_C"],
+    )
+    second_selection = client.post(f"/v1/sessions/{session_id}/evidence/next").json()["selection"]
+    assert second_selection["iteration"] == 2
+    assert second_selection["status"] == "SELECTED"
+    submission = client.post(
+        f"/v1/sessions/{session_id}/evidence/submissions",
+        json={
+            "selectionId": second_selection["selectionId"],
+            "submissionMode": "DEMO_FIXTURE_REFERENCE",
+        },
+    ).json()["submission"]
+    quality = client.post(
+        f"/v1/sessions/{session_id}/evidence/submissions/{submission['submissionId']}/quality"
+    ).json()["quality"]
+    assert quality["status"] == "REJECTED"
+
+    response = client.post(f"/v1/sessions/{session_id}/evidence/next")
+
+    assert response.status_code == 200
+    selection = response.json()["selection"]
+    assert selection["iteration"] == 3
+    assert selection["maxEvidenceRequests"] == 2
+    assert selection["status"] == "HUMAN_REVIEW"
+    assert selection["stopReason"] == "EVIDENCE_REQUEST_LIMIT_REACHED"
+    assert selection["underwriterRequired"] is True
+    assert selection["selectedEvidence"] is None
+    assert selection["evaluatedCandidateCount"] == 1
+
+
+def test_candidate_pool_follows_the_business_borrower_type() -> None:
+    """Sole proprietors and corporations are asked for different information."""
+    catalog = DemoEvidenceCandidateCatalog(settings.demo_evidence_candidates_path)
+    boundary_codes = ["DEMO_BOUNDARY_1_2"]
+    gap_codes = ["DEMO_RECENT_PERFORMANCE_NOT_REFLECTED"]
+
+    sole_proprietor = {
+        item.evidence_type
+        for item in catalog.candidates_for(
+            boundary_codes,
+            gap_codes,
+            BusinessLegalForm.SOLE_PROPRIETOR,
+        )
+    }
+    corporation = {
+        item.evidence_type
+        for item in catalog.candidates_for(
+            boundary_codes,
+            gap_codes,
+            BusinessLegalForm.CORPORATION,
+        )
+    }
+
+    assert sole_proprietor == {
+        "CUSTOMER_SUBMITTED_RECENT_REVENUE_SUMMARY",
+        "EXTERNAL_CONNECTED_SETTLEMENT_SUMMARY",
+    }
+    assert corporation == {
+        "CUSTOMER_SUBMITTED_RECENT_REVENUE_SUMMARY",
+        "EXTERNAL_CONNECTED_CORPORATE_ACCOUNT_ACTIVITY",
+        "EXTERNAL_CONNECTED_CONTRACT_ORDER_SUMMARY",
+    }

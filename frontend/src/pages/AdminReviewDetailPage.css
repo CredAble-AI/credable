@@ -5,3 +5,47 @@
 .admin-review-summary dl{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:0 28px;margin-top:20px}.admin-review-summary dl>div{display:grid;grid-template-columns:110px minmax(0,1fr);gap:12px;padding:11px 0;border-bottom:1px solid rgba(255,255,255,.07);font-size:12px}.admin-review-summary dt{color:#8198ad}.admin-review-summary dd{min-width:0;margin:0;color:#d7e3ed;overflow-wrap:anywhere}.admin-technical-details{margin-top:20px;border:1px solid rgba(255,255,255,.08);border-radius:11px;background:#0b1b2a}.admin-technical-details summary{padding:15px 17px;color:#9fb3c5;font-size:12px;font-weight:800;cursor:pointer}.admin-technical-details>p{padding:0 17px;color:#8198ad;font-size:10px;line-height:1.55}.admin-technical-details dl{margin:0;padding:0 17px 17px}.admin-technical-details dl>div{grid-template-columns:120px minmax(0,1fr)}.admin-technical-details code{display:block;max-width:100%;overflow-wrap:anywhere;color:#8ca3b7;font-size:10px}.admin-technical-details code+code{margin-top:5px}
 .admin-review-action>p:not(:first-child){margin-top:12px;color:#a9bdd0;line-height:1.6}.admin-review-action label{display:block;margin-top:20px;color:#b9cada;font-size:12px;font-weight:700}.admin-review-action select{width:100%;min-height:48px;margin-top:7px;padding:0 13px;border:1px solid rgba(255,255,255,.16);border-radius:10px;color:#fff;background:#091725}.admin-review-action button{margin-top:16px}.admin-review-action .admin-review-action__warning{color:#f5cd79;font-size:12px}.admin-review-action .admin-review-action__complete{padding:18px;border-radius:10px;color:#bde8cf;background:rgba(46,160,98,.13)}
 @media(max-width:760px){.admin-detail-toolbar,.admin-section-heading,.admin-submitted-file{align-items:stretch;flex-direction:column}.admin-review-brief,.admin-process-grid,.admin-review-summary dl,.admin-case-facts,.admin-quality-checks{grid-template-columns:1fr}.admin-review-brief{padding:22px}.admin-case-flow,.admin-review-summary,.admin-review-action{padding:22px}.admin-process-card__heading{grid-template-columns:30px 1fr}.admin-process-card__heading>strong{grid-column:2;justify-self:start}.admin-process-card dl{grid-template-columns:1fr}.admin-review-summary dl>div,.admin-technical-details dl>div{grid-template-columns:1fr;gap:4px}.admin-submitted-file>a{align-self:flex-start}}
+
+.admin-review-brief__customer-reason { margin-top: 10px; font-size: 13px; line-height: 1.6; }
+.admin-review-brief__customer-reason b { margin-right: 6px; }
+
+.admin-ai-summary { margin-top: 24px; }
+
+/* The explanation panel is a customer-screen component on a light surface.
+   The admin shell is dark, so restate its colours instead of inheriting
+   near-white text onto near-white cards. */
+.admin-ai-summary .assessment-explanation { margin-top: 14px; border-color: rgba(107,180,255,.16); background: #0b1b2a; box-shadow: none; }
+.admin-ai-summary .assessment-explanation--rule_fallback { border-color: rgba(245,205,121,.24); background: #1c1a12; }
+.admin-ai-summary .assessment-explanation__heading h3 { color: #e7f2fc; }
+.admin-ai-summary .assessment-explanation__heading > div > span { color: #6bb4ff; }
+.admin-ai-summary .assessment-explanation__heading > strong { color: #cfe6ff; background: rgba(49,130,246,.18); }
+.admin-ai-summary .assessment-explanation > p { color: #a9bdd0; }
+.admin-ai-summary .assessment-explanation__sections article { border-color: rgba(255,255,255,.09); background: #10283e; }
+.admin-ai-summary .assessment-explanation__sections span { color: #6bb4ff; }
+.admin-ai-summary .assessment-explanation__sections h4 { color: #e7f2fc; }
+.admin-ai-summary .assessment-explanation__sections p { color: #b9cada; }
+.admin-ai-summary .assessment-explanation .assessment-explanation__caution { color: #f0d9a4; background: rgba(148,110,20,.18); }
+.admin-ai-summary .assessment-explanation__fallback { color: #f0d9a4; background: rgba(148,110,20,.18); }
+.admin-ai-summary .assessment-explanation__error { color: #f0a7ae; background: rgba(150,37,51,.18); }
+.admin-ai-summary .assessment-explanation--loading span { background: #16304a; }
+.admin-ai-summary .assessment-explanation .button { min-height: 42px; padding: 0 18px; border: 1px solid rgba(107,180,255,.38); border-radius: 9px; color: #dbecff; background: rgba(49,130,246,.16); font-weight: 800; }
+.admin-ai-summary .customer-technical-details, .admin-ai-summary .assessment-explanation__metadata { border-color: rgba(255,255,255,.09); background: #0a1a2a; }
+.admin-ai-summary summary { color: #9fb3c5; }
+.admin-ai-summary .customer-technical-details__content { color: #b9cada; }
+.admin-ai-summary .customer-technical-details__content dt { color: #8198ad; }
+.admin-ai-summary .customer-technical-details__content dl div { border-bottom-color: rgba(255,255,255,.07); }
+.admin-ai-summary .customer-technical-details__content code { color: #8ca3b7; }
+.admin-ai-summary .assessment-explanation__metadata dt { color: #8198ad; }
+.admin-ai-summary .assessment-explanation__metadata dd { color: #c4d3e0; }
+.admin-ai-summary .assessment-explanation__metadata dl > div { border-bottom-color: rgba(255,255,255,.07); }
+.admin-ai-summary .assessment-explanation__sources span { color: #8198ad; }
+.admin-ai-summary .assessment-explanation__sources code { color: #a8d5ff; background: rgba(49,130,246,.14); }
+
+.admin-review-action textarea { width: 100%; min-height: 108px; margin-top: 8px; padding: 12px 14px; border: 1px solid rgba(255,255,255,.16); border-radius: 10px; color: #eaf1f8; background: #091725; font: inherit; line-height: 1.6; resize: vertical; }
+.admin-review-action textarea::placeholder { color: #6e8399; }
+.admin-review-action textarea:focus-visible { border-color: rgba(107,180,255,.6); outline: 2px solid rgba(107,180,255,.45); outline-offset: 1px; }
+.admin-review-action textarea:disabled { cursor: not-allowed; opacity: .55; }
+.admin-review-action__counter { display: block; margin-top: 6px; color: #8198ad; font-size: 12px; }
+.admin-review-action__note { margin-top: 14px; padding: 14px 16px; border: 1px solid rgba(255,255,255,.08); border-radius: 10px; background: #0b1b2a; }
+.admin-review-action__note span { display: block; color: #8198ad; font-size: 10px; font-weight: 900; letter-spacing: .06em; }
+.admin-review-action__note p { margin-top: 7px; color: #d7e3ed; font-size: 13px; line-height: 1.65; white-space: pre-wrap; }

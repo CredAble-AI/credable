@@ -6,6 +6,8 @@ from fastapi.testclient import TestClient
 from app.adapters.assessment_adapter import DemoAssessmentAdapter
 from app.adapters.data_source_adapter import DemoDataSourceAdapter
 from app.core.config import settings
+from app.repositories.session_repository import SqliteCustomerSessionRepository
+from app.schemas.audit import AuditStage
 from app.schemas.consent import ConsentSourceType
 from app.services.assessment_service import AssessmentService
 from app.services.data_source_service import DataSourceService
@@ -200,7 +202,10 @@ def test_policy_blocked_boundary_is_exposed_in_underwriter_queue(
     assert client.post(f"{endpoint}/claim").status_code == 200
     completed = client.post(
         f"{endpoint}/complete",
-        json={"resultCode": "ASSESSMENT_CONFIRMED"},
+        json={
+            "resultCode": "ASSESSMENT_CONFIRMED",
+            "decisionNote": "합성 시연 데이터로 판단 근거를 확인했습니다.",
+        },
     )
     assert completed.status_code == 200
     assert completed.json()["review"]["status"] == "COMPLETED"
@@ -237,7 +242,7 @@ def test_terminal_evidence_selection_is_exposed_in_underwriter_queue(
     assert review["triggerId"] == selection["selectionId"]
     assert review["reasonCodes"] == ["NO_NOVEL_EVIDENCE"]
     assert review["dataVersion"] == assessment["inputSnapshotId"]
-    assert review["policyVersion"] == "demo-novel-evidence-selection-v3"
+    assert review["policyVersion"] == "demo-novel-evidence-selection-v5"
 
 
 def test_human_review_resolution_is_exposed_in_underwriter_queue(
@@ -284,7 +289,7 @@ def test_human_review_resolution_is_exposed_in_underwriter_queue(
     assert review["triggerId"] == resolution["resolutionId"]
     assert review["reasonCodes"] == ["UNCERTAINTY_COMPARISON_NOT_RELIABLE"]
     assert review["dataVersion"] == supplemental["supplementalAssessmentId"]
-    assert review["policyVersion"] == "demo-policy-boundary-v1"
+    assert review["policyVersion"] == "demo-policy-boundary-v2"
 
 
 def test_underwriter_review_queue_supports_bounded_offset_paging(
@@ -359,11 +364,17 @@ def test_evidence_review_accepts_only_evidence_result_codes(
     claimed = client.post(f"{endpoint}/claim")
     invalid = client.post(
         f"{endpoint}/complete",
-        json={"resultCode": "ASSESSMENT_CONFIRMED"},
+        json={
+            "resultCode": "ASSESSMENT_CONFIRMED",
+            "decisionNote": "합성 시연 데이터로 판단 근거를 확인했습니다.",
+        },
     )
     completed = client.post(
         f"{endpoint}/complete",
-        json={"resultCode": "EVIDENCE_EXCLUDED"},
+        json={
+            "resultCode": "EVIDENCE_EXCLUDED",
+            "decisionNote": "합성 시연 데이터로 판단 근거를 확인했습니다.",
+        },
     )
 
     assert claimed.status_code == 200
@@ -372,3 +383,44 @@ def test_evidence_review_accepts_only_evidence_result_codes(
     assert completed.status_code == 200
     assert completed.json()["review"]["status"] == "COMPLETED"
     assert completed.json()["review"]["resultCode"] == "EVIDENCE_EXCLUDED"
+
+
+def test_completed_review_records_the_decision_reason(
+    client: TestClient,
+    data_source_service: DataSourceService,
+    assessment_service: AssessmentService,
+    session_repository: SqliteCustomerSessionRepository,
+) -> None:
+    session_id, _ = create_completed_assessment(client, data_source_service, assessment_service)
+    review_id = client.post(
+        f"/v1/sessions/{session_id}/assessment/review-request",
+        json={"customerReasonCode": "INCORRECT_INFORMATION"},
+    ).json()["underwriterReviewId"]
+    endpoint = f"/v1/admin/underwriter-reviews/{review_id}"
+    assert client.post(f"{endpoint}/claim").status_code == 200
+
+    missing_note = client.post(
+        f"{endpoint}/complete",
+        json={"resultCode": "ASSESSMENT_CONFIRMED"},
+    )
+    completed = client.post(
+        f"{endpoint}/complete",
+        json={
+            "resultCode": "ASSESSMENT_CONFIRMED",
+            "decisionNote": "제출된 사업자 정보와 서버 기록이 일치해 기존 평가를 유지합니다.",
+        },
+    )
+
+    assert missing_note.status_code == 422
+    assert completed.status_code == 200
+    review = completed.json()["review"]
+    assert review["status"] == "COMPLETED"
+    assert (
+        review["decisionNote"] == "제출된 사업자 정보와 서버 기록이 일치해 기존 평가를 유지합니다."
+    )
+    assert client.get(endpoint).json()["review"]["decisionNote"] == review["decisionNote"]
+    # The trail records that a reason exists without copying the free text.
+    event = session_repository.list_audit_events(session_id)[-1]
+    assert event.stage == AuditStage.UNDERWRITER_REVIEW_COMPLETED
+    assert event.output_summary["decisionNoteLength"] == len(review["decisionNote"])
+    assert "decisionNote" not in event.output_summary

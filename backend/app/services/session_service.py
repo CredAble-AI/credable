@@ -31,9 +31,11 @@ class DemoProfileCatalog:
         profiles_by_id = {item.demo_profile_id: item for item in catalog.profiles}
         if len(profiles_by_id) != len(catalog.profiles):
             raise ValueError("demoProfileId values must be unique")
-        profiles_by_borrower_type = {item.business_borrower_type: item for item in catalog.profiles}
-        if len(profiles_by_borrower_type) != len(catalog.profiles):
-            raise ValueError("businessBorrowerType values must be unique")
+        # A borrower type now carries several demo cases (one per policy
+        # boundary state), so the first one listed is its default.
+        profiles_by_borrower_type: dict[BusinessLegalForm, DemoProfileDefinition] = {}
+        for item in catalog.profiles:
+            profiles_by_borrower_type.setdefault(item.business_borrower_type, item)
         self._catalog = catalog
         self._profiles_by_id = profiles_by_id
         self._profiles_by_borrower_type = profiles_by_borrower_type

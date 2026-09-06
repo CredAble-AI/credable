@@ -6,10 +6,12 @@ import type { AdminReviewCaseContext, AdminReviewQueueItem } from '../types/admi
 import AdminReviewDetailPage from './AdminReviewDetailPage'
 
 vi.mock('../hooks/useAdminReviewState', () => ({ adminReviewProvider: { get: vi.fn(), claim: vi.fn(), complete: vi.fn() } }))
+vi.mock('../components/AssessmentExplanationPanel', () => ({ default: () => <div>AI 설명 패널</div> }))
 
 const pending: AdminReviewQueueItem = { reviewId: 'uwr_assessment', sessionId: 'ses_sole', triggerType: 'CUSTOMER_ASSESSMENT_REVIEW', triggerId: 'arr_demo', targetType: 'SUPPLEMENTAL_ASSESSMENT', targetAssessmentId: 'sam_demo', reasonCodes: ['CUSTOMER_REQUESTED_ASSESSMENT_REVIEW'], requestedAt: '2026-09-06T02:00:00Z', dataVersion: 'demo-v1', policyVersion: 'assessment-review-request-policy-v1', status: 'PENDING', demoOnly: true }
 const inReview: AdminReviewQueueItem = { ...pending, status: 'IN_REVIEW', startedAt: '2026-09-06T02:10:00Z' }
-const completed: AdminReviewQueueItem = { ...inReview, status: 'COMPLETED', resultCode: 'ASSESSMENT_CONFIRMED', completedAt: '2026-09-06T02:20:00Z' }
+const decisionNote = '서버 기록과 제출 정보가 일치해 기존 평가를 유지합니다.'
+const completed: AdminReviewQueueItem = { ...inReview, status: 'COMPLETED', resultCode: 'ASSESSMENT_CONFIRMED', decisionNote, completedAt: '2026-09-06T02:20:00Z' }
 const context: AdminReviewCaseContext = {
   assessment: { assessmentId: 'asm_demo', status: 'COMPLETED', calculatedAt: '2026-09-06T01:50:00Z', inputSnapshotId: 'dss_demo', modelVersion: 'model-v1', reasonCode: null, uncertainty: { pointEstimate: null, lowerBound: null, upperBound: null, gradeSet: ['DEMO_GRADE_B', 'DEMO_GRADE_C'], calibrationMode: 'RULE_TABLE', calibrationVersion: 'demo-v1', demoOnly: true }, demoOnly: true },
   boundaryCheck: null, selection: null, submission: null, quality: null, supplementalAssessment: null, comparison: null, resolution: null,
@@ -46,11 +48,24 @@ describe('AdminReviewDetailPage', () => {
     expect(screen.getByRole('option', { name: /평가 확인/ })).toBeInTheDocument()
     expect(screen.queryByRole('option', { name: /Evidence 확인/ })).not.toBeInTheDocument()
     fireEvent.change(resultSelect, { target: { value: 'ASSESSMENT_CONFIRMED' } })
+    // 판단 사유를 적기 전에는 확정할 수 없다.
+    expect(screen.getByRole('button', { name: '선택한 결과로 확정' })).toBeDisabled()
+    fireEvent.change(screen.getByLabelText('판단 사유'), { target: { value: decisionNote } })
     fireEvent.click(screen.getByRole('button', { name: '선택한 결과로 확정' }))
 
-    await waitFor(() => expect(adminReviewProvider.complete).toHaveBeenCalledWith('uwr_assessment', 'ASSESSMENT_CONFIRMED', expect.any(AbortSignal)))
-    expect(await screen.findByText(/이 건은/)).toHaveTextContent('평가 확인')
+    await waitFor(() => expect(adminReviewProvider.complete).toHaveBeenCalledWith('uwr_assessment', 'ASSESSMENT_CONFIRMED', decisionNote, expect.any(AbortSignal)))
+    expect(await screen.findByText(/이 건의 처리 결과/)).toHaveTextContent('평가 확인')
+    expect(screen.getByText(decisionNote)).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: '선택한 결과로 확정' })).not.toBeInTheDocument()
+  })
+
+  it('shows the AI summary separately from the underwriter decision', async () => {
+    vi.mocked(adminReviewProvider.get).mockResolvedValue({ review: pending, context })
+    renderPage()
+
+    expect(await screen.findByRole('heading', { name: '서버가 확정한 결과의 요약' })).toBeInTheDocument()
+    expect(screen.getByText('AI 설명 패널')).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: '검토를 시작해주세요' })).toBeInTheDocument()
   })
 
   it('rejects a detail response for another review id', async () => {

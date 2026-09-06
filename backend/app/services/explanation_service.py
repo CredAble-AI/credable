@@ -1,5 +1,6 @@
 import hashlib
 import json
+import logging
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from uuid import uuid4
@@ -25,6 +26,8 @@ from app.schemas.explanation import (
 )
 from app.schemas.policy_boundary import BoundaryStatus, EvidenceResolutionStatus
 from app.services.session_service import CustomerSessionService
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass(frozen=True)
@@ -100,6 +103,11 @@ class AssessmentExplanationService:
             model_version = self.provider.model_version
             prompt_version = self.provider.prompt_version
         except ValueError:
+            # The provider answered, but not with something we can trust.
+            logger.warning(
+                "explanation provider returned an unusable plan; using the rule fallback",
+                exc_info=True,
+            )
             plan = self._fallback_plan(allowed_codes)
             fallback_reason_code = "EXPLANATION_PROVIDER_OUTPUT_INVALID"
             rendering_mode = ExplanationRenderingMode.RULE_FALLBACK
@@ -107,6 +115,12 @@ class AssessmentExplanationService:
             model_version = None
             prompt_version = self.FALLBACK_PROMPT_VERSION
         except Exception:
+            # A misconfigured endpoint or model fails here on every request, so
+            # log it: otherwise the demo silently runs on the rule fallback.
+            logger.warning(
+                "explanation provider call failed; using the rule fallback",
+                exc_info=True,
+            )
             plan = self._fallback_plan(allowed_codes)
             fallback_reason_code = "EXPLANATION_PROVIDER_ERROR"
             rendering_mode = ExplanationRenderingMode.RULE_FALLBACK
@@ -289,23 +303,37 @@ class AssessmentExplanationService:
                     boundary.boundary_check_id,
                     boundary.decision.stop_reason,
                 )
-            boundary_copy = {
-                BoundaryStatus.STABLE: (
+            if boundary.decision.status == BoundaryStatus.STABLE:
+                boundary_copy = (
                     "POLICY_PATH_STABLE",
                     "추가 자료 없이 확인 완료",
                     "현재 평가 범위가 하나의 정책 경로에 속하므로 개인정보를 더 수집하지 않고 결과와 근거를 안내합니다.",
-                ),
-                BoundaryStatus.AMBIGUOUS: (
+                )
+            elif boundary.decision.status == BoundaryStatus.AMBIGUOUS:
+                boundary_copy = (
                     "POLICY_PATH_AMBIGUOUS",
                     "다음으로 확인할 내용",
                     "현재 경로를 구분하는 데 가장 영향이 큰 최소 증빙 한 건만 요청합니다. 검증을 통과한 정보만 보완평가에 반영합니다.",
-                ),
-                BoundaryStatus.POLICY_BLOCKED: (
+                )
+            elif boundary.decision.restriction_code is not None:
+                boundary_copy = (
+                    "POLICY_RESTRICTION_CONFIRMED",
+                    "추가 자료를 요청하지 않는 이유",
+                    "대출정책에서 확인된 제한이라 추가 증빙으로는 해소되지 않습니다. 증빙을 요청하지 않고 제한 사유와 가능한 다음 절차를 안내합니다. 신용이 낮거나 정보가 부족하다는 뜻이 아닙니다.",
+                )
+            else:
+                boundary_copy = (
                     "POLICY_REVIEW_REQUIRED",
                     "자동 판단을 중단한 이유",
-                    "정책 제한 또는 확인이 필요한 상태이므로 증빙을 더 요구하지 않고 자동 판단을 중단해 심사역에게 이관합니다.",
-                ),
-            }[boundary.decision.status]
+                    "현재 결과를 자동으로 판단할 수 없어 증빙을 더 요구하지 않고 심사역 검토로 이관합니다.",
+                )
+            if boundary.decision.follow_up_codes:
+                self._add_fact(
+                    facts,
+                    "BOUNDARY_FOLLOW_UP_CODES",
+                    boundary.boundary_check_id,
+                    *boundary.decision.follow_up_codes,
+                )
             messages.append(_AllowedMessage(*boundary_copy, (boundary.boundary_check_id,)))
 
         supplemental = self.assessment_repository.get_latest_supplemental(session_id)

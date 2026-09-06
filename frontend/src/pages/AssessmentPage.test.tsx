@@ -16,6 +16,8 @@ vi.mock('../hooks/useAssessmentState', () => ({
 }))
 vi.mock('../hooks/useCustomerSession', () => ({ useCustomerSession: vi.fn() }))
 vi.mock('../hooks/useEvidenceSelectionState', () => ({ evidenceSelectionProvider: { get: vi.fn(), selectNext: vi.fn() } }))
+vi.mock('../components/AssessmentExplanationPanel', () => ({ default: () => <div>평가 결과 안내 패널</div> }))
+vi.mock('../components/AssessmentReviewPanel', () => ({ default: () => <div>평가 결과 재확인 패널</div> }))
 
 const session: CustomerSession = {
   sessionId: 'ses_demo',
@@ -25,6 +27,8 @@ const session: CustomerSession = {
     businessBorrowerType: 'SOLE_PROPRIETOR',
     displayName: '개인사업자',
     description: '개업 초기 소상공인을 예시로 한 개인사업자 합성 Demo 사례',
+    scenarioLabel: '정책 경계에 걸린 사례',
+    scenarioSummary: '기존 평가 구간이 두 정책 경로에 걸쳐 있어 최소 증빙 한 건을 요청하는 흐름을 확인합니다.',
   },
   consents: {
     required: { customerIdentity: false, accountSummary: false, creditInformation: false },
@@ -105,10 +109,26 @@ const stable: PolicyBoundaryCheckResponse = {
   },
 }
 
+const policyBlocked: PolicyBoundaryCheckResponse = {
+  ...ambiguous,
+  boundaryCheck: {
+    ...ambiguous.boundaryCheck!,
+    decision: {
+      status: 'POLICY_BLOCKED',
+      possibleRoutes: [],
+      crossedBoundaryCodes: [],
+      stopReason: 'DEMO_POLICY_RESTRICTION_ACTIVE_DELINQUENCY',
+      underwriterRequired: false,
+      restrictionCode: 'DEMO_POLICY_RESTRICTION_ACTIVE_DELINQUENCY',
+      followUpCodes: ['DEMO_FOLLOW_UP_RESOLVE_DELINQUENCY', 'DEMO_FOLLOW_UP_BRANCH_CONSULTATION'],
+    },
+  },
+}
+
 const evidenceSelection: EvidenceSelectionResponse = {
   sessionId: session.sessionId,
   selection: {
-    selectionId: 'evs_demo', boundaryCheckId: 'pbc_demo', resolutionId: null, rejectedQualityCheckId: null, iteration: 1, status: 'SELECTED', evaluatedCandidateCount: 2, stopReason: null, underwriterRequired: false,
+    selectionId: 'evs_demo', boundaryCheckId: 'pbc_demo', resolutionId: null, rejectedQualityCheckId: null, iteration: 1, maxEvidenceRequests: 2, status: 'SELECTED', evaluatedCandidateCount: 2, stopReason: null, underwriterRequired: false,
     selectedAt: '2026-09-06T01:02:00+09:00', calibrationVersion: 'demo-calibration-v1', boundaryPolicyVersion: 'demo-policy-v1', selectionPolicyVersion: 'demo-selection-v1', sourceCreditAssessmentId: 'asm_demo', informationGapCodes: ['DEMO_RECENT_PERFORMANCE_NOT_REFLECTED'], baselineFeatureSnapshotId: 'dss_demo', baselineInformationCoverageCodes: [], demoOnly: true,
     selectedEvidence: { evidenceType: 'CUSTOMER_SUBMITTED_RECENT_REVENUE_SUMMARY', displayName: '최근 매출·입금 요약', description: '최근 매출 발생과 실제 입금 흐름을 확인할 수 있는 고객 제출 자료', sourceType: 'CUSTOMER_SUBMITTED', collectionMode: 'DEMO_FILE_UPLOAD', availability: 'CONSENT_REQUIRED', rationaleCodes: ['DEMO_RESOLVE_BOUNDARY_1_2'], consentScope: null, demoOnly: true },
   },
@@ -219,5 +239,30 @@ describe('AssessmentPage', () => {
     expect(screen.getByText('추가 자료 없이 자사 상품 조건을 확인할 수 있습니다.')).toBeInTheDocument()
     expect(screen.getByRole('link', { name: '자사 상품 조건 확인' })).toHaveAttribute('href', '/products')
     expect(evidenceSelectionProvider.get).not.toHaveBeenCalled()
+  })
+
+  it('explains a confirmed policy restriction with its follow-up steps', async () => {
+    vi.mocked(assessmentProvider.get).mockResolvedValue(completed)
+    vi.mocked(policyBoundaryProvider.get).mockResolvedValue(policyBlocked)
+    renderPage()
+
+    expect(await screen.findByRole('heading', { name: '대출정책상 제한 확인' })).toBeInTheDocument()
+    expect(screen.getByText('현재 진행 중인 연체가 확인되어 사업자금 대출정책상 신규 취급이 제한되는 상태입니다.')).toBeInTheDocument()
+    expect(screen.getByText('연체가 해소된 뒤 다시 조회하면 그 시점의 정보로 새로 확인합니다.')).toBeInTheDocument()
+    expect(screen.getByText('영업점이나 담당자 상담을 통해 다른 방법이 있는지 확인할 수 있습니다.')).toBeInTheDocument()
+    expect(evidenceSelectionProvider.get).not.toHaveBeenCalled()
+  })
+
+  it.each([
+    ['stable', () => stable],
+    ['policy blocked', () => policyBlocked],
+    ['ambiguous', () => ambiguous],
+  ])('offers the explanation and the review request on a %s boundary', async (_label, boundary) => {
+    vi.mocked(assessmentProvider.get).mockResolvedValue(completed)
+    vi.mocked(policyBoundaryProvider.get).mockResolvedValue(boundary())
+    renderPage()
+
+    expect(await screen.findByText('평가 결과 안내 패널')).toBeInTheDocument()
+    expect(screen.getByText('평가 결과 재확인 패널')).toBeInTheDocument()
   })
 })

@@ -6,7 +6,11 @@ import type { AssessmentExplanationResponse, AssessmentExplanationState, Explana
 import CustomerTechnicalDetails from './CustomerTechnicalDetails'
 import './AssessmentExplanationPanel.css'
 
-interface AssessmentExplanationPanelProps { sessionId: string }
+interface AssessmentExplanationPanelProps {
+  sessionId: string
+  /** Read-only viewers (the underwriter screen) never trigger generation. */
+  readOnly?: boolean
+}
 type Phase = 'loading' | 'generating' | 'idle'
 type RequestKind = 'load' | 'generate'
 
@@ -21,7 +25,7 @@ const targetLabels: Record<ExplanationTargetType, string> = {
 }
 const formatDate = (value: string) => new Intl.DateTimeFormat('ko-KR', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(value))
 
-function AssessmentExplanationPanel({ sessionId }: AssessmentExplanationPanelProps) {
+function AssessmentExplanationPanel({ sessionId, readOnly = false }: AssessmentExplanationPanelProps) {
   const [explanation, setExplanation] = useState<AssessmentExplanationState | null>(null)
   const [phase, setPhase] = useState<Phase>('loading')
   const [error, setError] = useState<ApiError | null>(null)
@@ -48,7 +52,7 @@ function AssessmentExplanationPanel({ sessionId }: AssessmentExplanationPanelPro
       let response = kind === 'generate'
         ? await assessmentExplanationProvider.generate(sessionId, controller.signal)
         : await assessmentExplanationProvider.get(sessionId, controller.signal)
-      if (kind === 'load' && !acceptResponse(response, false)) {
+      if (kind === 'load' && !readOnly && !acceptResponse(response, false)) {
         if (sequence === sequenceRef.current) setPhase('generating')
         response = await assessmentExplanationProvider.generate(sessionId, controller.signal)
         kind = 'generate'
@@ -62,7 +66,7 @@ function AssessmentExplanationPanel({ sessionId }: AssessmentExplanationPanelPro
     } finally {
       if (sequence === sequenceRef.current) setPhase('idle')
     }
-  }, [acceptResponse, sessionId])
+  }, [acceptResponse, readOnly, sessionId])
 
   useEffect(() => {
     queueMicrotask(() => void send('load'))
@@ -71,11 +75,19 @@ function AssessmentExplanationPanel({ sessionId }: AssessmentExplanationPanelPro
 
   if (phase !== 'idle' && !explanation) return <section className="assessment-explanation assessment-explanation--loading" aria-label="평가 결과 안내 준비 중"><span /><span /><p>확정된 결과와 다음 단계를 알기 쉽게 정리하고 있습니다.</p></section>
 
+  // A read-only viewer never generates, so "not generated yet" is the normal
+  // state there rather than a failure.
+  if (!explanation && readOnly && !error) return <section className="assessment-explanation" aria-labelledby="assessment-explanation-title">
+    <div className="assessment-explanation__heading"><div><span>평가 결과 안내</span><h3 id="assessment-explanation-title">아직 생성된 설명이 없습니다</h3></div><strong>생성 전</strong></div>
+    <p>고객이 결과 화면에서 설명을 확인하면 같은 내용이 여기에 표시됩니다. 이 화면에서는 설명을 새로 만들지 않습니다.</p>
+    <button className="button button--secondary" type="button" disabled={phase !== 'idle'} onClick={() => void send('load')}>{phase === 'loading' ? '설명 상태 확인 중…' : '설명 상태 다시 확인'}</button>
+  </section>
+
   if (!explanation) return <section className="assessment-explanation" aria-labelledby="assessment-explanation-title">
     <div className="assessment-explanation__heading"><div><span>평가 결과 안내</span><h3 id="assessment-explanation-title">결과 안내를 준비하지 못했습니다</h3></div><strong>재시도 필요</strong></div>
     <p>평가 결과는 변경되지 않았습니다. 결과와 다음 단계 설명만 다시 준비합니다.</p>
     {error && <div className="assessment-explanation__error" role="alert"><p>{error.message}</p><CustomerTechnicalDetails title="오류 기술 정보 보기"><dl><div><dt>오류 코드</dt><dd><code>{error.code}</code></dd></div>{error.requestId && <div><dt>요청 ID</dt><dd><code>{error.requestId}</code></dd></div>}</dl></CustomerTechnicalDetails></div>}
-    <button className="button button--secondary" type="button" disabled={phase !== 'idle'} onClick={() => void send(failedRequest === 'load' ? 'load' : 'generate')}>{phase === 'generating' ? '안내를 준비하는 중…' : '결과 안내 다시 준비'}</button>
+    <button className="button button--secondary" type="button" disabled={phase !== 'idle'} onClick={() => void send(readOnly || failedRequest === 'load' ? 'load' : 'generate')}>{phase === 'generating' ? '안내를 준비하는 중…' : '결과 안내 다시 준비'}</button>
   </section>
 
   return <section className={`assessment-explanation assessment-explanation--${explanation.renderingMode.toLowerCase()}`} aria-labelledby="assessment-explanation-title">

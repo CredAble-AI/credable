@@ -7,6 +7,7 @@ import type { EvidenceResolutionContext, EvidenceResolutionResponse, EvidenceRes
 import AssessmentExplanationPanel from './AssessmentExplanationPanel'
 import AssessmentReviewPanel from './AssessmentReviewPanel'
 import CustomerTechnicalDetails from './CustomerTechnicalDetails'
+import { withMinimumDuration } from '../utils/pacedRequest'
 
 interface EvidenceResolutionPanelProps extends EvidenceResolutionContext { sessionId: string }
 type Phase = 'loading' | 'resolving' | 'idle'
@@ -47,11 +48,11 @@ function EvidenceResolutionPanel({ sessionId, comparisonId, supplementalAssessme
     setPhase(resolve ? 'resolving' : 'loading'); setError(null)
     try {
       let response = resolve
-        ? await evidenceResolutionProvider.resolve(sessionId, context, controller.signal)
+        ? await withMinimumDuration(evidenceResolutionProvider.resolve(sessionId, context, controller.signal))
         : await evidenceResolutionProvider.get(sessionId, controller.signal)
       if (!resolve && !acceptResponse(response, false)) {
         if (sequence === sequenceRef.current) setPhase('resolving')
-        response = await evidenceResolutionProvider.resolve(sessionId, context, controller.signal)
+        response = await withMinimumDuration(evidenceResolutionProvider.resolve(sessionId, context, controller.signal))
         resolve = true
       }
       const result = acceptResponse(response, resolve)
@@ -78,7 +79,7 @@ function EvidenceResolutionPanel({ sessionId, comparisonId, supplementalAssessme
     <p>{copy.description}</p>
     <div className="evidence-resolution__action"><span>이어서 할 일</span>{resolution.nextAction === 'SHOW_UPDATED_RESULTS' && <Link className="button button--primary" to="/products">자사 상품 조건 확인</Link>}{resolution.nextAction === 'REQUEST_NEXT_EVIDENCE' && <Link className="button button--primary" to="/evidence?selectNext=1">다음 자료 한 건 확인</Link>}{resolution.status === 'HUMAN_REVIEW' && <Link className="button button--primary" to="/admin/reviews">담당자 확인 현황 보기</Link>}</div>
     <CustomerTechnicalDetails><dl><div><dt>처리 상태</dt><dd><code>{resolution.status}</code></dd></div><div><dt>다음 처리</dt><dd><code>{resolution.nextAction}</code></dd></div><div><dt>자료 수집</dt><dd>{resolution.stopEvidenceCollection ? '종료' : '계속'}</dd></div><div><dt>담당자 확인</dt><dd>{resolution.underwriterRequired ? '필요' : '필요 없음'}</dd></div><div><dt>판단 사유</dt><dd><code>{resolution.reasonCode}</code></dd></div><div><dt>판단 시점</dt><dd>{formatDate(resolution.resolvedAt)}</dd></div><div><dt>판단 ID</dt><dd><code>{resolution.resolutionId}</code></dd></div><div><dt>보정 버전</dt><dd><code>{resolution.calibrationVersion ?? '제공되지 않음'}</code></dd></div><div><dt>경계 정책 버전</dt><dd><code>{resolution.boundaryPolicyVersion}</code></dd></div>{resolution.possibleRoutes.map((code) => <div key={code}><dt>가능 경로</dt><dd><code>{code}</code></dd></div>)}{resolution.crossedBoundaryCodes.map((code) => <div key={code}><dt>남은 정책 경계</dt><dd><code>{code}</code></dd></div>)}</dl></CustomerTechnicalDetails>
-  </section><AssessmentExplanationPanel key={resolution.resolutionId} sessionId={sessionId} />{resolution.status === 'RESOLVED' && <AssessmentReviewPanel sessionId={sessionId} />}</>
+  </section><AssessmentExplanationPanel key={resolution.resolutionId} sessionId={sessionId} /><AssessmentReviewPanel sessionId={sessionId} /></>
 }
 
 export default EvidenceResolutionPanel

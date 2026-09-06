@@ -90,5 +90,6 @@ async def complete_underwriter_review(
     return get_underwriter_review_queue_service(request).complete(
         review_id,
         payload.result_code,
+        payload.decision_note,
         request.state.request_id,
     )

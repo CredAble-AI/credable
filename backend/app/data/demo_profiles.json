@@ -1,5 +1,5 @@
 {
-  "dataVersion": "demo-profiles-v3",
+  "dataVersion": "demo-profiles-v4",
   "profiles": [
     {
       "demoProfileId": "small-business",
@@ -34,7 +34,46 @@
         "asOfDate": "2026-09-01",
         "dataVersion": "demo-customer-subjects-v1",
         "demoOnly": true
-      }
+      },
+      "scenarioLabel": "정책 경계에 걸린 사례",
+      "scenarioSummary": "기존 평가 구간이 두 정책 경로에 걸쳐 있어 최소 증빙 한 건을 요청하는 흐름을 확인합니다."
+    },
+    {
+      "demoProfileId": "small-business-stable",
+      "businessBorrowerType": "SOLE_PROPRIETOR",
+      "displayName": "개인사업자",
+      "description": "기존 평가만으로 처리 경로가 확인되는 개인사업자 합성 Demo 사례",
+      "customerSubject": {
+        "borrower": {
+          "borrowerId": "bor_demo_003",
+          "borrowerType": "SOLE_PROPRIETOR",
+          "displayName": "온기공방 고객(합성)"
+        },
+        "primaryBusiness": {
+          "businessId": "biz_demo_003",
+          "legalForm": "SOLE_PROPRIETOR",
+          "displayName": "온기공방(합성)",
+          "industryCode": "DEMO_RETAIL",
+          "industryCodeSystem": "DEMO",
+          "industryName": "소매업 예시",
+          "businessStartedOn": "2022-04-15",
+          "status": "ACTIVE"
+        },
+        "businessRole": {
+          "borrowerId": "bor_demo_003",
+          "businessId": "biz_demo_003",
+          "roleType": "OWNER",
+          "isPrimary": true,
+          "effectiveFrom": "2022-04-15",
+          "effectiveTo": null
+        },
+        "sourceType": "BANK_INTERNAL",
+        "asOfDate": "2026-09-01",
+        "dataVersion": "demo-customer-subjects-v1",
+        "demoOnly": true
+      },
+      "scenarioLabel": "추가 증빙이 필요 없는 사례",
+      "scenarioSummary": "기존 평가만으로 하나의 정책 경로가 확인되어 추가 자료를 요청하지 않는 흐름을 확인합니다."
     },
     {
       "demoProfileId": "startup",
@@ -69,7 +108,46 @@
         "asOfDate": "2026-09-01",
         "dataVersion": "demo-customer-subjects-v1",
         "demoOnly": true
-      }
+      },
+      "scenarioLabel": "정책 경계에 걸린 사례",
+      "scenarioSummary": "기존 평가 구간이 두 정책 경로에 걸쳐 있어 최소 증빙 한 건을 요청하는 흐름을 확인합니다."
+    },
+    {
+      "demoProfileId": "startup-policy-blocked",
+      "businessBorrowerType": "CORPORATION",
+      "displayName": "법인사업자",
+      "description": "대출정책상 제한이 확인된 법인사업자 합성 Demo 사례",
+      "customerSubject": {
+        "borrower": {
+          "borrowerId": "bor_demo_004",
+          "borrowerType": "CORPORATION",
+          "displayName": "마루테크 법인(합성)"
+        },
+        "primaryBusiness": {
+          "businessId": "biz_demo_004",
+          "legalForm": "CORPORATION",
+          "displayName": "마루테크(합성)",
+          "industryCode": "DEMO_SOFTWARE",
+          "industryCodeSystem": "DEMO",
+          "industryName": "소프트웨어업 예시",
+          "businessStartedOn": "2024-11-01",
+          "status": "ACTIVE"
+        },
+        "businessRole": {
+          "borrowerId": "bor_demo_004",
+          "businessId": "biz_demo_004",
+          "roleType": "BORROWER_ENTITY",
+          "isPrimary": true,
+          "effectiveFrom": "2024-11-01",
+          "effectiveTo": null
+        },
+        "sourceType": "BANK_INTERNAL",
+        "asOfDate": "2026-09-01",
+        "dataVersion": "demo-customer-subjects-v1",
+        "demoOnly": true
+      },
+      "scenarioLabel": "대출정책상 제한 사례",
+      "scenarioSummary": "추가 증빙으로 해소할 수 없는 정책상 제한을 안내하고 증빙 수집을 시작하지 않는 흐름을 확인합니다."
     }
   ]
 }

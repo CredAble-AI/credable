@@ -11,7 +11,7 @@ const empty: AssessmentReviewRequestResponse = { sessionId: 'ses_demo', reviewRe
 const pending: AssessmentReviewRequestResponse = {
   sessionId: 'ses_demo',
   reviewRequest: {
-    reviewRequestId: 'arr_demo', targetType: 'SUPPLEMENTAL_ASSESSMENT', targetAssessmentId: 'sam_demo', reasonCode: 'CUSTOMER_REQUESTED_ASSESSMENT_REVIEW', requestedAt: '2026-09-06T06:00:00+09:00', requestSnapshotHash: 'a'.repeat(64), dataVersion: 'demo-v1', modelVersion: 'demo-supplemental-v1', requestPolicyVersion: 'assessment-review-request-policy-v1', demoOnly: true,
+    reviewRequestId: 'arr_demo', targetType: 'SUPPLEMENTAL_ASSESSMENT', targetAssessmentId: 'sam_demo', reasonCode: 'CUSTOMER_REQUESTED_ASSESSMENT_REVIEW', customerReasonCode: 'MISSING_RECENT_INFORMATION', requestedAt: '2026-09-06T06:00:00+09:00', requestSnapshotHash: 'a'.repeat(64), dataVersion: 'demo-v1', modelVersion: 'demo-supplemental-v1', requestPolicyVersion: 'assessment-review-request-policy-v1', demoOnly: true,
   },
   underwriterReviewId: 'uwr_demo',
   processing: { status: 'PENDING', resultCode: null, startedAt: null, completedAt: null },
@@ -37,9 +37,10 @@ describe('AssessmentReviewPanel', () => {
   it('submits an explicit request and displays the server-selected assessment target', async () => {
     renderPanel()
 
+    fireEvent.click(await screen.findByRole('radio', { name: /최근 정보가 반영되지 않았습니다/ }))
     fireEvent.click(await screen.findByRole('button', { name: '평가 결과 재확인 요청' }))
 
-    await waitFor(() => expect(assessmentReviewProvider.request).toHaveBeenCalledWith('ses_demo', expect.any(AbortSignal)))
+    await waitFor(() => expect(assessmentReviewProvider.request).toHaveBeenCalledWith('ses_demo', 'MISSING_RECENT_INFORMATION', expect.any(AbortSignal)))
     expect(await screen.findByRole('heading', { name: '평가 결과 재확인 요청이 접수됐습니다' })).toBeInTheDocument()
     expect(screen.getByText('보완평가')).toBeInTheDocument()
     expect(screen.getByText('요청이 대기열에 등록됐습니다. 담당자가 확인하기 전까지 현재 평가 결과가 유지됩니다.')).toBeInTheDocument()

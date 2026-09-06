@@ -6,6 +6,8 @@ export interface DemoProfile {
   businessBorrowerType: BusinessBorrowerType
   displayName: string
   description: string
+  scenarioLabel: string
+  scenarioSummary: string
 }
 
 export interface ConsentSelections {

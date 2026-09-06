@@ -65,14 +65,14 @@ export const mockAdminReviewProvider: AdminReviewProvider = {
     if (review.status === 'PENDING') items[index] = { ...review, status: 'IN_REVIEW', startedAt: new Date().toISOString() }
     return { review: items[index], context: contextFor(items[index]) }
   },
-  async complete(reviewId, resultCode, signal) {
+  async complete(reviewId, resultCode, decisionNote, signal) {
     assertNotAborted(signal)
     const index = findReviewIndex(reviewId)
     const review = items[index]
     if (review.status === 'PENDING') throw { code: 'UNDERWRITER_REVIEW_NOT_CLAIMED', message: '먼저 검토 요청을 접수해주세요.', retryable: false } satisfies ApiError
     if (!allowedResults[review.triggerType].includes(resultCode)) throw { code: 'UNDERWRITER_REVIEW_RESULT_NOT_ALLOWED', message: '이 검토 유형에 사용할 수 없는 처리 결과입니다.', retryable: false } satisfies ApiError
     if (review.status === 'COMPLETED' && review.resultCode !== resultCode) throw { code: 'UNDERWRITER_REVIEW_RESULT_CONFLICT', message: '이미 다른 결과로 완료된 검토 요청입니다.', retryable: false } satisfies ApiError
-    items[index] = { ...review, status: 'COMPLETED', resultCode, completedAt: review.completedAt ?? new Date().toISOString() }
+    items[index] = { ...review, status: 'COMPLETED', resultCode, decisionNote, completedAt: review.completedAt ?? new Date().toISOString() }
     return { review: items[index], context: contextFor(items[index]) }
   },
 }

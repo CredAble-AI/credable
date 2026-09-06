@@ -1,10 +1,10 @@
 import type { ApiError } from '../types/api'
 import type { ConsentListResponse, ConsentState } from '../types/consent'
-import { emptyConsents, type BusinessBorrowerType, type ConsentSelections, type CustomerSession, type DemoProfile } from '../types/customerSession'
+import { emptyConsents, type ConsentSelections, type CustomerSession, type DemoProfile } from '../types/customerSession'
 
 export interface CustomerSessionProvider {
   listDemoProfiles(signal: AbortSignal): Promise<DemoProfile[]>
-  create(businessBorrowerType: BusinessBorrowerType, signal: AbortSignal): Promise<CustomerSession>
+  create(demoProfileId: string, signal: AbortSignal): Promise<CustomerSession>
   get(signal: AbortSignal): Promise<CustomerSession | null>
   updateConsents(consents: ConsentSelections, signal: AbortSignal): Promise<CustomerSession | null>
 }
@@ -75,11 +75,11 @@ export const liveCustomerSessionProvider: CustomerSessionProvider = {
     const response = await apiRequest<DemoProfileCatalogResponse>('/v1/demo-profiles', signal)
     return response.profiles
   },
-  async create(businessBorrowerType, signal) {
+  async create(demoProfileId, signal) {
     const response = await apiRequest<DemoSessionCreateResponse>('/v1/sessions/demo', signal, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ businessBorrowerType }),
+      body: JSON.stringify({ demoProfileId }),
     })
     writeSessionId(response.sessionId)
     return toCustomerSession(response.session, emptyConsents())

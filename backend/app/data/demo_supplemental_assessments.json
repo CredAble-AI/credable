@@ -1,9 +1,28 @@
 {
-  "dataVersion": "demo-supplemental-assessments-v3",
+  "dataVersion": "demo-supplemental-assessments-v5",
   "assessments": [
     {
       "demoProfileId": "small-business",
       "evidenceType": "CUSTOMER_SUBMITTED_RECENT_REVENUE_SUMMARY",
+      "result": {
+        "status": "COMPLETED",
+        "modelVersion": "demo-small-business-supplemental-assessment-v1",
+        "uncertainty": {
+          "pointEstimate": null,
+          "lowerBound": null,
+          "upperBound": null,
+          "gradeSet": [
+            "DEMO_GRADE_B"
+          ],
+          "calibrationMode": "RULE_TABLE",
+          "calibrationVersion": "demo-uncertainty-rule-table-v1",
+          "demoOnly": true
+        }
+      }
+    },
+    {
+      "demoProfileId": "small-business",
+      "evidenceType": "EXTERNAL_CONNECTED_SETTLEMENT_SUMMARY",
       "result": {
         "status": "COMPLETED",
         "modelVersion": "demo-small-business-supplemental-assessment-v1",
@@ -42,6 +61,44 @@
     {
       "demoProfileId": "startup",
       "evidenceType": "EXTERNAL_CONNECTED_SETTLEMENT_SUMMARY",
+      "result": {
+        "status": "COMPLETED",
+        "modelVersion": "demo-corporate-supplemental-assessment-v1",
+        "uncertainty": {
+          "pointEstimate": null,
+          "lowerBound": null,
+          "upperBound": null,
+          "gradeSet": [
+            "DEMO_GRADE_B"
+          ],
+          "calibrationMode": "RULE_TABLE",
+          "calibrationVersion": "demo-uncertainty-rule-table-v1",
+          "demoOnly": true
+        }
+      }
+    },
+    {
+      "demoProfileId": "startup",
+      "evidenceType": "EXTERNAL_CONNECTED_CORPORATE_ACCOUNT_ACTIVITY",
+      "result": {
+        "status": "COMPLETED",
+        "modelVersion": "demo-corporate-supplemental-assessment-v1",
+        "uncertainty": {
+          "pointEstimate": null,
+          "lowerBound": null,
+          "upperBound": null,
+          "gradeSet": [
+            "DEMO_GRADE_B"
+          ],
+          "calibrationMode": "RULE_TABLE",
+          "calibrationVersion": "demo-uncertainty-rule-table-v1",
+          "demoOnly": true
+        }
+      }
+    },
+    {
+      "demoProfileId": "startup",
+      "evidenceType": "EXTERNAL_CONNECTED_CONTRACT_ORDER_SUMMARY",
       "result": {
         "status": "COMPLETED",
         "modelVersion": "demo-corporate-supplemental-assessment-v1",

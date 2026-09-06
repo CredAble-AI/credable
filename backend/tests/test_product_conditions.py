@@ -252,16 +252,15 @@ def test_demo_policy_matches_frontend_fixture_for_small_business(
     query = response.json()["query"]
     assert query["status"] == "PARTIAL"
     conditions = {item["productId"]: item for item in query["conditions"]}
+    # The MVP answers with the published conditions and the confirmation
+    # status; it does not produce a per-customer amount, rate or term.
     assert conditions["demo-working-capital"] == {
         "productId": "demo-working-capital",
-        "status": "PERSONALIZED_AVAILABLE",
-        "personalizedMaxAmount": {"amount": "24000000", "currency": "KRW"},
-        "personalizedAnnualRateRange": {
-            "minPercent": "5.10",
-            "maxPercent": "7.30",
-        },
-        "personalizedTermRangeMonths": {"minMonths": 12, "maxMonths": 48},
-        "policyVersion": "demo-policy-v1",
+        "status": "PUBLIC_ONLY",
+        "personalizedMaxAmount": None,
+        "personalizedAnnualRateRange": None,
+        "personalizedTermRangeMonths": None,
+        "policyVersion": None,
         "queriedAt": query["queriedAt"],
         "reasonCode": None,
         "finalApprovalRequired": True,
@@ -278,8 +277,6 @@ def test_demo_policy_matches_frontend_fixture_for_small_business(
     assert comparison["sortableFields"] == [
         "PUBLIC_MAX_AMOUNT",
         "PUBLIC_MIN_ANNUAL_RATE",
-        "PERSONALIZED_MAX_AMOUNT",
-        "PERSONALIZED_MIN_ANNUAL_RATE",
     ]
 
 

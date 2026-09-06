@@ -5,7 +5,7 @@ describe('liveCustomerSessionProvider', () => {
   beforeEach(() => localStorage.clear())
   afterEach(() => vi.unstubAllGlobals())
 
-  it('creates a demo session with only businessBorrowerType', async () => {
+  it('creates a demo session for the selected demo case', async () => {
     const fetchMock = vi.fn().mockResolvedValue({
       ok: true,
       json: async () => ({
@@ -20,18 +20,18 @@ describe('liveCustomerSessionProvider', () => {
           },
           status: 'CREATED',
           createdAt: '2026-09-06T00:00:00+09:00',
-          dataVersion: 'demo-profiles-v3',
+          dataVersion: 'demo-profiles-v4',
           demoOnly: true,
         },
       }),
     })
     vi.stubGlobal('fetch', fetchMock)
 
-    const session = await liveCustomerSessionProvider.create('SOLE_PROPRIETOR', new AbortController().signal)
+    const session = await liveCustomerSessionProvider.create('small-business', new AbortController().signal)
 
     expect(fetchMock).toHaveBeenCalledWith('/v1/sessions/demo', expect.objectContaining({
       method: 'POST',
-      body: JSON.stringify({ businessBorrowerType: 'SOLE_PROPRIETOR' }),
+      body: JSON.stringify({ demoProfileId: 'small-business' }),
     }))
     expect(session.demoProfile.businessBorrowerType).toBe('SOLE_PROPRIETOR')
     expect(localStorage.getItem('credable.session-id')).toBe('ses_sole_proprietor')

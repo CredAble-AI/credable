@@ -8,7 +8,7 @@ import CustomerSessionRecoveryBoundary from './CustomerSessionRecoveryBoundary'
 const session: CustomerSession = {
   sessionId: 'ses_recovered',
   selectedProfileType: 'small-business',
-  demoProfile: { demoProfileId: 'small-business', businessBorrowerType: 'SOLE_PROPRIETOR', displayName: '개인사업자', description: '합성 Demo 사례' },
+  demoProfile: { demoProfileId: 'small-business', businessBorrowerType: 'SOLE_PROPRIETOR', displayName: '개인사업자', description: '합성 Demo 사례', scenarioLabel: '정책 경계에 걸린 사례', scenarioSummary: '기존 평가 구간이 두 정책 경로에 걸쳐 있어 최소 증빙 한 건을 요청하는 흐름을 확인합니다.' },
   consents: { required: { customerIdentity: false, accountSummary: false, creditInformation: false }, optional: { submittedDocuments: false, otherInstitutions: false, partnerData: false } },
   demoOnly: true,
   createdAt: '2026-09-06T00:00:00+09:00',

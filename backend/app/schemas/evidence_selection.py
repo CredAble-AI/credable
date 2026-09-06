@@ -6,6 +6,7 @@ from pydantic import Field, model_validator
 
 from app.schemas.base import ApiModel
 from app.schemas.consent import ConsentSourceType
+from app.schemas.customer import BusinessLegalForm
 from app.schemas.evidence_consent import EvidenceConsentScopeDefinition
 from app.schemas.evidence_file import EvidenceCollectionMode
 from app.schemas.feature_snapshot import FeatureCode
@@ -29,6 +30,9 @@ class EvidenceCandidateDefinition(ApiModel):
     evidence_type: str = Field(min_length=1)
     display_name: str = Field(min_length=1)
     description: str = Field(min_length=1)
+    # Sole proprietors and corporations are assessed on different information,
+    # so a candidate only applies to the borrower types it is defined for.
+    business_borrower_types: list[BusinessLegalForm] = Field(min_length=1)
     source_type: ConsentSourceType
     collection_mode: EvidenceCollectionMode
     boundary_codes: list[str] = Field(min_length=1)
@@ -45,6 +49,8 @@ class EvidenceCandidateDefinition(ApiModel):
 
     @model_validator(mode="after")
     def validate_unique_codes(self) -> "EvidenceCandidateDefinition":
+        if len(self.business_borrower_types) != len(set(self.business_borrower_types)):
+            raise ValueError("businessBorrowerTypes values must be unique")
         if len(self.boundary_codes) != len(set(self.boundary_codes)):
             raise ValueError("boundaryCodes values must be unique")
         if len(self.applicable_information_gap_codes) != len(
@@ -101,6 +107,7 @@ class EvidenceSelectionState(ApiModel):
     resolution_id: str | None = Field(default=None, min_length=1)
     rejected_quality_check_id: str | None = Field(default=None, min_length=1)
     iteration: int = Field(ge=1)
+    max_evidence_requests: int = Field(ge=1)
     status: EvidenceSelectionStatus
     selected_evidence: SelectedEvidenceCandidate | None = None
     evaluated_candidate_count: int = Field(ge=0)
@@ -115,6 +122,26 @@ class EvidenceSelectionState(ApiModel):
     baseline_feature_snapshot_id: str | None = Field(default=None, min_length=1)
     baseline_information_coverage_codes: list[str] = Field(default_factory=list)
     demo_only: Literal[True] = True
+
+    @model_validator(mode="before")
+    @classmethod
+    def add_backward_compatible_request_limit(cls, data: object) -> object:
+        """Keep selections stored before the request limit existed readable.
+
+        Legacy rows never recorded the policy limit, so fall back to the
+        iteration they reached: it is the only value that is certainly true of
+        the policy that produced them.
+        """
+        if not isinstance(data, dict):
+            return data
+        if "maxEvidenceRequests" in data or "max_evidence_requests" in data:
+            return data
+        values = dict(data)
+        use_aliases = "selectionId" in values
+        iteration = values.get("iteration" if use_aliases else "iteration")
+        if isinstance(iteration, int) and iteration >= 1:
+            values["maxEvidenceRequests" if use_aliases else "max_evidence_requests"] = iteration
+        return values
 
     @model_validator(mode="after")
     def validate_state(self) -> "EvidenceSelectionState":
@@ -145,8 +172,13 @@ class EvidenceSelectionState(ApiModel):
         elif self.status == EvidenceSelectionStatus.NOT_REQUIRED:
             if self.stop_reason != "PATH_STABLE" or self.underwriter_required:
                 raise ValueError("NOT_REQUIRED state must stop on PATH_STABLE")
+        elif self.status == EvidenceSelectionStatus.POLICY_BLOCKED:
+            # A confirmed policy restriction is answered with guidance, so the
+            # handoff follows the boundary decision instead of being assumed.
+            if not self.stop_reason:
+                raise ValueError("POLICY_BLOCKED state requires a stop reason")
         elif not self.stop_reason or not self.underwriter_required:
-            raise ValueError("blocked selection requires a stop reason and review")
+            raise ValueError("HUMAN_REVIEW state requires a stop reason and review")
         return self
 
 
@@ -169,6 +201,7 @@ class BaselineInformationCoverageRule(ApiModel):
 class DemoEvidenceCandidateCatalogData(ApiModel):
     data_version: str = Field(min_length=1)
     selection_policy_version: str = Field(min_length=1)
+    max_evidence_requests: int = Field(ge=1)
     baseline_information_coverage_rules: list[BaselineInformationCoverageRule] = Field(
         default_factory=list
     )

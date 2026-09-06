@@ -2,7 +2,9 @@
 .evidence-empty { display: grid; grid-template-columns: 52px 1fr auto; gap: 20px; align-items: center; margin-top: 38px; padding: 28px; border: 1px solid rgba(49,130,246,.16); border-radius: var(--radius-lg); background: #fff; box-shadow: var(--shadow-card); }
 .evidence-empty > span { display: grid; width: 52px; height: 52px; place-items: center; border-radius: 17px; color: var(--color-primary-dark); background: var(--color-sky-light); font-weight: 900; }
 .evidence-empty h2 { font-size: 23px; }.evidence-empty p { margin-top: 8px; color: var(--color-text-secondary); font-size: 13px; line-height: 1.6; }
-.evidence-status p + p { font-size: 12px; }.evidence-status--policy_blocked,.evidence-status--human_review { border-color: rgba(240,68,82,.25); }
+.evidence-status p + p { font-size: 12px; }
+.evidence-status__reason { color: var(--text-strong, inherit); font-weight: 600; }
+.evidence-status__budget { opacity: .75; }.evidence-status--policy_blocked,.evidence-status--human_review { border-color: rgba(240,68,82,.25); }
 .evidence-card { margin-top: 20px; padding: 32px; border: 1px solid rgba(49,130,246,.16); border-radius: var(--radius-lg); background: #fff; box-shadow: var(--shadow-card); }
 .evidence-card__top { display: flex; justify-content: space-between; gap: 20px; align-items: flex-start; }.evidence-card__top > div > span { color: var(--color-primary); font-size: 11px; font-weight: 800; }.evidence-card h2 { margin-top: 7px; font-size: clamp(26px,3vw,36px); letter-spacing: -.035em; }.evidence-card > p { max-width: 720px; margin-top: 14px; color: var(--color-text-secondary); line-height: 1.7; }.evidence-card .evidence-availability-note { color: var(--color-text-muted); font-size: 12px; }
 .evidence-availability { flex: none; padding: 8px 11px; border-radius: var(--radius-pill); color: var(--color-primary-dark); background: var(--color-sky-light); font-size: 11px; font-weight: 800; }.evidence-availability--consent_required { color: #805600; background: #fff5cf; }.evidence-availability--unavailable { color: #a92935; background: #fff0f2; }

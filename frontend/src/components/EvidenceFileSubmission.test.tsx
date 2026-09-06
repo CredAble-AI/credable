@@ -3,6 +3,7 @@ import { MemoryRouter } from 'react-router-dom'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { evidenceSubmissionProvider } from '../hooks/useEvidenceSubmissionState'
 import type { EvidenceSubmissionOption, EvidenceSubmissionResponse } from '../types/evidenceSubmission'
+import type { EvidenceConsentScope } from '../types/evidenceConsent'
 import EvidenceFileSubmission from './EvidenceFileSubmission'
 
 vi.mock('../hooks/useEvidenceSubmissionState', () => ({
@@ -35,7 +36,17 @@ const connectedSubmission: EvidenceSubmissionResponse = {
   submission: { ...submitted.submission!, sourceType: 'EXTERNAL_CONNECTED', submissionMode: 'DEMO_FIXTURE_REFERENCE', uploadedFile: null, evidenceConsentId: null, consentScopeVersion: null },
 }
 
-const renderComponent = () => render(<MemoryRouter><EvidenceFileSubmission sessionId="ses_demo" selectionId="evs_demo" evidenceType="RECENT_REVENUE" /></MemoryRouter>)
+const consentScope = {
+  scopeVersion: 'demo-recent-revenue-consent-v1',
+  purposeCode: 'SUPPLEMENTAL_CREDIT_ASSESSMENT',
+  purposeDescription: '기존 평가의 불확실성을 확인하기 위한 보완평가에 사용',
+  dataCategories: ['BUSINESS_IDENTITY', 'MONTHLY_SALES', 'PERIOD_TOTALS'],
+  periodStart: '2026-03-01',
+  periodEnd: '2026-08-31',
+  required: true,
+} satisfies EvidenceConsentScope
+
+const renderComponent = () => render(<MemoryRouter><EvidenceFileSubmission sessionId="ses_demo" selectionId="evs_demo" evidenceType="RECENT_REVENUE" displayName="최근 매출·입금 요약" consentScope={consentScope} /></MemoryRouter>)
 
 describe('EvidenceFileSubmission', () => {
   beforeEach(() => {
@@ -120,5 +131,12 @@ describe('EvidenceFileSubmission', () => {
 
     expect(screen.getByRole('alert')).toHaveTextContent('PDF 파일만 선택할 수 있습니다.')
     expect(evidenceSubmissionProvider.upload).not.toHaveBeenCalled()
+  })
+
+  it('states the requested period from the server selection', async () => {
+    renderComponent()
+
+    expect(await screen.findByText('최근 매출·입금 요약')).toBeInTheDocument()
+    expect(screen.getByText('2026-03-01 ~ 2026-08-31')).toBeInTheDocument()
   })
 })

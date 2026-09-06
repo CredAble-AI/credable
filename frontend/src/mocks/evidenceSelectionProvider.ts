@@ -22,6 +22,7 @@ export const mockEvidenceSelectionProvider: EvidenceSelectionProvider = {
         resolutionId: null,
         rejectedQualityCheckId: null,
         iteration: 1,
+        maxEvidenceRequests: 2,
         status: 'SELECTED',
         selectedEvidence: {
           evidenceType: 'CUSTOMER_SUBMITTED_RECENT_REVENUE_SUMMARY',

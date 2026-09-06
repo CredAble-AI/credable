@@ -1,3 +1,5 @@
+import logging
+
 from fastapi.testclient import TestClient
 
 from app.adapters.assessment_adapter import (
@@ -224,11 +226,17 @@ def test_provider_failure_uses_traceable_rule_fallback(
     client: TestClient,
     data_source_service: DataSourceService,
     assessment_service: AssessmentService,
+    caplog,
 ) -> None:
     session_id, _ = run_baseline(client, data_source_service, assessment_service)
     client.app.state.assessment_explanation_service.provider = FailingExplanationProvider()
 
-    response = client.post(f"/v1/sessions/{session_id}/assessment/explanation/generate")
+    with caplog.at_level(logging.WARNING, logger="app.services.explanation_service"):
+        response = client.post(f"/v1/sessions/{session_id}/assessment/explanation/generate")
+
+    # A provider that fails on every request (wrong endpoint or model) must be
+    # visible in the log instead of quietly degrading the whole demo.
+    assert "using the rule fallback" in caplog.text
 
     assert response.status_code == 200
     explanation = response.json()["explanation"]

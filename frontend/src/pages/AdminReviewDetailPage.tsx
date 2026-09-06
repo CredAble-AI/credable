@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { normalizeAdminReviewError } from '../api/adminReviewClient'
+import AssessmentExplanationPanel from '../components/AssessmentExplanationPanel'
 import { adminReviewProvider } from '../hooks/useAdminReviewState'
 import type { AssessmentUncertainty } from '../types/assessment'
 import type { ApiError } from '../types/api'
@@ -14,6 +15,7 @@ import type {
 } from '../types/adminReview'
 import type { EvidenceQualityDimension, EvidenceQualityDimensionStatus } from '../types/evidenceQuality'
 import './AdminReviewDetailPage.css'
+import { withMinimumDuration } from '../utils/pacedRequest'
 
 const statusLabels: Record<AdminReviewStatus, string> = { PENDING: '접수 대기', IN_REVIEW: '검토 중', COMPLETED: '처리 완료' }
 const triggerLabels: Record<AdminReviewTriggerType, string> = {
@@ -45,6 +47,11 @@ const comparisonLabels = { NARROWED: '불확실성 감소', UNCHANGED: '변화 �
 const resolutionLabels = { RESOLVED: '추가 수집 종료', MORE_EVIDENCE_REQUIRED: '다음 자료 필요', HUMAN_REVIEW: '심사역 확인 필요' } as const
 const dimensionLabels: Record<EvidenceQualityDimension, string> = { PROVENANCE: '출처', FRESHNESS: '최신성', AUTHENTICITY: '진위', COMPLETENESS: '완전성', CONSISTENCY: '일관성', MANIPULATION_RISK: '조작 위험' }
 const checkStatusLabels: Record<EvidenceQualityDimensionStatus, string> = { PASSED: '확인 완료', FAILED: '확인 필요', NOT_VERIFIED: '확인되지 않음' }
+const customerReasonLabels: Record<string, string> = {
+  INCORRECT_INFORMATION: '평가에 사용된 정보가 실제와 다르다는 요청입니다.',
+  MISSING_RECENT_INFORMATION: '최근 정보가 반영되지 않았다는 요청입니다.',
+  EXCLUDED_EVIDENCE_DISPUTED: '제출 자료가 제외된 사유를 확인해 달라는 요청입니다.',
+}
 const rationaleLabels: Record<string, string> = {
   DEMO_SERVER_DOCUMENT_PROVENANCE_CONFIRMED: '서버 발급 기록과 문서 식별자가 일치합니다.', DEMO_SERVER_DOCUMENT_PROVENANCE_INVALID: '서버 발급 기록과 문서 식별자가 일치하지 않습니다.',
   DEMO_MANIFEST_POINT_IN_TIME_VALID: '요청된 기준 기간 안의 자료입니다.', DEMO_MANIFEST_POINT_IN_TIME_INVALID: '요청된 기준 기간을 벗어난 자료입니다.',
@@ -54,7 +61,7 @@ const rationaleLabels: Record<string, string> = {
   DEMO_FILE_METADATA_AND_HASH_UNCHANGED: '파일 형식·크기와 내용 해시에서 변경 징후가 없습니다.', DEMO_FILE_METADATA_OR_HASH_CHANGED: '파일 형식·크기 또는 내용 해시에서 변경 징후가 발견됐습니다.',
   EVIDENCE_CONSENT_NOT_ACTIVE: '해당 자료의 이용 동의가 현재 유효하지 않습니다.',
 }
-const evidenceTypeLabels: Record<string, string> = { CUSTOMER_SUBMITTED_RECENT_REVENUE_SUMMARY: '최근 매출·입금 요약', EXTERNAL_CONNECTED_SETTLEMENT_SUMMARY: '외부 정산 내역 요약', RECENT_REVENUE_SUMMARY: '최근 매출·입금 요약' }
+const evidenceTypeLabels: Record<string, string> = { CUSTOMER_SUBMITTED_RECENT_REVENUE_SUMMARY: '최근 매출·입금 요약', EXTERNAL_CONNECTED_SETTLEMENT_SUMMARY: '외부 정산 내역 요약', EXTERNAL_CONNECTED_CORPORATE_ACCOUNT_ACTIVITY: '법인 계좌 거래 요약', EXTERNAL_CONNECTED_CONTRACT_ORDER_SUMMARY: '계약·주문 내역 요약', RECENT_REVENUE_SUMMARY: '최근 매출·입금 요약' }
 const formatDate = (value?: string | null) => value ? new Intl.DateTimeFormat('ko-KR', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(value)) : '기록 없음'
 const formatBytes = (value: number) => value < 1024 * 1024 ? `${Math.ceil(value / 1024)}KB` : `${(value / (1024 * 1024)).toFixed(1)}MB`
 const formatEvidenceType = (value: string) => evidenceTypeLabels[value] ?? value.toLowerCase().split('_').map((word) => word.charAt(0).toUpperCase() + word.slice(1)).join(' ')
@@ -85,7 +92,7 @@ function BoundaryContext({ context }: { context: AdminReviewCaseContext }) {
 function SelectionContext({ context }: { context: AdminReviewCaseContext }) {
   const selection = context.selection
   if (!selection || context.quality) return null
-  return <article className="admin-case-card"><header><span>최소 증빙 선택</span><h3>{selectionStatusLabels[selection.status]}</h3></header><dl className="admin-case-facts"><Fact label="검토한 후보">{selection.evaluatedCandidateCount}건</Fact><Fact label="확인할 정보 공백">{selection.informationGapCodes?.length ?? 0}개</Fact><Fact label="요청 차수">{selection.iteration}차</Fact></dl>{selection.selectedEvidence && <p className="admin-case-note">선택 자료: {selection.selectedEvidence.displayName}</p>}</article>
+  return <article className="admin-case-card"><header><span>최소 증빙 선택</span><h3>{selectionStatusLabels[selection.status]}</h3></header><dl className="admin-case-facts"><Fact label="검토한 후보">{selection.evaluatedCandidateCount}건</Fact><Fact label="확인할 정보 공백">{selection.informationGapCodes?.length ?? 0}개</Fact><Fact label="요청 차수">{selection.iteration}차 · 요청 한도 {selection.maxEvidenceRequests}건</Fact></dl>{selection.selectedEvidence && <p className="admin-case-note">선택 자료: {selection.selectedEvidence.displayName}</p>}</article>
 }
 
 function EvidenceContext({ review, context }: { review: AdminReviewQueueItem; context: AdminReviewCaseContext }) {
@@ -105,7 +112,8 @@ function ComparisonContext({ context }: { context: AdminReviewCaseContext }) {
 
 function ReviewContext({ review, context }: { review: AdminReviewQueueItem; context: AdminReviewCaseContext }) {
   const guidance = reviewGuidance[review.triggerType]; const hasContext = Object.values(context).some(Boolean)
-  return <><section className="admin-review-brief" aria-labelledby="review-reason-title"><div><span>검토 사유</span><h2 id="review-reason-title">{guidance.title}</h2><p>{guidance.description}</p></div><aside><span>지금 할 일</span><strong>{guidance.action}</strong></aside></section><section className="admin-case-flow" aria-labelledby="case-flow-title"><div className="admin-section-heading"><div><span>검토 자료</span><h2 id="case-flow-title">이 요청과 직접 연결된 정보</h2><p>현재 검토 요청과 직접 연결된 서버 기록만 표시합니다.</p></div><Link to={`/admin/sessions/${encodeURIComponent(review.sessionId)}/audit`}>전체 처리 이력</Link></div>{hasContext ? <div className="admin-case-list"><AssessmentContext context={context} /><BoundaryContext context={context} /><SelectionContext context={context} /><EvidenceContext review={review} context={context} /><ComparisonContext context={context} /></div> : <p className="admin-case-flow__notice">이 검토 요청에 연결된 상세 자료를 찾지 못했습니다. 감사 이력에서 원본 기록을 확인해주세요.</p>}</section></>
+  const customerReason = review.reasonCodes.map((code) => customerReasonLabels[code]).find(Boolean)
+  return <><section className="admin-review-brief" aria-labelledby="review-reason-title"><div><span>검토 사유</span><h2 id="review-reason-title">{guidance.title}</h2><p>{guidance.description}</p>{customerReason && <p className="admin-review-brief__customer-reason"><b>고객이 지적한 내용</b> {customerReason}</p>}</div><aside><span>지금 할 일</span><strong>{guidance.action}</strong></aside></section><section className="admin-case-flow" aria-labelledby="case-flow-title"><div className="admin-section-heading"><div><span>검토 자료</span><h2 id="case-flow-title">이 요청과 직접 연결된 정보</h2><p>현재 검토 요청과 직접 연결된 서버 기록만 표시합니다.</p></div><Link to={`/admin/sessions/${encodeURIComponent(review.sessionId)}/audit`}>전체 처리 이력</Link></div>{hasContext ? <div className="admin-case-list"><AssessmentContext context={context} /><BoundaryContext context={context} /><SelectionContext context={context} /><EvidenceContext review={review} context={context} /><ComparisonContext context={context} /></div> : <p className="admin-case-flow__notice">이 검토 요청에 연결된 상세 자료를 찾지 못했습니다. 감사 이력에서 원본 기록을 확인해주세요.</p>}</section></>
 }
 
 function TechnicalDetails({ review }: { review: AdminReviewQueueItem }) {
@@ -117,13 +125,14 @@ function AdminReviewDetailPage() {
   const [review, setReview] = useState<AdminReviewQueueItem | null>(null)
   const [context, setContext] = useState<AdminReviewCaseContext | null>(null)
   const [resultCode, setResultCode] = useState<AdminReviewResultCode | ''>('')
+  const [decisionNote, setDecisionNote] = useState('')
   const [error, setError] = useState<ApiError | null>(null)
   const [phase, setPhase] = useState<'idle' | 'loading' | 'claiming' | 'completing'>('idle')
   const controllerRef = useRef<AbortController | null>(null); const sequenceRef = useRef(0)
 
   const commitResponse = useCallback((response: AdminReviewDetailResponse) => {
     if (response.review.reviewId !== reviewId) throw { code: 'ADMIN_REVIEW_RESPONSE_INVALID', message: '요청한 검토 ID와 서버 응답이 일치하지 않습니다.', retryable: true } satisfies ApiError
-    setReview(response.review); setContext(response.context ?? {}); setResultCode(response.review.resultCode ?? '')
+    setReview(response.review); setContext(response.context ?? {}); setResultCode(response.review.resultCode ?? ''); setDecisionNote(response.review.decisionNote ?? '')
   }, [reviewId])
   const run = useCallback(async (nextPhase: 'loading' | 'claiming' | 'completing', request: (signal: AbortSignal) => Promise<AdminReviewDetailResponse>) => {
     controllerRef.current?.abort(); const controller = new AbortController(); controllerRef.current = controller; const sequence = ++sequenceRef.current; setPhase(nextPhase); setError(null)
@@ -132,10 +141,11 @@ function AdminReviewDetailPage() {
   const load = useCallback(() => reviewId ? run('loading', (signal) => adminReviewProvider.get(reviewId, signal)) : Promise.resolve(), [reviewId, run])
   useEffect(() => { queueMicrotask(() => void load()); return () => { sequenceRef.current += 1; controllerRef.current?.abort() } }, [load])
   const options = useMemo(() => review ? allowedResults[review.triggerType] : [], [review]); const busy = phase !== 'idle'
-  const claim = () => { void run('claiming', (signal) => adminReviewProvider.claim(reviewId, signal)) }
-  const complete = () => { if (resultCode) void run('completing', (signal) => adminReviewProvider.complete(reviewId, resultCode, signal)) }
+  const claim = () => { void run('claiming', (signal) => withMinimumDuration(adminReviewProvider.claim(reviewId, signal))) }
+  const decisionNoteText = decisionNote.trim()
+  const complete = () => { if (resultCode && decisionNoteText) void run('completing', (signal) => withMinimumDuration(adminReviewProvider.complete(reviewId, resultCode, decisionNoteText, signal))) }
 
-  return <main id="main-content" tabIndex={-1} className="admin-main"><div className="admin-container admin-detail"><Link className="admin-back-link" to="/admin/reviews">← 검토 목록</Link><header className="admin-heading"><p>UNDERWRITER REVIEW DETAIL</p><h1>심사역 검토 상세</h1><span>검토가 필요해진 이유와 해당 요청에 연결된 자료를 확인하고 최종 처리를 확정합니다.</span></header><p className="admin-demo-notice">이 화면은 시연에서만 고객 화면과 연결됩니다. 운영 환경의 심사역 시스템은 별도 권한으로 분리됩니다.</p><div className="admin-detail-toolbar"><span role="status" aria-live="polite">{phase === 'loading' ? '검토 상세를 불러오고 있습니다.' : phase === 'claiming' ? '검토를 시작하고 있습니다.' : phase === 'completing' ? '처리 결과를 저장하고 있습니다.' : review ? `${statusLabels[review.status]} 상태입니다.` : error ? '검토 상세를 확인하지 못했습니다.' : '검토 상세를 확인해주세요.'}</span><button type="button" onClick={() => void load()} disabled={busy}>최신 상태 불러오기</button></div>{error && <section className="admin-error" role="alert"><div><strong>{error.message}</strong><small>{error.code}{error.requestId ? ` · Request ID: ${error.requestId}` : ''}</small></div><button type="button" onClick={() => void load()}>다시 확인</button></section>}{phase === 'loading' && !review && <div className="admin-detail-skeleton" aria-hidden="true"><span /><span /></div>}{review && context && <><ReviewContext review={review} context={context} /><section className="admin-review-summary" aria-labelledby="review-summary-title"><div className="admin-section-heading"><div><span>검토 요청</span><h2 id="review-summary-title">현재 처리 상태</h2></div><strong className={`admin-status admin-status--${review.status.toLowerCase()}`}>{statusLabels[review.status]}</strong></div><dl><Fact label="검토 유형">{triggerLabels[review.triggerType]}</Fact>{review.targetType && <Fact label="재확인 대상">{targetLabels[review.targetType]}</Fact>}<Fact label="요청 시점">{formatDate(review.requestedAt)}</Fact><Fact label="검토 시작">{formatDate(review.startedAt)}</Fact>{review.status === 'COMPLETED' && <Fact label="최종 결과">{review.resultCode ? resultLabels[review.resultCode] : '서버 확정 결과'}</Fact>}</dl><TechnicalDetails review={review} /></section><section className="admin-review-action" aria-labelledby="review-action-title"><p>심사역 최종 처리</p><h2 id="review-action-title">{review.status === 'PENDING' ? '검토를 시작해주세요' : review.status === 'IN_REVIEW' ? '확인한 결과를 선택해주세요' : '검토 처리가 완료됐습니다'}</h2>{review.status === 'PENDING' && <><p>검토를 시작하면 다른 심사역이 중복 처리하지 않도록 상태가 ‘검토 중’으로 바뀝니다.</p><button type="button" onClick={claim} disabled={busy}>{phase === 'claiming' ? '시작 처리 중…' : '검토 시작'}</button></>}{review.status === 'IN_REVIEW' && <><label htmlFor="review-result">최종 처리 결과</label><select id="review-result" value={resultCode} onChange={(event) => setResultCode(event.target.value as AdminReviewResultCode | '')} disabled={busy}><option value="">결과를 선택해주세요</option>{options.map((code) => <option value={code} key={code}>{resultLabels[code]}</option>)}</select><p className="admin-review-action__warning">확정한 후에는 처리 결과를 변경할 수 없습니다.</p><button type="button" onClick={complete} disabled={busy || !resultCode}>{phase === 'completing' ? '결과 저장 중…' : '선택한 결과로 확정'}</button></>}{review.status === 'COMPLETED' && <p className="admin-review-action__complete">이 건은 <strong>{review.resultCode ? resultLabels[review.resultCode] : '서버 확정 결과'}</strong>로 처리됐습니다.</p>}</section></>}</div></main>
+  return <main id="main-content" tabIndex={-1} className="admin-main"><div className="admin-container admin-detail"><Link className="admin-back-link" to="/admin/reviews">← 검토 목록</Link><header className="admin-heading"><p>UNDERWRITER REVIEW DETAIL</p><h1>심사역 검토 상세</h1><span>검토가 필요해진 이유와 해당 요청에 연결된 자료를 확인하고 최종 처리를 확정합니다.</span></header><p className="admin-demo-notice">이 화면은 시연에서만 고객 화면과 연결됩니다. 운영 환경의 심사역 시스템은 별도 권한으로 분리됩니다.</p><div className="admin-detail-toolbar"><span role="status" aria-live="polite">{phase === 'loading' ? '검토 상세를 불러오고 있습니다.' : phase === 'claiming' ? '검토를 시작하고 있습니다.' : phase === 'completing' ? '처리 결과를 저장하고 있습니다.' : review ? `${statusLabels[review.status]} 상태입니다.` : error ? '검토 상세를 확인하지 못했습니다.' : '검토 상세를 확인해주세요.'}</span><button type="button" onClick={() => void load()} disabled={busy}>최신 상태 불러오기</button></div>{error && <section className="admin-error" role="alert"><div><strong>{error.message}</strong><small>{error.code}{error.requestId ? ` · Request ID: ${error.requestId}` : ''}</small></div><button type="button" onClick={() => void load()}>다시 확인</button></section>}{phase === 'loading' && !review && <div className="admin-detail-skeleton" aria-hidden="true"><span /><span /></div>}{review && context && <><ReviewContext review={review} context={context} /><section className="admin-review-summary" aria-labelledby="review-summary-title"><div className="admin-section-heading"><div><span>검토 요청</span><h2 id="review-summary-title">현재 처리 상태</h2></div><strong className={`admin-status admin-status--${review.status.toLowerCase()}`}>{statusLabels[review.status]}</strong></div><dl><Fact label="검토 유형">{triggerLabels[review.triggerType]}</Fact>{review.targetType && <Fact label="재확인 대상">{targetLabels[review.targetType]}</Fact>}<Fact label="요청 시점">{formatDate(review.requestedAt)}</Fact><Fact label="검토 시작">{formatDate(review.startedAt)}</Fact>{review.status === 'COMPLETED' && <Fact label="최종 결과">{review.resultCode ? resultLabels[review.resultCode] : '서버 확정 결과'}</Fact>}</dl><TechnicalDetails review={review} /></section><section className="admin-ai-summary" aria-labelledby="ai-summary-title"><div className="admin-section-heading"><div><span>AI 설명</span><h2 id="ai-summary-title">서버가 확정한 결과의 요약</h2><p>기존 평가부터 증빙 검증과 재평가까지 서버가 확정한 내용을 문장으로 정리한 것입니다. 심사 판단이나 권고가 아니며, 아래 최종 처리는 심사역이 직접 결정합니다.</p></div></div><AssessmentExplanationPanel sessionId={review.sessionId} readOnly /></section><section className="admin-review-action" aria-labelledby="review-action-title"><p>심사역 최종 처리</p><h2 id="review-action-title">{review.status === 'PENDING' ? '검토를 시작해주세요' : review.status === 'IN_REVIEW' ? '확인한 결과를 선택해주세요' : '검토 처리가 완료됐습니다'}</h2>{review.status === 'PENDING' && <><p>검토를 시작하면 다른 심사역이 중복 처리하지 않도록 상태가 ‘검토 중’으로 바뀝니다.</p><button type="button" onClick={claim} disabled={busy}>{phase === 'claiming' ? '시작 처리 중…' : '검토 시작'}</button></>}{review.status === 'IN_REVIEW' && <><label htmlFor="review-result">최종 처리 결과</label><select id="review-result" value={resultCode} onChange={(event) => setResultCode(event.target.value as AdminReviewResultCode | '')} disabled={busy}><option value="">결과를 선택해주세요</option>{options.map((code) => <option value={code} key={code}>{resultLabels[code]}</option>)}</select><label htmlFor="review-note">판단 사유</label><textarea id="review-note" value={decisionNote} onChange={(event) => setDecisionNote(event.target.value)} disabled={busy} maxLength={500} rows={4} placeholder="확인한 자료와 판단 근거를 남겨주세요. 처리 이력에 함께 기록됩니다." /><small className="admin-review-action__counter">{decisionNoteText.length} / 500자</small><p className="admin-review-action__warning">확정한 후에는 처리 결과와 판단 사유를 변경할 수 없습니다.</p><button type="button" onClick={complete} disabled={busy || !resultCode || !decisionNoteText}>{phase === 'completing' ? '결과 저장 중…' : '선택한 결과로 확정'}</button></>}{review.status === 'COMPLETED' && <><p className="admin-review-action__complete">이 건의 처리 결과: <strong>{review.resultCode ? resultLabels[review.resultCode] : '서버 확정 결과'}</strong></p><div className="admin-review-action__note"><span>판단 사유</span><p>{review.decisionNote ?? '기록되지 않음'}</p></div></>}</section></>}</div></main>
 }
 
 export default AdminReviewDetailPage

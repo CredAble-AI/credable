@@ -3,6 +3,8 @@
 .admin-brand{font-weight:800}.admin-brand span{color:#6bb4ff}
 .admin-header>div{display:flex;gap:16px;align-items:center;color:#a9bdd0;font-size:12px}
 .admin-mode{padding:6px 9px;border-radius:999px;color:#a8d5ff;background:rgba(49,130,246,.14)}
+.admin-header>div>a{display:inline-flex;align-items:center;min-height:36px;padding:0 14px;border:1px solid rgba(107,180,255,.38);border-radius:9px;color:#cfe6ff;background:rgba(49,130,246,.12);font-size:12px;font-weight:800;transition:background-color .15s,border-color .15s}
+.admin-header>div>a:hover{border-color:rgba(107,180,255,.7);background:rgba(49,130,246,.24)}
 .admin-main{padding:64px 0 80px}.admin-container{width:min(calc(100% - 48px),1180px);margin:auto}
 .admin-heading p{color:#6bb4ff;font-size:11px;font-weight:900;letter-spacing:.14em}
 .admin-heading h1{margin-top:10px;font-size:clamp(34px,5vw,52px);letter-spacing:-.04em}
@@ -25,6 +27,9 @@
 .admin-review-card dl{margin:18px 0 0}.admin-review-card dl div{display:grid;grid-template-columns:105px minmax(0,1fr);gap:12px;padding:8px 0;border-bottom:1px solid rgba(255,255,255,.07);font-size:12px}.admin-review-card dt{color:#8198ad}.admin-review-card dd{min-width:0;margin:0;overflow-wrap:anywhere;color:#c4d3e0}
 .admin-review-card__reasons{display:flex;flex-wrap:wrap;gap:7px;margin-top:16px}.admin-review-card__reasons>span{width:100%;color:#8198ad;font-size:11px}.admin-review-card__reasons code{padding:6px 8px;border-radius:7px;color:#d7e6f3;background:#0a1928;font-size:10px}
 .admin-demo-chip{display:inline-flex;margin-top:16px;color:#8198ad;font-size:10px}
+.admin-review-card__link{display:flex;align-items:center;justify-content:center;min-height:44px;margin-top:18px;padding:0 16px;border:1px solid rgba(107,180,255,.4);border-radius:10px;color:#dbecff;background:rgba(49,130,246,.16);font-size:13px;font-weight:800;transition:background-color .15s,border-color .15s}
+.admin-review-card__link:hover{border-color:rgba(107,180,255,.75);background:rgba(49,130,246,.3)}
+.admin-review-card__link:focus-visible{outline:3px solid rgba(107,180,255,.6);outline-offset:2px}
 .admin-pagination{display:flex;justify-content:center;gap:18px;align-items:center;margin-top:26px;color:#a9bdd0;font-size:12px}
 @media(max-width:760px){.admin-header{padding-inline:16px}.admin-header>div{gap:10px}.admin-mode{display:none}.admin-main{padding-top:42px}.admin-container{width:min(calc(100% - 32px),1180px)}.admin-review-grid{grid-template-columns:1fr}.admin-toolbar,.admin-error{align-items:stretch;flex-direction:column}.admin-toolbar select,.admin-toolbar button{width:100%}.admin-skeleton{grid-template-columns:1fr}.admin-review-card dl div{grid-template-columns:1fr;gap:2px}.admin-pagination{justify-content:space-between;gap:8px}.admin-pagination button{padding-inline:10px}}
 @media(max-width:480px){.admin-header{align-items:flex-start;flex-direction:column;padding-block:14px}.admin-header>div{justify-content:space-between;width:100%}}

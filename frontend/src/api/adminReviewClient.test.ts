@@ -35,13 +35,13 @@ describe('liveAdminReviewProvider', () => {
     expect(fetchMock).toHaveBeenNthCalledWith(2, '/v1/admin/underwriter-reviews/uwr%2Fdemo/claim', { method: 'POST', signal })
   })
 
-  it('completes a review with the selected backend result code', async () => {
+  it('completes a review with the selected result code and the decision reason', async () => {
     const fetchMock = vi.fn().mockResolvedValue({ ok: true, json: async () => detail })
     vi.stubGlobal('fetch', fetchMock)
     const signal = new AbortController().signal
 
-    await liveAdminReviewProvider.complete('uwr_demo', 'ASSESSMENT_CONFIRMED', signal)
+    await liveAdminReviewProvider.complete('uwr_demo', 'ASSESSMENT_CONFIRMED', '서버 기록과 일치해 기존 평가를 유지합니다.', signal)
 
-    expect(fetchMock).toHaveBeenCalledWith('/v1/admin/underwriter-reviews/uwr_demo/complete', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ resultCode: 'ASSESSMENT_CONFIRMED' }), signal })
+    expect(fetchMock).toHaveBeenCalledWith('/v1/admin/underwriter-reviews/uwr_demo/complete', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ resultCode: 'ASSESSMENT_CONFIRMED', decisionNote: '서버 기록과 일치해 기존 평가를 유지합니다.' }), signal })
   })
 })

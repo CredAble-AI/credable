@@ -225,3 +225,32 @@ def test_provider_factory_builds_generative_gemini_provider() -> None:
     assert provider.model_version == "gemini-3.5-flash-lite"
     assert provider.timeout_seconds == 9
     assert "synthetic-test-key" not in repr(provider.api_key)
+
+
+def test_interactions_payload_matches_the_shape_verified_against_the_live_api() -> None:
+    """Pins the request shape that was confirmed with a real API key.
+
+    The transport is faked everywhere else, so without this the endpoint,
+    model field and structured-output contract could drift unnoticed.
+    """
+    transport = FakeGeminiTransport(
+        completed_response({"headlineCode": "A", "sectionCodes": ["A"]})
+    )
+    provider = GeminiExplanationProvider(
+        api_key=SecretStr("synthetic-test-key"),
+        model="gemini-3.5-flash-lite",
+        timeout_seconds=7,
+        transport=transport,
+    )
+
+    provider.plan(make_snapshot(), ("A",))
+
+    assert (
+        UrlLibGeminiInteractionTransport.ENDPOINT
+        == "https://generativelanguage.googleapis.com/v1beta/interactions"
+    )
+    assert transport.payload is not None
+    assert set(transport.payload) == {"model", "input", "response_format"}
+    assert transport.payload["model"] == "gemini-3.5-flash-lite"
+    assert transport.payload["response_format"]["type"] == "text"
+    assert transport.payload["response_format"]["mime_type"] == "application/json"
