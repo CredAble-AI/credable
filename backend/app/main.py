@@ -38,6 +38,7 @@ from app.repositories.policy_boundary_repository import SqlitePolicyBoundaryRepo
 from app.repositories.product_catalog_repository import SqliteProductCatalogRepository
 from app.repositories.product_condition_repository import SqliteProductConditionRepository
 from app.repositories.session_repository import SqliteCustomerSessionRepository
+from app.repositories.underwriter_review_repository import SqliteUnderwriterReviewRepository
 from app.schemas.assessment import AssessmentSnapshotType
 from app.schemas.consent import ConsentSourceType
 from app.schemas.error import ApiErrorDetail, ApiErrorResponse
@@ -569,11 +570,13 @@ def create_app(
             repository=SqliteAssessmentReviewRepository(settings.database_path),
             assessment_repository=resolved_assessment_service.repository,
             session_service=resolved_session_service,
+            workflow_repository=SqliteUnderwriterReviewRepository(settings.database_path),
         )
     )
     resolved_underwriter_review_queue_service = UnderwriterReviewQueueService(
         quality_repository=resolved_evidence_quality_service.repository,
         assessment_review_repository=resolved_assessment_review_request_service.repository,
+        workflow_repository=resolved_assessment_review_request_service.workflow_repository,
     )
 
     @asynccontextmanager
@@ -598,6 +601,7 @@ def create_app(
         resolved_product_catalog_service.initialize()
         resolved_product_condition_service.initialize()
         resolved_assessment_review_request_service.initialize()
+        resolved_underwriter_review_queue_service.initialize()
         yield
 
     application = FastAPI(

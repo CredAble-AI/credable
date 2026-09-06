@@ -6,6 +6,7 @@ from uuid import uuid4
 from app.core.errors import ResourceConflictError
 from app.repositories.assessment_repository import AssessmentRepository
 from app.repositories.assessment_review_repository import AssessmentReviewRepository
+from app.repositories.underwriter_review_repository import UnderwriterReviewRepository
 from app.schemas.assessment import AssessmentStatus
 from app.schemas.assessment_review import (
     AssessmentReviewRequestResponse,
@@ -13,6 +14,7 @@ from app.schemas.assessment_review import (
     AssessmentReviewTargetType,
 )
 from app.schemas.audit import AuditActor, AuditStage, SessionAuditEvent
+from app.schemas.review_workflow import CustomerReviewProcessing, UnderwriterReviewStatus
 from app.services.session_service import CustomerSessionService
 
 
@@ -23,20 +25,19 @@ class AssessmentReviewRequestService:
         repository: AssessmentReviewRepository,
         assessment_repository: AssessmentRepository,
         session_service: CustomerSessionService,
+        workflow_repository: UnderwriterReviewRepository,
     ) -> None:
         self.repository = repository
         self.assessment_repository = assessment_repository
         self.session_service = session_service
+        self.workflow_repository = workflow_repository
 
     def initialize(self) -> None:
         self.repository.initialize()
 
     def get_latest(self, session_id: str) -> AssessmentReviewRequestResponse:
         self.session_service.get_session(session_id)
-        return AssessmentReviewRequestResponse(
-            session_id=session_id,
-            review_request=self.repository.get_latest(session_id),
-        )
+        return self._response(session_id, self.repository.get_latest(session_id))
 
     def request(self, session_id: str, request_id: str) -> AssessmentReviewRequestResponse:
         session = self.session_service.get_session(session_id).session
@@ -60,10 +61,7 @@ class AssessmentReviewRequestService:
 
         existing = self.repository.get_for_target(session_id, target_id)
         if existing is not None:
-            return AssessmentReviewRequestResponse(
-                session_id=session_id,
-                review_request=existing,
-            )
+            return self._response(session_id, existing)
 
         requested_at = datetime.now(UTC)
         snapshot = {
@@ -109,10 +107,36 @@ class AssessmentReviewRequestService:
             state=state,
             audit_event=audit_event,
         )
-        return AssessmentReviewRequestResponse(
-            session_id=session_id,
-            review_request=saved,
-        )
+        return self._response(session_id, saved)
 
     def readiness(self) -> dict[str, bool]:
         return {"assessment_review_repository": self.repository.is_ready()}
+
+    def _response(
+        self,
+        session_id: str,
+        review: AssessmentReviewRequestState | None,
+    ) -> AssessmentReviewRequestResponse:
+        if review is None:
+            return AssessmentReviewRequestResponse(
+                session_id=session_id,
+                review_request=None,
+            )
+        workflow = self.workflow_repository.get(
+            f"uwr_{review.review_request_id.removeprefix('arr_')}"
+        )
+        processing = (
+            CustomerReviewProcessing(status=UnderwriterReviewStatus.PENDING)
+            if workflow is None
+            else CustomerReviewProcessing(
+                status=workflow.status,
+                result_code=workflow.result_code,
+                started_at=workflow.started_at,
+                completed_at=workflow.completed_at,
+            )
+        )
+        return AssessmentReviewRequestResponse(
+            session_id=session_id,
+            review_request=review,
+            processing=processing,
+        )

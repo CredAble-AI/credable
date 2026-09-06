@@ -24,6 +24,7 @@ from app.services.policy_boundary_service import EvidenceResolutionService, Poli
 from app.services.product_catalog_service import ProductCatalogService
 from app.services.product_condition_service import ProductConditionService
 from app.services.session_service import CustomerSessionService
+from app.services.underwriter_review_service import UnderwriterReviewQueueService
 
 router = APIRouter(tags=["health"])
 
@@ -47,6 +48,9 @@ async def get_readiness(request: Request) -> ReadinessResponse:
     assessment_service: AssessmentService = request.app.state.assessment_service
     assessment_review_request_service: AssessmentReviewRequestService = (
         request.app.state.assessment_review_request_service
+    )
+    underwriter_review_queue_service: UnderwriterReviewQueueService = (
+        request.app.state.underwriter_review_queue_service
     )
     feature_snapshot_service: FeatureSnapshotService = request.app.state.feature_snapshot_service
     model_registry_service: ModelRegistryService = request.app.state.model_registry_service
@@ -83,6 +87,7 @@ async def get_readiness(request: Request) -> ReadinessResponse:
         **model_registry_service.readiness(),
         **assessment_service.readiness(),
         **assessment_review_request_service.readiness(),
+        **underwriter_review_queue_service.readiness(),
         **supplemental_assessment_service.readiness(),
         **assessment_comparison_service.readiness(),
         **policy_boundary_service.readiness(),
