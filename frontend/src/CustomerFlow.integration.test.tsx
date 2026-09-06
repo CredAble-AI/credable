@@ -111,7 +111,7 @@ describe('customer journey integration', () => {
     await waitFor(() => expect(refreshSources).toBeEnabled())
     fireEvent.click(refreshSources)
     await waitFor(
-      () => expect(screen.getAllByText('조회 완료')).toHaveLength(3),
+      () => expect(screen.getAllByText('조회 · 조회 완료')).toHaveLength(3),
       { timeout: 2_000 },
     )
     fireEvent.click(screen.getByRole('link', { name: '기준평가 실행' }))
