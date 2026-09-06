@@ -24,7 +24,7 @@ describe('AssessmentReviewPanel', () => {
   it('recovers state with GET without automatically creating a review request', async () => {
     render(<AssessmentReviewPanel sessionId="ses_demo" />)
 
-    expect(await screen.findByRole('button', { name: '심사역 재확인 요청' })).toBeInTheDocument()
+    expect(await screen.findByRole('button', { name: '평가 결과 재확인 요청' })).toBeInTheDocument()
     expect(assessmentReviewProvider.get).toHaveBeenCalledWith('ses_demo', expect.any(AbortSignal))
     expect(assessmentReviewProvider.request).not.toHaveBeenCalled()
   })
@@ -32,10 +32,10 @@ describe('AssessmentReviewPanel', () => {
   it('submits an explicit request and displays the server-selected assessment target', async () => {
     render(<AssessmentReviewPanel sessionId="ses_demo" />)
 
-    fireEvent.click(await screen.findByRole('button', { name: '심사역 재확인 요청' }))
+    fireEvent.click(await screen.findByRole('button', { name: '평가 결과 재확인 요청' }))
 
     await waitFor(() => expect(assessmentReviewProvider.request).toHaveBeenCalledWith('ses_demo', expect.any(AbortSignal)))
-    expect(await screen.findByRole('heading', { name: '심사역 재확인 요청이 접수됐습니다' })).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { name: '평가 결과 재확인 요청이 접수됐습니다' })).toBeInTheDocument()
     expect(screen.getByText('보완평가')).toBeInTheDocument()
     expect(screen.getByText('sam_demo')).toBeInTheDocument()
     expect(screen.getByText('PENDING')).toBeInTheDocument()
@@ -48,7 +48,7 @@ describe('AssessmentReviewPanel', () => {
     })
     render(<AssessmentReviewPanel sessionId="ses_demo" />)
 
-    expect(await screen.findByRole('heading', { name: '심사역 재확인이 완료됐습니다' })).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { name: '처리 결과가 기록되었습니다' })).toBeInTheDocument()
     expect(screen.getByText('ADDITIONAL_INFORMATION_REQUIRED')).toBeInTheDocument()
   })
 
