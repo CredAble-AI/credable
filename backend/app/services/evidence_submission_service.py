@@ -64,6 +64,7 @@ class DemoEvidenceFileCatalog:
         self.catalog_path = catalog_path
         self._catalog: DemoEvidenceFileCatalogData | None = None
         self._files_by_evidence_type: dict[str, DemoEvidenceFileDefinition] = {}
+        self._scenario_files_by_evidence_type: dict[str, list[DemoEvidenceFileDefinition]] = {}
         self._files_by_id: dict[str, DemoEvidenceFileDefinition] = {}
 
     def get_for_evidence_type(self, evidence_type: str) -> DemoEvidenceFileDefinition | None:
@@ -73,6 +74,20 @@ class DemoEvidenceFileCatalog:
     def get_by_id(self, demo_file_id: str) -> DemoEvidenceFileDefinition | None:
         self._load()
         return self._files_by_id.get(demo_file_id)
+
+    def list_for_evidence_type(self, evidence_type: str) -> list[DemoEvidenceFileDefinition]:
+        self._load()
+        return list(self._scenario_files_by_evidence_type.get(evidence_type, []))
+
+    def get_by_asset_hash(
+        self,
+        evidence_type: str,
+        sha256: str,
+    ) -> DemoEvidenceFileDefinition | None:
+        return next(
+            (item for item in self.list_for_evidence_type(evidence_type) if item.sha256 == sha256),
+            None,
+        )
 
     def file_path(self, definition: DemoEvidenceFileDefinition) -> Path:
         catalog_root = self.catalog_path.parent.resolve()
@@ -103,9 +118,14 @@ class DemoEvidenceFileCatalog:
             self._catalog = DemoEvidenceFileCatalogData.model_validate_json(
                 self.catalog_path.read_text(encoding="utf-8")
             )
-            self._files_by_evidence_type = {
-                item.evidence_type: item for item in self._catalog.files
-            }
+            self._scenario_files_by_evidence_type = {}
+            self._files_by_evidence_type = {}
+            for item in self._catalog.files:
+                self._scenario_files_by_evidence_type.setdefault(item.evidence_type, []).append(
+                    item
+                )
+                if item.is_default:
+                    self._files_by_evidence_type[item.evidence_type] = item
             self._files_by_id = {item.demo_file_id: item for item in self._catalog.files}
         return self._catalog
 
@@ -176,19 +196,25 @@ class EvidenceSubmissionService:
                 reason_code = "EVIDENCE_SELECTION_CONSENT_REQUIRED"
 
         demo_file = None
+        demo_files: list[DemoEvidenceFileDescriptor] = []
         upload_policy = None
         if collection_mode == EvidenceCollectionMode.DEMO_FILE_UPLOAD and definition is not None:
-            demo_file = DemoEvidenceFileDescriptor(
-                demo_file_id=definition.demo_file_id,
-                display_name=definition.display_name,
-                description=definition.description,
-                file_name=definition.file_name,
-                content_type=definition.content_type,
-                size_bytes=definition.size_bytes,
-                download_url=(
-                    f"/v1/sessions/{session_id}/evidence/selections/"
-                    f"{selection_id}/demo-file/download"
-                ),
+            scenario_definitions = self.file_catalog.list_for_evidence_type(selected.evidence_type)
+            demo_files = [
+                self._file_descriptor(session_id, selection_id, item)
+                for item in scenario_definitions
+                if self.file_catalog.asset_matches_manifest(item)
+            ]
+            default_descriptor = next(
+                item for item in demo_files if item.demo_file_id == definition.demo_file_id
+            )
+            demo_file = default_descriptor.model_copy(
+                update={
+                    "download_url": (
+                        f"/v1/sessions/{session_id}/evidence/selections/"
+                        f"{selection_id}/demo-file/download"
+                    )
+                }
             )
             upload_policy = definition.upload_policy
 
@@ -203,16 +229,51 @@ class EvidenceSubmissionService:
                 consent_source_type=selected.source_type,
             ),
             demo_file=demo_file,
+            demo_files=demo_files,
             upload_policy=upload_policy,
+        )
+
+    def _file_descriptor(
+        self,
+        session_id: str,
+        selection_id: str,
+        definition: DemoEvidenceFileDefinition,
+    ) -> DemoEvidenceFileDescriptor:
+        return DemoEvidenceFileDescriptor(
+            demo_file_id=definition.demo_file_id,
+            display_name=definition.display_name,
+            description=definition.description,
+            file_name=definition.file_name,
+            content_type=definition.content_type,
+            size_bytes=definition.size_bytes,
+            download_url=(
+                f"/v1/sessions/{session_id}/evidence/selections/{selection_id}/"
+                f"demo-files/{definition.demo_file_id}/download"
+            ),
+            scenario_code=definition.scenario_code,
+            expected_quality_status=definition.expected_quality_status,
         )
 
     def get_demo_file(
         self,
         session_id: str,
         selection_id: str,
+        demo_file_id: str | None = None,
     ) -> tuple[Path, DemoEvidenceFileDefinition]:
         selection = self._require_current_selection(session_id, selection_id)
         definition = self._require_demo_file_definition(selection)
+        if demo_file_id is not None:
+            requested = self.file_catalog.get_by_id(demo_file_id)
+            if (
+                requested is None
+                or selection.selected_evidence is None
+                or requested.evidence_type != selection.selected_evidence.evidence_type
+            ):
+                raise ResourceNotFoundError(
+                    code="DEMO_EVIDENCE_FILE_NOT_FOUND",
+                    message="현재 Evidence 선택에 사용할 Demo 파일을 찾을 수 없습니다.",
+                )
+            definition = requested
         self._require_consent(session_id, selection_id)
         if not self.file_catalog.asset_matches_manifest(definition):
             raise ResourceConflictError(
@@ -247,6 +308,11 @@ class EvidenceSubmissionService:
             content=content,
         )
         uploaded_sha256 = hashlib.sha256(content).hexdigest()
+        matched_definition = self.file_catalog.get_by_asset_hash(
+            definition.evidence_type,
+            uploaded_sha256,
+        )
+        submitted_definition = matched_definition or definition
         existing = self.repository.get_by_selection_id(selection_id)
         if existing is not None:
             if (
@@ -260,8 +326,8 @@ class EvidenceSubmissionService:
                 message="같은 Evidence 선택에 다른 제출 자료가 이미 등록되어 있습니다.",
             )
         uploaded_file = UploadedEvidenceFile(
-            demo_file_id=definition.demo_file_id,
-            file_name=definition.file_name,
+            demo_file_id=submitted_definition.demo_file_id,
+            file_name=file_name or "",
             content_type=definition.content_type,
             size_bytes=len(content),
             sha256=uploaded_sha256,
@@ -271,6 +337,7 @@ class EvidenceSubmissionService:
             selection=selection,
             submission_mode=EvidenceSubmissionMode.DEMO_FILE_UPLOAD,
             definition=self.catalog.get(definition.evidence_type),
+            file_definition=submitted_definition,
             request_id=request_id,
             uploaded_file=uploaded_file,
             evidence_consent=consent,
@@ -308,6 +375,7 @@ class EvidenceSubmissionService:
             selection=selection,
             submission_mode=payload.submission_mode,
             definition=definition,
+            file_definition=None,
             request_id=request_id,
             uploaded_file=None,
             evidence_consent=None,
@@ -320,6 +388,7 @@ class EvidenceSubmissionService:
         selection: EvidenceSelectionState,
         submission_mode: EvidenceSubmissionMode,
         definition: DemoEvidenceSubmissionDefinition | None,
+        file_definition: DemoEvidenceFileDefinition | None,
         request_id: str,
         uploaded_file: UploadedEvidenceFile | None,
         evidence_consent: EvidenceConsentState | None,
@@ -331,13 +400,19 @@ class EvidenceSubmissionService:
             )
 
         submitted_at = datetime.now(UTC)
+        observed_at = (
+            file_definition.observed_at if file_definition is not None else definition.observed_at
+        )
+        data_version = (
+            file_definition.data_version if file_definition is not None else definition.data_version
+        )
         snapshot: dict[str, object] = {
             "selectionId": selection.selection_id,
             "evidenceType": selection.selected_evidence.evidence_type,
             "sourceType": selection.selected_evidence.source_type.value,
             "submissionMode": submission_mode.value,
-            "observedAt": definition.observed_at.isoformat(),
-            "dataVersion": definition.data_version,
+            "observedAt": observed_at.isoformat(),
+            "dataVersion": data_version,
         }
         if uploaded_file is not None:
             snapshot["uploadedFile"] = uploaded_file.model_dump(mode="json", by_alias=True)
@@ -362,9 +437,9 @@ class EvidenceSubmissionService:
             submission_mode=submission_mode,
             status=EvidenceSubmissionStatus.RECEIVED,
             submitted_at=submitted_at,
-            observed_at=definition.observed_at,
+            observed_at=observed_at,
             submission_snapshot_hash=snapshot_hash,
-            data_version=definition.data_version,
+            data_version=data_version,
             uploaded_file=uploaded_file,
             evidence_consent_id=(
                 evidence_consent.evidence_consent_id if evidence_consent is not None else None

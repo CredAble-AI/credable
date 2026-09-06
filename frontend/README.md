@@ -6,6 +6,8 @@ Copy `.env.example` to `.env` and set `VITE_API_MODE=live` to switch API provide
 
 During local development, Vite proxies `/v1` to `CREDABLE_BACKEND_ORIGIN`, which defaults to `http://127.0.0.1:8000`. Start the backend on that origin before starting the frontend. A deployed frontend still requires its web server or gateway to route the same-origin `/v1` path to the backend.
 
+In live mode, the Evidence submission screen renders the backend-provided `demoFiles` list. It lets a reviewer download and re-upload normal, point-in-time mismatch, required-field-missing, and hash-mismatch synthetic PDFs. The labels show the expected demo path, while the actual quality status always comes from the backend response. Older backends that only return `demoFile` remain supported.
+
 Currently, two official plugins are available:
 
 - [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)

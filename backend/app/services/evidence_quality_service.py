@@ -250,7 +250,7 @@ class EvidenceQualityService:
             and asset_valid
             and uploaded is not None
             and definition is not None
-            and uploaded.sha256 == definition.sha256
+            and uploaded.sha256 == (definition.trusted_sha256 or definition.sha256)
         )
         manifest = definition.manifest if definition is not None else None
         manifest_data = (

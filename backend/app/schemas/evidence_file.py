@@ -34,6 +34,8 @@ class DemoEvidenceFileDescriptor(ApiModel):
     content_type: Literal["application/pdf"] = "application/pdf"
     size_bytes: int = Field(gt=0)
     download_url: str = Field(min_length=1)
+    scenario_code: str = Field(min_length=1)
+    expected_quality_status: Literal["ACCEPTED", "REJECTED", "REVIEW_REQUIRED"]
 
 
 class EvidenceUploadPolicy(ApiModel):
@@ -49,6 +51,7 @@ class EvidenceSubmissionOptionResponse(ApiModel):
     collection_mode: EvidenceCollectionMode
     submission_requirement: EvidenceSubmissionRequirement
     demo_file: DemoEvidenceFileDescriptor | None = None
+    demo_files: list[DemoEvidenceFileDescriptor] = Field(default_factory=list)
     upload_policy: EvidenceUploadPolicy | None = None
     demo_only: Literal[True] = True
 
@@ -57,6 +60,8 @@ class EvidenceSubmissionOptionResponse(ApiModel):
         is_file_upload = self.collection_mode == EvidenceCollectionMode.DEMO_FILE_UPLOAD
         if is_file_upload != (self.demo_file is not None and self.upload_policy is not None):
             raise ValueError("DEMO_FILE_UPLOAD requires demoFile and uploadPolicy")
+        if is_file_upload and not self.demo_files:
+            raise ValueError("DEMO_FILE_UPLOAD requires at least one demoFiles item")
         return self
 
 
@@ -103,6 +108,10 @@ class DemoEvidenceFileDefinition(ApiModel):
     relative_path: str = Field(min_length=1)
     size_bytes: int = Field(gt=0)
     sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
+    trusted_sha256: str | None = Field(default=None, pattern=r"^[0-9a-f]{64}$")
+    scenario_code: str = Field(min_length=1)
+    expected_quality_status: Literal["ACCEPTED", "REJECTED", "REVIEW_REQUIRED"]
+    is_default: bool = False
     observed_at: datetime
     quality_reference_at: datetime
     data_version: str = Field(min_length=1)
@@ -117,6 +126,8 @@ class DemoEvidenceFileDefinition(ApiModel):
             raise ValueError("Demo file timestamps must include a timezone")
         if len(self.required_manifest_fields) != len(set(self.required_manifest_fields)):
             raise ValueError("requiredManifestFields values must be unique")
+        if self.is_default and self.expected_quality_status != "ACCEPTED":
+            raise ValueError("The default Demo file must be an ACCEPTED scenario")
         return self
 
 
@@ -128,12 +139,18 @@ class DemoEvidenceFileCatalogData(ApiModel):
     @model_validator(mode="after")
     def validate_unique_files(self) -> "DemoEvidenceFileCatalogData":
         file_ids = [item.demo_file_id for item in self.files]
-        evidence_types = [item.evidence_type for item in self.files]
         hashes = [item.sha256 for item in self.files]
         if len(file_ids) != len(set(file_ids)):
             raise ValueError("demoFileId values must be unique")
-        if len(evidence_types) != len(set(evidence_types)):
-            raise ValueError("Demo file evidenceType values must be unique")
         if len(hashes) != len(set(hashes)):
             raise ValueError("Demo file sha256 values must be unique")
+        evidence_types = {item.evidence_type for item in self.files}
+        for evidence_type in evidence_types:
+            defaults = [
+                item
+                for item in self.files
+                if item.evidence_type == evidence_type and item.is_default
+            ]
+            if len(defaults) != 1:
+                raise ValueError("Each Demo file evidenceType requires exactly one default file")
         return self

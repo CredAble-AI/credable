@@ -64,6 +64,10 @@ def demo_pdf_path() -> Path:
     return settings.demo_evidence_files_path.parent / "demo_files/recent_revenue_summary_v1.pdf"
 
 
+def demo_scenario_pdf_path(file_name: str) -> Path:
+    return settings.demo_evidence_files_path.parent / "demo_files" / file_name
+
+
 def upload(
     client: TestClient,
     session_id: str,
@@ -110,6 +114,18 @@ def test_submission_option_reflects_current_consent_and_server_file(
     assert option["demoFile"]["contentType"] == "application/pdf"
     assert option["demoFile"]["sizeBytes"] == demo_pdf_path().stat().st_size
     assert option["demoFile"]["downloadUrl"].endswith("/demo-file/download")
+    assert [item["scenarioCode"] for item in option["demoFiles"]] == [
+        "VALID_ORIGINAL",
+        "POINT_IN_TIME_INVALID",
+        "REQUIRED_FIELD_MISSING",
+        "HASH_MISMATCH",
+    ]
+    assert [item["expectedQualityStatus"] for item in option["demoFiles"]] == [
+        "ACCEPTED",
+        "REJECTED",
+        "REJECTED",
+        "REVIEW_REQUIRED",
+    ]
     assert option["uploadPolicy"] == {
         "allowedContentTypes": ["application/pdf"],
         "allowedExtensions": [".pdf"],
@@ -120,6 +136,85 @@ def test_submission_option_reflects_current_consent_and_server_file(
     ready = client.get(endpoint).json()["submissionRequirement"]
     assert ready["status"] == "READY"
     assert ready["reasonCode"] is None
+
+
+def test_each_demo_scenario_file_can_be_downloaded_after_consent(
+    client: TestClient,
+    data_source_service: DataSourceService,
+    assessment_service: AssessmentService,
+) -> None:
+    session_id = create_session(client)
+    selection = prepare_selection(client, session_id, data_source_service, assessment_service)
+    selection_id = selection["selectionId"]
+    grant_evidence_consent(client, session_id, selection_id)
+    option = client.get(
+        f"/v1/sessions/{session_id}/evidence/selections/{selection_id}/submission-option"
+    ).json()
+
+    for descriptor in option["demoFiles"]:
+        response = client.get(descriptor["downloadUrl"])
+        assert response.status_code == 200
+        assert response.headers["content-type"] == "application/pdf"
+        assert response.content.startswith(b"%PDF-")
+
+
+@pytest.mark.parametrize(
+    ("asset_name", "upload_name", "expected_status", "failed_dimensions"),
+    [
+        (
+            "recent_revenue_summary_point_in_time_invalid_v1.pdf",
+            "최근_매출_입금_요약서_기준시점불일치_DEMO.pdf",
+            "REJECTED",
+            {"FRESHNESS"},
+        ),
+        (
+            "recent_revenue_summary_incomplete_v1.pdf",
+            "최근_매출_입금_요약서_필수항목누락_DEMO.pdf",
+            "REJECTED",
+            {"COMPLETENESS"},
+        ),
+        (
+            "recent_revenue_summary_tampered_v1.pdf",
+            "최근_매출_입금_요약서_변조의심_DEMO.pdf",
+            "REVIEW_REQUIRED",
+            {"AUTHENTICITY", "MANIPULATION_RISK"},
+        ),
+    ],
+)
+def test_demo_scenario_binary_drives_quality_result(
+    client: TestClient,
+    data_source_service: DataSourceService,
+    assessment_service: AssessmentService,
+    asset_name: str,
+    upload_name: str,
+    expected_status: str,
+    failed_dimensions: set[str],
+) -> None:
+    session_id = create_session(client)
+    selection = prepare_selection(client, session_id, data_source_service, assessment_service)
+    selection_id = selection["selectionId"]
+    grant_evidence_consent(client, session_id, selection_id)
+    submission_response = upload(
+        client,
+        session_id,
+        selection_id,
+        demo_scenario_pdf_path(asset_name).read_bytes(),
+        file_name=upload_name,
+    )
+    assert submission_response.status_code == 200
+    submission = submission_response.json()["submission"]
+
+    response = client.post(
+        f"/v1/sessions/{session_id}/evidence/submissions/{submission['submissionId']}/quality"
+    )
+
+    assert response.status_code == 200
+    quality = response.json()["quality"]
+    assert quality["status"] == expected_status
+    assert {
+        item["dimension"] for item in quality["checks"] if item["status"] == "FAILED"
+    } == failed_dimensions
+    assert quality["eligibleForReassessment"] is False
 
 
 def test_other_session_cannot_access_selection_file_contract(

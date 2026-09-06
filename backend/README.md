@@ -413,7 +413,11 @@ curl -X POST \
 
 제출 옵션 API는 현재 선택에 귀속된 Evidence 동의를 매번 다시 확인해 `READY`,
 `CONSENT_REQUIRED`, `UNAVAILABLE` 중 하나를 반환하고 Demo 파일 메타데이터와 허용 형식·최대
-5MB 정책을 함께 제공합니다. Evidence 동의 API는 서버가 선택한 한 건의 자료에 대해서만
+5MB 정책을 함께 제공합니다. 기존 단일 `demoFile`은 정상 자료로 유지하고, `demoFiles`에는
+정상·기준시점 불일치·필수항목 누락·해시 불일치의 네 시연 자료를 제공합니다. 각 자료는
+`scenarioCode`, `expectedQualityStatus`와 개별 다운로드 URL을 가지며, 예상 상태는 화면 안내용일
+뿐 실제 품질 결과는 업로드된 binary와 서버 manifest를 다시 검증해 계산합니다. 개별 파일은
+`/demo-files/{demoFileId}/download`에서 받습니다. Evidence 동의 API는 서버가 선택한 한 건의 자료에 대해서만
 이용 목적, 데이터 항목, 기간과 범위 버전을 제공합니다. 기존 출처 단위 동의와 별도로
 관리되므로 `CUSTOMER_SUBMITTED` 출처 동의만으로 파일 다운로드·업로드가 허용되지 않습니다.
 
@@ -465,6 +469,10 @@ Snapshot 중 하나라도 일치하지 않으면 재평가 입력 자격을 주�
 `submissionId`를 다시 검증하면 저장된 결과를 반환해 중복 판정과 중복 Audit을 만들지 않습니다.
 이번 binary 검증은 서버가 직접 발급한 합성 Demo PDF에 대한 실제 검증이며 임의의 실물
 금융문서 진위 판별, 운영 수준 OCR 또는 악성파일 검사를 의미하지 않습니다.
+
+시나리오 PDF는 `python3 backend/scripts/generate_demo_evidence_scenarios.py`로 동일하게 다시
+생성할 수 있습니다. 생성 후에는 `demo_evidence_files.json`의 크기와 SHA-256이 결과물과
+일치하는지 확인해야 하며, 불일치하면 서버 readiness가 실패합니다.
 
 실제 운영 규칙은 은행이 인정하는 발급처, 유효기간, 필수 필드, 교차검증 원천과 조작 탐지
 방식이 확정된 뒤 Adapter로 교체해야 합니다. 품질 검증을 통과하지 못한 Evidence는 다음

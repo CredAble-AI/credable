@@ -17,6 +17,8 @@ export interface DemoEvidenceFileDescriptor {
   contentType: 'application/pdf'
   sizeBytes: number
   downloadUrl: string
+  scenarioCode?: string
+  expectedQualityStatus?: 'ACCEPTED' | 'REJECTED' | 'REVIEW_REQUIRED'
 }
 
 export interface EvidenceUploadPolicy {
@@ -32,6 +34,7 @@ export interface EvidenceSubmissionOption {
   collectionMode: EvidenceCollectionMode
   submissionRequirement: EvidenceSubmissionRequirement
   demoFile: DemoEvidenceFileDescriptor | null
+  demoFiles?: DemoEvidenceFileDescriptor[]
   uploadPolicy: EvidenceUploadPolicy | null
   demoOnly: true
 }

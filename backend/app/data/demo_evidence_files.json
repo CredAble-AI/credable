@@ -13,6 +13,9 @@
       "relativePath": "demo_files/recent_revenue_summary_v1.pdf",
       "sizeBytes": 40771,
       "sha256": "dcb17cca7569a46073f3b23e1e5eb0a0fbc0e7707995be056b557cb81bf6128d",
+      "scenarioCode": "VALID_ORIGINAL",
+      "expectedQualityStatus": "ACCEPTED",
+      "isDefault": true,
       "observedAt": "2026-08-31T00:00:00Z",
       "qualityReferenceAt": "2026-09-06T00:00:00Z",
       "dataVersion": "demo-recent-revenue-summary-v1",
@@ -51,6 +54,109 @@
         "allowedExtensions": [".pdf"],
         "maxSizeBytes": 5242880
       }
+    },
+    {
+      "demoFileId": "demo_recent_revenue_point_in_time_invalid_v1",
+      "evidenceType": "CUSTOMER_SUBMITTED_RECENT_REVENUE_SUMMARY",
+      "sourceType": "CUSTOMER_SUBMITTED",
+      "collectionMode": "DEMO_FILE_UPLOAD",
+      "displayName": "기준시점 이후 자료",
+      "description": "정책 기준시점보다 늦게 생성되어 최신성 검증에서 제외되는 합성 Demo PDF",
+      "fileName": "최근_매출_입금_요약서_기준시점불일치_DEMO.pdf",
+      "contentType": "application/pdf",
+      "relativePath": "demo_files/recent_revenue_summary_point_in_time_invalid_v1.pdf",
+      "sizeBytes": 1018,
+      "sha256": "d0e294d4fdf1bffe489025d05157ebcddb44a5aa4b026aca162678057e4b5fd6",
+      "scenarioCode": "POINT_IN_TIME_INVALID",
+      "expectedQualityStatus": "REJECTED",
+      "isDefault": false,
+      "observedAt": "2026-09-05T00:00:00Z",
+      "qualityReferenceAt": "2026-08-31T00:00:00Z",
+      "dataVersion": "demo-recent-revenue-point-in-time-invalid-v1",
+      "qualityPolicyVersion": "demo-binary-evidence-quality-policy-v1",
+      "requiredManifestFields": ["businessName", "periodStart", "periodEnd", "generatedOn", "demoNotice", "monthlySummaries", "totals"],
+      "manifest": {
+        "businessName": "도담상점(합성)",
+        "periodStart": "2026-04-01",
+        "periodEnd": "2026-09-05",
+        "generatedOn": "2026-09-05",
+        "demoNotice": "합성 Demo 자료 · 실제 제출용 아님",
+        "monthlySummaries": [
+          {"month": "2026-04", "salesAmount": 45000000, "depositAmount": 44000000, "differenceAmount": 1000000},
+          {"month": "2026-05", "salesAmount": 47500000, "depositAmount": 46800000, "differenceAmount": 700000}
+        ],
+        "totals": {"salesAmount": 92500000, "depositAmount": 90800000, "differenceAmount": 1700000}
+      },
+      "uploadPolicy": {"allowedContentTypes": ["application/pdf"], "allowedExtensions": [".pdf"], "maxSizeBytes": 5242880}
+    },
+    {
+      "demoFileId": "demo_recent_revenue_incomplete_v1",
+      "evidenceType": "CUSTOMER_SUBMITTED_RECENT_REVENUE_SUMMARY",
+      "sourceType": "CUSTOMER_SUBMITTED",
+      "collectionMode": "DEMO_FILE_UPLOAD",
+      "displayName": "필수항목 누락 자료",
+      "description": "필수 고지 항목이 누락되어 완전성 검증에서 제외되는 합성 Demo PDF",
+      "fileName": "최근_매출_입금_요약서_필수항목누락_DEMO.pdf",
+      "contentType": "application/pdf",
+      "relativePath": "demo_files/recent_revenue_summary_incomplete_v1.pdf",
+      "sizeBytes": 971,
+      "sha256": "0e5850867886251cf42e61cd4468aa974e4b6da9c6726a2b843e4fd9010c42f5",
+      "scenarioCode": "REQUIRED_FIELD_MISSING",
+      "expectedQualityStatus": "REJECTED",
+      "isDefault": false,
+      "observedAt": "2026-08-31T00:00:00Z",
+      "qualityReferenceAt": "2026-09-06T00:00:00Z",
+      "dataVersion": "demo-recent-revenue-incomplete-v1",
+      "qualityPolicyVersion": "demo-binary-evidence-quality-policy-v1",
+      "requiredManifestFields": ["businessName", "periodStart", "periodEnd", "generatedOn", "demoNotice", "monthlySummaries", "totals"],
+      "manifest": {
+        "businessName": "도담상점(합성)",
+        "periodStart": "2026-03-01",
+        "periodEnd": "2026-08-31",
+        "generatedOn": "2026-09-06",
+        "demoNotice": null,
+        "monthlySummaries": [
+          {"month": "2026-07", "salesAmount": 51000000, "depositAmount": 50400000, "differenceAmount": 600000},
+          {"month": "2026-08", "salesAmount": 53000000, "depositAmount": 52500000, "differenceAmount": 500000}
+        ],
+        "totals": {"salesAmount": 104000000, "depositAmount": 102900000, "differenceAmount": 1100000}
+      },
+      "uploadPolicy": {"allowedContentTypes": ["application/pdf"], "allowedExtensions": [".pdf"], "maxSizeBytes": 5242880}
+    },
+    {
+      "demoFileId": "demo_recent_revenue_tampered_v1",
+      "evidenceType": "CUSTOMER_SUBMITTED_RECENT_REVENUE_SUMMARY",
+      "sourceType": "CUSTOMER_SUBMITTED",
+      "collectionMode": "DEMO_FILE_UPLOAD",
+      "displayName": "변조 의심 자료",
+      "description": "서버의 신뢰 해시와 달라 자동평가를 중단하고 심사역 확인으로 보내는 합성 Demo PDF",
+      "fileName": "최근_매출_입금_요약서_변조의심_DEMO.pdf",
+      "contentType": "application/pdf",
+      "relativePath": "demo_files/recent_revenue_summary_tampered_v1.pdf",
+      "sizeBytes": 992,
+      "sha256": "0652d34c3a9ee6feace898ef62f2567387eab88ff414be9ab93cfbda2de7560a",
+      "trustedSha256": "dcb17cca7569a46073f3b23e1e5eb0a0fbc0e7707995be056b557cb81bf6128d",
+      "scenarioCode": "HASH_MISMATCH",
+      "expectedQualityStatus": "REVIEW_REQUIRED",
+      "isDefault": false,
+      "observedAt": "2026-08-31T00:00:00Z",
+      "qualityReferenceAt": "2026-09-06T00:00:00Z",
+      "dataVersion": "demo-recent-revenue-tampered-v1",
+      "qualityPolicyVersion": "demo-binary-evidence-quality-policy-v1",
+      "requiredManifestFields": ["businessName", "periodStart", "periodEnd", "generatedOn", "demoNotice", "monthlySummaries", "totals"],
+      "manifest": {
+        "businessName": "도담상점(합성)",
+        "periodStart": "2026-03-01",
+        "periodEnd": "2026-08-31",
+        "generatedOn": "2026-09-06",
+        "demoNotice": "합성 Demo 자료 · 실제 제출용 아님",
+        "monthlySummaries": [
+          {"month": "2026-07", "salesAmount": 51000000, "depositAmount": 50400000, "differenceAmount": 600000},
+          {"month": "2026-08", "salesAmount": 53000000, "depositAmount": 52500000, "differenceAmount": 500000}
+        ],
+        "totals": {"salesAmount": 104000000, "depositAmount": 102900000, "differenceAmount": 1100000}
+      },
+      "uploadPolicy": {"allowedContentTypes": ["application/pdf"], "allowedExtensions": [".pdf"], "maxSizeBytes": 5242880}
     }
   ],
   "demoOnly": true
