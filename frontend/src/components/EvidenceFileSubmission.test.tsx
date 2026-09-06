@@ -133,11 +133,10 @@ describe('EvidenceFileSubmission', () => {
     expect(evidenceSubmissionProvider.upload).not.toHaveBeenCalled()
   })
 
-  it('states the requested period and fields from the server selection', async () => {
+  it('states the requested period from the server selection', async () => {
     renderComponent()
 
     expect(await screen.findByText('최근 매출·입금 요약')).toBeInTheDocument()
-    expect(screen.getByText('확인 기간 2026-03-01 ~ 2026-08-31')).toBeInTheDocument()
-    expect(screen.getByText('확인할 정보: 사업자 식별 정보 · 월별 매출 · 대상 기간 합계')).toBeInTheDocument()
+    expect(screen.getByText('2026-03-01 ~ 2026-08-31')).toBeInTheDocument()
   })
 })

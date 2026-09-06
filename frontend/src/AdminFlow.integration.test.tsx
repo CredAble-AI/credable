@@ -26,7 +26,7 @@ describe('administrator journey integration', () => {
     fireEvent.change(screen.getByLabelText('판단 사유'), { target: { value: '서버 기록과 일치해 기존 평가를 유지합니다.' } })
     fireEvent.click(screen.getByRole('button', { name: '선택한 결과로 확정' }))
 
-    expect(await screen.findByText(/이 건은/)).toHaveTextContent('평가 확인')
+    expect(await screen.findByText(/이 건의 처리 결과/)).toHaveTextContent('평가 확인')
     expect(screen.queryByRole('button', { name: '선택한 결과로 확정' })).not.toBeInTheDocument()
     fireEvent.click(screen.getByRole('link', { name: '전체 처리 이력' }))
 

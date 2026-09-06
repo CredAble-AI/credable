@@ -75,6 +75,14 @@ function AssessmentExplanationPanel({ sessionId, readOnly = false }: AssessmentE
 
   if (phase !== 'idle' && !explanation) return <section className="assessment-explanation assessment-explanation--loading" aria-label="평가 결과 안내 준비 중"><span /><span /><p>확정된 결과와 다음 단계를 알기 쉽게 정리하고 있습니다.</p></section>
 
+  // A read-only viewer never generates, so "not generated yet" is the normal
+  // state there rather than a failure.
+  if (!explanation && readOnly && !error) return <section className="assessment-explanation" aria-labelledby="assessment-explanation-title">
+    <div className="assessment-explanation__heading"><div><span>평가 결과 안내</span><h3 id="assessment-explanation-title">아직 생성된 설명이 없습니다</h3></div><strong>생성 전</strong></div>
+    <p>고객이 결과 화면에서 설명을 확인하면 같은 내용이 여기에 표시됩니다. 이 화면에서는 설명을 새로 만들지 않습니다.</p>
+    <button className="button button--secondary" type="button" disabled={phase !== 'idle'} onClick={() => void send('load')}>{phase === 'loading' ? '설명 상태 확인 중…' : '설명 상태 다시 확인'}</button>
+  </section>
+
   if (!explanation) return <section className="assessment-explanation" aria-labelledby="assessment-explanation-title">
     <div className="assessment-explanation__heading"><div><span>평가 결과 안내</span><h3 id="assessment-explanation-title">결과 안내를 준비하지 못했습니다</h3></div><strong>재시도 필요</strong></div>
     <p>평가 결과는 변경되지 않았습니다. 결과와 다음 단계 설명만 다시 준비합니다.</p>

@@ -54,7 +54,7 @@ describe('AdminReviewDetailPage', () => {
     fireEvent.click(screen.getByRole('button', { name: '선택한 결과로 확정' }))
 
     await waitFor(() => expect(adminReviewProvider.complete).toHaveBeenCalledWith('uwr_assessment', 'ASSESSMENT_CONFIRMED', decisionNote, expect.any(AbortSignal)))
-    expect(await screen.findByText(/이 건은/)).toHaveTextContent('평가 확인')
+    expect(await screen.findByText(/이 건의 처리 결과/)).toHaveTextContent('평가 확인')
     expect(screen.getByText(decisionNote)).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: '선택한 결과로 확정' })).not.toBeInTheDocument()
   })
