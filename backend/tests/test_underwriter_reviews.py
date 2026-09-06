@@ -237,7 +237,7 @@ def test_terminal_evidence_selection_is_exposed_in_underwriter_queue(
     assert review["triggerId"] == selection["selectionId"]
     assert review["reasonCodes"] == ["NO_NOVEL_EVIDENCE"]
     assert review["dataVersion"] == assessment["inputSnapshotId"]
-    assert review["policyVersion"] == "demo-novel-evidence-selection-v3"
+    assert review["policyVersion"] == "demo-novel-evidence-selection-v4"
 
 
 def test_human_review_resolution_is_exposed_in_underwriter_queue(

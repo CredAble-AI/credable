@@ -101,6 +101,7 @@ class EvidenceSelectionState(ApiModel):
     resolution_id: str | None = Field(default=None, min_length=1)
     rejected_quality_check_id: str | None = Field(default=None, min_length=1)
     iteration: int = Field(ge=1)
+    max_evidence_requests: int = Field(ge=1)
     status: EvidenceSelectionStatus
     selected_evidence: SelectedEvidenceCandidate | None = None
     evaluated_candidate_count: int = Field(ge=0)
@@ -115,6 +116,26 @@ class EvidenceSelectionState(ApiModel):
     baseline_feature_snapshot_id: str | None = Field(default=None, min_length=1)
     baseline_information_coverage_codes: list[str] = Field(default_factory=list)
     demo_only: Literal[True] = True
+
+    @model_validator(mode="before")
+    @classmethod
+    def add_backward_compatible_request_limit(cls, data: object) -> object:
+        """Keep selections stored before the request limit existed readable.
+
+        Legacy rows never recorded the policy limit, so fall back to the
+        iteration they reached: it is the only value that is certainly true of
+        the policy that produced them.
+        """
+        if not isinstance(data, dict):
+            return data
+        if "maxEvidenceRequests" in data or "max_evidence_requests" in data:
+            return data
+        values = dict(data)
+        use_aliases = "selectionId" in values
+        iteration = values.get("iteration" if use_aliases else "iteration")
+        if isinstance(iteration, int) and iteration >= 1:
+            values["maxEvidenceRequests" if use_aliases else "max_evidence_requests"] = iteration
+        return values
 
     @model_validator(mode="after")
     def validate_state(self) -> "EvidenceSelectionState":
@@ -169,6 +190,7 @@ class BaselineInformationCoverageRule(ApiModel):
 class DemoEvidenceCandidateCatalogData(ApiModel):
     data_version: str = Field(min_length=1)
     selection_policy_version: str = Field(min_length=1)
+    max_evidence_requests: int = Field(ge=1)
     baseline_information_coverage_rules: list[BaselineInformationCoverageRule] = Field(
         default_factory=list
     )

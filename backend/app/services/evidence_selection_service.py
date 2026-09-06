@@ -45,6 +45,10 @@ class DemoEvidenceCandidateCatalog:
     def selection_policy_version(self) -> str:
         return self._load().selection_policy_version
 
+    @property
+    def max_evidence_requests(self) -> int:
+        return self._load().max_evidence_requests
+
     def candidates_for(
         self,
         boundary_codes: list[str],
@@ -254,6 +258,7 @@ class EvidenceSelectionService:
         output_summary: dict[str, str | bool | int | float] = {
             "selectionStatus": state.status.value,
             "iteration": state.iteration,
+            "maxEvidenceRequests": state.max_evidence_requests,
             "evaluatedCandidateCount": state.evaluated_candidate_count,
             "underwriterRequired": state.underwriter_required,
             "calibrationVersion": state.calibration_version,
@@ -336,6 +341,7 @@ class EvidenceSelectionService:
             "resolution_id": resolution_id,
             "rejected_quality_check_id": rejected_quality_check_id,
             "iteration": iteration,
+            "max_evidence_requests": self.catalog.max_evidence_requests,
             "selected_at": selected_at,
             "calibration_version": calibration_version,
             "boundary_policy_version": boundary_policy_version,
@@ -375,7 +381,6 @@ class EvidenceSelectionService:
                 ),
                 None,
             )
-
         if source_assessment is None:
             return (
                 EvidenceSelectionState(
@@ -454,6 +459,17 @@ class EvidenceSelectionService:
                     status=EvidenceSelectionStatus.HUMAN_REVIEW,
                     evaluated_candidate_count=len(candidates),
                     stop_reason=stop_reason,
+                    underwriter_required=True,
+                ),
+                None,
+            )
+        if iteration > self.catalog.max_evidence_requests:
+            return (
+                EvidenceSelectionState(
+                    **common,
+                    status=EvidenceSelectionStatus.HUMAN_REVIEW,
+                    evaluated_candidate_count=len(candidates),
+                    stop_reason="EVIDENCE_REQUEST_LIMIT_REACHED",
                     underwriter_required=True,
                 ),
                 None,

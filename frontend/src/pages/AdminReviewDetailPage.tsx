@@ -85,7 +85,7 @@ function BoundaryContext({ context }: { context: AdminReviewCaseContext }) {
 function SelectionContext({ context }: { context: AdminReviewCaseContext }) {
   const selection = context.selection
   if (!selection || context.quality) return null
-  return <article className="admin-case-card"><header><span>최소 증빙 선택</span><h3>{selectionStatusLabels[selection.status]}</h3></header><dl className="admin-case-facts"><Fact label="검토한 후보">{selection.evaluatedCandidateCount}건</Fact><Fact label="확인할 정보 공백">{selection.informationGapCodes?.length ?? 0}개</Fact><Fact label="요청 차수">{selection.iteration}차</Fact></dl>{selection.selectedEvidence && <p className="admin-case-note">선택 자료: {selection.selectedEvidence.displayName}</p>}</article>
+  return <article className="admin-case-card"><header><span>최소 증빙 선택</span><h3>{selectionStatusLabels[selection.status]}</h3></header><dl className="admin-case-facts"><Fact label="검토한 후보">{selection.evaluatedCandidateCount}건</Fact><Fact label="확인할 정보 공백">{selection.informationGapCodes?.length ?? 0}개</Fact><Fact label="요청 차수">{selection.iteration}차 · 요청 한도 {selection.maxEvidenceRequests}건</Fact></dl>{selection.selectedEvidence && <p className="admin-case-note">선택 자료: {selection.selectedEvidence.displayName}</p>}</article>
 }
 
 function EvidenceContext({ review, context }: { review: AdminReviewQueueItem; context: AdminReviewCaseContext }) {
