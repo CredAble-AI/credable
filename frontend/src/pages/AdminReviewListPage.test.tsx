@@ -18,7 +18,7 @@ const queue: AdminReviewQueueResponse = {
 const renderPage = () => render(<MemoryRouter><AdminAuthProvider><AdminReviewListPage /></AdminAuthProvider></MemoryRouter>)
 const enterKey = () => {
   fireEvent.change(screen.getByLabelText('관리자 Demo API Key'), { target: { value: 'demo-secret' } })
-  fireEvent.click(screen.getByRole('button', { name: '검토 목록 확인' }))
+  fireEvent.click(screen.getByRole('button', { name: '관리자 화면 확인' }))
 }
 
 describe('AdminReviewListPage', () => {
@@ -40,6 +40,7 @@ describe('AdminReviewListPage', () => {
     expect(await screen.findByRole('heading', { name: 'uwr_assessment' })).toBeInTheDocument()
     expect(screen.getByText('보완평가')).toBeInTheDocument()
     expect(screen.getByText('RECENT_REVENUE_SUMMARY')).toBeInTheDocument()
+    expect(screen.getAllByRole('link', { name: '상세 확인' })[0]).toHaveAttribute('href', '/admin/reviews/uwr_assessment')
     expect(screen.queryByText('demo-secret')).not.toBeInTheDocument()
   })
 
@@ -79,7 +80,7 @@ describe('AdminReviewListPage', () => {
   it('rejects a blank key before calling the provider', () => {
     renderPage()
     fireEvent.change(screen.getByLabelText('관리자 Demo API Key'), { target: { value: '   ' } })
-    fireEvent.click(screen.getByRole('button', { name: '검토 목록 확인' }))
+    fireEvent.click(screen.getByRole('button', { name: '관리자 화면 확인' }))
 
     expect(screen.getByRole('alert')).toHaveTextContent('관리자 Demo API Key를 입력해주세요.')
     expect(adminReviewProvider.list).not.toHaveBeenCalled()
