@@ -1,105 +1,205 @@
 {
- "dataVersion": "demo-evidence-candidates-v5",
- "selectionPolicyVersion": "demo-novel-evidence-selection-v4",
- "maxEvidenceRequests": 2,
- "baselineInformationCoverageRules": [
-  {
-   "informationContentCode": "BANK_CASH_FLOW_TOTALS",
-   "requiredFeatureCodes": [
-    "BANK_SNAPSHOT_CREDIT_AMOUNT",
-    "BANK_SNAPSHOT_DEBIT_AMOUNT"
-   ]
-  }
- ],
- "candidates": [
-  {
-   "evidenceType": "CUSTOMER_SUBMITTED_RECENT_REVENUE_SUMMARY",
-   "displayName": "최근 매출·입금 요약",
-   "description": "최근 매출 발생과 실제 입금 흐름을 확인할 수 있는 고객 제출 자료",
-   "sourceType": "CUSTOMER_SUBMITTED",
-   "collectionMode": "DEMO_FILE_UPLOAD",
-   "boundaryCodes": [
-    "DEMO_BOUNDARY_1_2"
-   ],
-   "applicableInformationGapCodes": [
-    "DEMO_INFORMATION_GAP",
-    "DEMO_RECENT_PERFORMANCE_NOT_REFLECTED",
-    "DEMO_FINANCIAL_HISTORY_THIN"
-   ],
-   "informationContentCodes": [
-    "RECENT_REVENUE_SERIES",
-    "DEPOSIT_TO_REVENUE_RECONCILIATION",
-    "BANK_CASH_FLOW_TOTALS"
-   ],
-   "boundaryResolutionValue": 0.9,
-   "qualityReliability": 0.9,
-   "customerEffort": 0.15,
-   "privacySensitivity": 0.08,
-   "acquisitionDelay": 0.05,
-   "acquisitionCost": 0.03,
-   "rationaleCodes": [
-    "DEMO_RESOLVE_BOUNDARY_1_2",
-    "DEMO_MINIMUM_SINGLE_REQUEST"
-   ],
-   "consentScope": {
-    "scopeVersion": "demo-recent-revenue-consent-v1",
-    "purposeCode": "SUPPLEMENTAL_CREDIT_ASSESSMENT",
-    "purposeDescription": "기존 평가의 불확실성을 확인하기 위한 보완평가에 사용",
-    "dataCategories": [
-     "BUSINESS_IDENTITY",
-     "MONTHLY_SALES",
-     "MONTHLY_DEPOSITS",
-     "PERIOD_TOTALS"
-    ],
-    "periodStart": "2026-03-01",
-    "periodEnd": "2026-08-31",
-    "required": true
-   }
-  },
-  {
-   "evidenceType": "EXTERNAL_CONNECTED_SETTLEMENT_SUMMARY",
-   "displayName": "외부 정산 입금 요약",
-   "description": "고객 동의로 연결 가능한 외부 정산과 실제 입금 흐름의 요약",
-   "sourceType": "EXTERNAL_CONNECTED",
-   "collectionMode": "DEMO_CONNECTION",
-   "boundaryCodes": [
-    "DEMO_BOUNDARY_1_2"
-   ],
-   "applicableInformationGapCodes": [
-    "DEMO_INFORMATION_GAP",
-    "DEMO_RECENT_PERFORMANCE_NOT_REFLECTED",
-    "DEMO_FINANCIAL_HISTORY_THIN"
-   ],
-   "informationContentCodes": [
-    "RECENT_SETTLEMENT_SERIES",
-    "SETTLEMENT_TO_DEPOSIT_RECONCILIATION",
-    "BANK_CASH_FLOW_TOTALS"
-   ],
-   "boundaryResolutionValue": 0.85,
-   "qualityReliability": 0.85,
-   "customerEffort": 0.18,
-   "privacySensitivity": 0.1,
-   "acquisitionDelay": 0.12,
-   "acquisitionCost": 0.08,
-   "rationaleCodes": [
-    "DEMO_RESOLVE_BOUNDARY_1_2",
-    "DEMO_CROSS_CHECK_SETTLEMENT"
-   ],
-   "consentScope": {
-    "scopeVersion": "demo-settlement-connection-consent-v1",
-    "purposeCode": "SUPPLEMENTAL_CREDIT_ASSESSMENT",
-    "purposeDescription": "기존 평가의 불확실성을 확인하기 위한 외부 정산정보 교차검증에 사용",
-    "dataCategories": [
-     "SETTLEMENT_PROVIDER_IDENTITY",
-     "MONTHLY_SETTLEMENTS",
-     "SETTLEMENT_DEPOSITS",
-     "PERIOD_TOTALS"
-    ],
-    "periodStart": "2026-03-01",
-    "periodEnd": "2026-08-31",
-    "required": true
-   }
-  }
- ],
- "demoOnly": true
+  "dataVersion": "demo-evidence-candidates-v6",
+  "selectionPolicyVersion": "demo-novel-evidence-selection-v5",
+  "maxEvidenceRequests": 2,
+  "baselineInformationCoverageRules": [
+    {
+      "informationContentCode": "BANK_CASH_FLOW_TOTALS",
+      "requiredFeatureCodes": [
+        "BANK_SNAPSHOT_CREDIT_AMOUNT",
+        "BANK_SNAPSHOT_DEBIT_AMOUNT"
+      ]
+    }
+  ],
+  "candidates": [
+    {
+      "evidenceType": "CUSTOMER_SUBMITTED_RECENT_REVENUE_SUMMARY",
+      "displayName": "최근 매출·입금 요약",
+      "description": "최근 매출 발생과 실제 입금 흐름을 확인할 수 있는 고객 제출 자료",
+      "sourceType": "CUSTOMER_SUBMITTED",
+      "collectionMode": "DEMO_FILE_UPLOAD",
+      "boundaryCodes": [
+        "DEMO_BOUNDARY_1_2"
+      ],
+      "applicableInformationGapCodes": [
+        "DEMO_INFORMATION_GAP",
+        "DEMO_RECENT_PERFORMANCE_NOT_REFLECTED",
+        "DEMO_FINANCIAL_HISTORY_THIN"
+      ],
+      "informationContentCodes": [
+        "RECENT_REVENUE_SERIES",
+        "DEPOSIT_TO_REVENUE_RECONCILIATION",
+        "BANK_CASH_FLOW_TOTALS"
+      ],
+      "boundaryResolutionValue": 0.9,
+      "qualityReliability": 0.9,
+      "customerEffort": 0.15,
+      "privacySensitivity": 0.08,
+      "acquisitionDelay": 0.05,
+      "acquisitionCost": 0.03,
+      "rationaleCodes": [
+        "DEMO_RESOLVE_BOUNDARY_1_2",
+        "DEMO_MINIMUM_SINGLE_REQUEST"
+      ],
+      "consentScope": {
+        "scopeVersion": "demo-recent-revenue-consent-v1",
+        "purposeCode": "SUPPLEMENTAL_CREDIT_ASSESSMENT",
+        "purposeDescription": "기존 평가의 불확실성을 확인하기 위한 보완평가에 사용",
+        "dataCategories": [
+          "BUSINESS_IDENTITY",
+          "MONTHLY_SALES",
+          "MONTHLY_DEPOSITS",
+          "PERIOD_TOTALS"
+        ],
+        "periodStart": "2026-03-01",
+        "periodEnd": "2026-08-31",
+        "required": true
+      },
+      "businessBorrowerTypes": [
+        "SOLE_PROPRIETOR",
+        "CORPORATION"
+      ]
+    },
+    {
+      "evidenceType": "EXTERNAL_CONNECTED_SETTLEMENT_SUMMARY",
+      "displayName": "외부 정산 입금 요약",
+      "description": "고객 동의로 연결 가능한 외부 정산과 실제 입금 흐름의 요약",
+      "sourceType": "EXTERNAL_CONNECTED",
+      "collectionMode": "DEMO_CONNECTION",
+      "boundaryCodes": [
+        "DEMO_BOUNDARY_1_2"
+      ],
+      "applicableInformationGapCodes": [
+        "DEMO_INFORMATION_GAP",
+        "DEMO_RECENT_PERFORMANCE_NOT_REFLECTED",
+        "DEMO_FINANCIAL_HISTORY_THIN"
+      ],
+      "informationContentCodes": [
+        "RECENT_SETTLEMENT_SERIES",
+        "SETTLEMENT_TO_DEPOSIT_RECONCILIATION",
+        "BANK_CASH_FLOW_TOTALS"
+      ],
+      "boundaryResolutionValue": 0.85,
+      "qualityReliability": 0.85,
+      "customerEffort": 0.18,
+      "privacySensitivity": 0.1,
+      "acquisitionDelay": 0.12,
+      "acquisitionCost": 0.08,
+      "rationaleCodes": [
+        "DEMO_RESOLVE_BOUNDARY_1_2",
+        "DEMO_CROSS_CHECK_SETTLEMENT"
+      ],
+      "consentScope": {
+        "scopeVersion": "demo-settlement-connection-consent-v1",
+        "purposeCode": "SUPPLEMENTAL_CREDIT_ASSESSMENT",
+        "purposeDescription": "기존 평가의 불확실성을 확인하기 위한 외부 정산정보 교차검증에 사용",
+        "dataCategories": [
+          "SETTLEMENT_PROVIDER_IDENTITY",
+          "MONTHLY_SETTLEMENTS",
+          "SETTLEMENT_DEPOSITS",
+          "PERIOD_TOTALS"
+        ],
+        "periodStart": "2026-03-01",
+        "periodEnd": "2026-08-31",
+        "required": true
+      },
+      "businessBorrowerTypes": [
+        "SOLE_PROPRIETOR"
+      ]
+    },
+    {
+      "evidenceType": "EXTERNAL_CONNECTED_CORPORATE_ACCOUNT_ACTIVITY",
+      "displayName": "법인 계좌 거래 요약",
+      "description": "고객 동의로 연결한 법인 명의 계좌의 최근 입출금 흐름 요약",
+      "businessBorrowerTypes": [
+        "CORPORATION"
+      ],
+      "sourceType": "EXTERNAL_CONNECTED",
+      "collectionMode": "DEMO_CONNECTION",
+      "boundaryCodes": [
+        "DEMO_BOUNDARY_1_2"
+      ],
+      "applicableInformationGapCodes": [
+        "DEMO_INFORMATION_GAP",
+        "DEMO_RECENT_PERFORMANCE_NOT_REFLECTED",
+        "DEMO_FINANCIAL_HISTORY_THIN"
+      ],
+      "informationContentCodes": [
+        "CORPORATE_ACCOUNT_ACTIVITY_SERIES",
+        "CORPORATE_DEPOSIT_RECONCILIATION",
+        "BANK_CASH_FLOW_TOTALS"
+      ],
+      "boundaryResolutionValue": 0.85,
+      "qualityReliability": 0.88,
+      "customerEffort": 0.16,
+      "privacySensitivity": 0.1,
+      "acquisitionDelay": 0.1,
+      "acquisitionCost": 0.06,
+      "rationaleCodes": [
+        "DEMO_RESOLVE_BOUNDARY_1_2",
+        "DEMO_CROSS_CHECK_CORPORATE_ACCOUNT"
+      ],
+      "consentScope": {
+        "scopeVersion": "demo-corporate-account-consent-v1",
+        "purposeCode": "SUPPLEMENTAL_CREDIT_ASSESSMENT",
+        "purposeDescription": "기존 평가의 불확실성을 확인하기 위한 법인 계좌 거래 확인에 사용",
+        "dataCategories": [
+          "CORPORATE_ACCOUNT_IDENTITY",
+          "MONTHLY_DEPOSITS",
+          "MONTHLY_WITHDRAWALS",
+          "PERIOD_TOTALS"
+        ],
+        "periodStart": "2026-03-01",
+        "periodEnd": "2026-08-31",
+        "required": true
+      }
+    },
+    {
+      "evidenceType": "EXTERNAL_CONNECTED_CONTRACT_ORDER_SUMMARY",
+      "displayName": "계약·주문 내역 요약",
+      "description": "고객 동의로 연결한 계약과 주문 실적의 요약",
+      "businessBorrowerTypes": [
+        "CORPORATION"
+      ],
+      "sourceType": "EXTERNAL_CONNECTED",
+      "collectionMode": "DEMO_CONNECTION",
+      "boundaryCodes": [
+        "DEMO_BOUNDARY_1_2"
+      ],
+      "applicableInformationGapCodes": [
+        "DEMO_INFORMATION_GAP",
+        "DEMO_RECENT_PERFORMANCE_NOT_REFLECTED",
+        "DEMO_FINANCIAL_HISTORY_THIN"
+      ],
+      "informationContentCodes": [
+        "CONTRACT_ORDER_SERIES",
+        "ORDER_TO_REVENUE_RECOGNITION"
+      ],
+      "boundaryResolutionValue": 0.8,
+      "qualityReliability": 0.8,
+      "customerEffort": 0.2,
+      "privacySensitivity": 0.12,
+      "acquisitionDelay": 0.15,
+      "acquisitionCost": 0.1,
+      "rationaleCodes": [
+        "DEMO_RESOLVE_BOUNDARY_1_2",
+        "DEMO_CROSS_CHECK_CONTRACT_ORDER"
+      ],
+      "consentScope": {
+        "scopeVersion": "demo-contract-order-consent-v1",
+        "purposeCode": "SUPPLEMENTAL_CREDIT_ASSESSMENT",
+        "purposeDescription": "기존 평가의 불확실성을 확인하기 위한 계약·주문 실적 확인에 사용",
+        "dataCategories": [
+          "COUNTERPARTY_IDENTITY",
+          "CONTRACT_AMOUNTS",
+          "ORDER_AMOUNTS",
+          "PERIOD_TOTALS"
+        ],
+        "periodStart": "2026-03-01",
+        "periodEnd": "2026-08-31",
+        "required": true
+      }
+    }
+  ],
+  "demoOnly": true
 }

@@ -45,6 +45,8 @@ const rationaleCopy: Record<string, string> = {
   DEMO_RESOLVE_BOUNDARY_1_2: '현재 가능한 경로를 구분하는 데 필요한 항목입니다.',
   DEMO_MINIMUM_SINGLE_REQUEST: '불필요한 추가 요청을 막기 위해 한 건만 선택했습니다.',
   DEMO_CROSS_CHECK_SETTLEMENT: '정산과 입금 흐름을 교차 확인하기 위한 항목입니다.',
+  DEMO_CROSS_CHECK_CORPORATE_ACCOUNT: '법인 계좌의 실제 입출금 흐름을 교차 확인하기 위한 항목입니다.',
+  DEMO_CROSS_CHECK_CONTRACT_ORDER: '계약·주문 실적이 실제 매출로 이어졌는지 확인하기 위한 항목입니다.',
 }
 const formatDate = (value: string) => new Intl.DateTimeFormat('ko-KR', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(value))
 

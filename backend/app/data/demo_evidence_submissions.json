@@ -1,5 +1,5 @@
 {
-  "dataVersion": "demo-evidence-submissions-v1",
+  "dataVersion": "demo-evidence-submissions-v2",
   "submissions": [
     {
       "evidenceType": "CUSTOMER_SUBMITTED_RECENT_REVENUE_SUMMARY",
@@ -12,6 +12,18 @@
       "observedAt": "2026-08-31T00:00:00Z",
       "sourceReference": "demo-fixture://settlement-summary/small-business-v1",
       "dataVersion": "demo-settlement-summary-v1"
+    },
+    {
+      "evidenceType": "EXTERNAL_CONNECTED_CORPORATE_ACCOUNT_ACTIVITY",
+      "observedAt": "2026-08-31T00:00:00Z",
+      "sourceReference": "demo-fixture://corporate-account-activity/startup-v1",
+      "dataVersion": "demo-corporate-account-activity-v1"
+    },
+    {
+      "evidenceType": "EXTERNAL_CONNECTED_CONTRACT_ORDER_SUMMARY",
+      "observedAt": "2026-08-31T00:00:00Z",
+      "sourceReference": "demo-fixture://contract-order-summary/startup-v1",
+      "dataVersion": "demo-contract-order-summary-v1"
     }
   ],
   "demoOnly": true

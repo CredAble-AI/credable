@@ -6,6 +6,7 @@ from pydantic import Field, model_validator
 
 from app.schemas.base import ApiModel
 from app.schemas.consent import ConsentSourceType
+from app.schemas.customer import BusinessLegalForm
 from app.schemas.evidence_consent import EvidenceConsentScopeDefinition
 from app.schemas.evidence_file import EvidenceCollectionMode
 from app.schemas.feature_snapshot import FeatureCode
@@ -29,6 +30,9 @@ class EvidenceCandidateDefinition(ApiModel):
     evidence_type: str = Field(min_length=1)
     display_name: str = Field(min_length=1)
     description: str = Field(min_length=1)
+    # Sole proprietors and corporations are assessed on different information,
+    # so a candidate only applies to the borrower types it is defined for.
+    business_borrower_types: list[BusinessLegalForm] = Field(min_length=1)
     source_type: ConsentSourceType
     collection_mode: EvidenceCollectionMode
     boundary_codes: list[str] = Field(min_length=1)
@@ -45,6 +49,8 @@ class EvidenceCandidateDefinition(ApiModel):
 
     @model_validator(mode="after")
     def validate_unique_codes(self) -> "EvidenceCandidateDefinition":
+        if len(self.business_borrower_types) != len(set(self.business_borrower_types)):
+            raise ValueError("businessBorrowerTypes values must be unique")
         if len(self.boundary_codes) != len(set(self.boundary_codes)):
             raise ValueError("boundaryCodes values must be unique")
         if len(self.applicable_information_gap_codes) != len(

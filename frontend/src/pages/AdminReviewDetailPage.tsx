@@ -60,7 +60,7 @@ const rationaleLabels: Record<string, string> = {
   DEMO_FILE_METADATA_AND_HASH_UNCHANGED: '파일 형식·크기와 내용 해시에서 변경 징후가 없습니다.', DEMO_FILE_METADATA_OR_HASH_CHANGED: '파일 형식·크기 또는 내용 해시에서 변경 징후가 발견됐습니다.',
   EVIDENCE_CONSENT_NOT_ACTIVE: '해당 자료의 이용 동의가 현재 유효하지 않습니다.',
 }
-const evidenceTypeLabels: Record<string, string> = { CUSTOMER_SUBMITTED_RECENT_REVENUE_SUMMARY: '최근 매출·입금 요약', EXTERNAL_CONNECTED_SETTLEMENT_SUMMARY: '외부 정산 내역 요약', RECENT_REVENUE_SUMMARY: '최근 매출·입금 요약' }
+const evidenceTypeLabels: Record<string, string> = { CUSTOMER_SUBMITTED_RECENT_REVENUE_SUMMARY: '최근 매출·입금 요약', EXTERNAL_CONNECTED_SETTLEMENT_SUMMARY: '외부 정산 내역 요약', EXTERNAL_CONNECTED_CORPORATE_ACCOUNT_ACTIVITY: '법인 계좌 거래 요약', EXTERNAL_CONNECTED_CONTRACT_ORDER_SUMMARY: '계약·주문 내역 요약', RECENT_REVENUE_SUMMARY: '최근 매출·입금 요약' }
 const formatDate = (value?: string | null) => value ? new Intl.DateTimeFormat('ko-KR', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(value)) : '기록 없음'
 const formatBytes = (value: number) => value < 1024 * 1024 ? `${Math.ceil(value / 1024)}KB` : `${(value / (1024 * 1024)).toFixed(1)}MB`
 const formatEvidenceType = (value: string) => evidenceTypeLabels[value] ?? value.toLowerCase().split('_').map((word) => word.charAt(0).toUpperCase() + word.slice(1)).join(' ')

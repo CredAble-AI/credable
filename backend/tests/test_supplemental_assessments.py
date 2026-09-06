@@ -1020,7 +1020,8 @@ def test_every_evidence_candidate_of_an_ambiguous_profile_can_be_reassessed() ->
         missing.extend(
             (profile.demo_profile_id, candidate.evidence_type)
             for candidate in candidates
-            if (profile.demo_profile_id, (candidate.evidence_type,)) not in configured
+            if profile.business_borrower_type in candidate.business_borrower_types
+            and (profile.demo_profile_id, (candidate.evidence_type,)) not in configured
         )
 
     assert ambiguous_profiles == ["small-business", "startup"]

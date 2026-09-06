@@ -126,10 +126,11 @@ def test_small_business_demo_flow_reaches_partial_comparison(
     assert all(event.output_summary["demoOnly"] is True for event in events)
 
 
-def test_corporate_demo_flow_routes_exhausted_evidence_to_review_without_invented_values(
+def test_corporate_demo_flow_stops_collecting_once_the_route_is_stable(
     client: TestClient,
     data_source_service: DataSourceService,
     assessment_service: AssessmentService,
+    supplemental_assessment_service: SupplementalAssessmentService,
     product_catalog_service: ProductCatalogService,
     product_condition_service: ProductConditionService,
 ) -> None:
@@ -138,6 +139,9 @@ def test_corporate_demo_flow_routes_exhausted_evidence_to_review_without_invente
         assessment_service,
         product_catalog_service,
         product_condition_service,
+    )
+    supplemental_assessment_service.adapter = DemoSupplementalAssessmentAdapter(
+        settings.demo_supplemental_assessments_path
     )
     session_id = create_session(client, "startup")
     grant_sources(client, session_id, tuple(ConsentSourceType))
@@ -161,9 +165,12 @@ def test_corporate_demo_flow_routes_exhausted_evidence_to_review_without_invente
     assert boundary_response.json()["boundaryCheck"]["decision"]["status"] == "AMBIGUOUS"
     selection = selection_response.json()["selection"]
     assert selection["status"] == "SELECTED"
+    # Corporations are asked for corporate information, not a sole proprietor's
+    # settlement feed, and more than one candidate applied.
     assert selection["selectedEvidence"]["evidenceType"] == (
-        "EXTERNAL_CONNECTED_SETTLEMENT_SUMMARY"
+        "EXTERNAL_CONNECTED_CORPORATE_ACCOUNT_ACTIVITY"
     )
+    assert selection["evaluatedCandidateCount"] == 3
 
     submission_response = client.post(
         f"/v1/sessions/{session_id}/evidence/submissions",
@@ -178,25 +185,27 @@ def test_corporate_demo_flow_routes_exhausted_evidence_to_review_without_invente
         f"/v1/sessions/{session_id}/evidence/submissions/{submission['submissionId']}/quality"
     )
     assert quality_response.status_code == 200
-    assert quality_response.json()["quality"]["status"] == "REJECTED"
+    assert quality_response.json()["quality"]["status"] == "ACCEPTED"
 
-    fallback_response = client.post(f"/v1/sessions/{session_id}/evidence/next")
-    assert fallback_response.status_code == 200
-    fallback = fallback_response.json()["selection"]
-    assert fallback["status"] == "HUMAN_REVIEW"
-    assert (
-        fallback["rejectedQualityCheckId"] == quality_response.json()["quality"]["qualityCheckId"]
+    supplemental_response = client.post(
+        f"/v1/sessions/{session_id}/assessment/supplemental/run",
+        json={"submissionId": submission["submissionId"]},
     )
-    assert fallback["selectedEvidence"] is None
-    assert fallback["underwriterRequired"] is True
-    assert fallback["stopReason"] == "NO_USEFUL_EVIDENCE"
+    assert supplemental_response.status_code == 200
+    assert client.post(f"/v1/sessions/{session_id}/assessment/comparison").status_code == 200
+    resolution_response = client.post(f"/v1/sessions/{session_id}/assessment/resolution")
 
-    review_response = client.get("/v1/admin/underwriter-reviews")
-    assert review_response.status_code == 200
-    review = review_response.json()["items"][0]
-    assert review["sessionId"] == session_id
-    assert review["triggerType"] == "EVIDENCE_SELECTION"
-    assert review["triggerId"] == fallback["selectionId"]
+    assert resolution_response.status_code == 200
+    resolution = resolution_response.json()["resolution"]
+    assert resolution["status"] == "RESOLVED"
+    assert resolution["stopEvidenceCollection"] is True
+    assert resolution["underwriterRequired"] is False
+
+    # 계약·주문 내역 후보가 남아 있어도 경로가 안정되면 더 요청하지 않는다.
+    closed = client.post(f"/v1/sessions/{session_id}/evidence/next")
+    assert closed.status_code == 409
+    assert closed.json()["error"]["code"] == "EVIDENCE_COLLECTION_CLOSED"
+    assert client.get("/v1/admin/underwriter-reviews").json()["totalCount"] == 0
 
     conditions = condition_response.json()["query"]
     assert conditions["status"] == "COMPLETED"

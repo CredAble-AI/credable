@@ -358,6 +358,11 @@ curl -X POST \
   http://127.0.0.1:8000/v1/sessions/<sessionId>/evidence/next
 ```
 
+후보는 먼저 세션의 사업자 유형으로 거릅니다. 개인사업자에게는 최근 매출·입금 요약과 외부
+정산 입금 요약을, 법인사업자에게는 최근 매출 자료와 법인 계좌 거래 요약 및 계약·주문 내역
+요약을 후보로 둡니다. 사업자 유형은 클라이언트 입력이 아니라 세션의 Demo Profile에서
+확인합니다.
+
 Demo 후보 순서는 신규 정보가 하나 이상 남은 후보에 한해 `경계 해소값 × 예상 품질
 신뢰도 - 고객 노력 - 개인정보 민감도 - 획득 지연 - 획득 비용`으로 계산합니다.
 정보 코드 간 가치가 동일하다는 근거가 없으므로 신규 정보의 개수나 비율을 임의 가중치로
@@ -375,13 +380,16 @@ Demo이며 실제 정보가치나 승인 효과를 의미하지 않습니다.
 `MORE_EVIDENCE_REQUIRED`이거나 최신 증빙 품질이 `REJECTED`이면 같은
 `POST /evidence/next`를 호출해 다음 후보를 선택할 수 있습니다. 서버는 이미 제출한
 Evidence 유형을 제외하고 남은 후보 중 한 건만 선택하며, 새로운 유효 후보가 없으면
-`NO_NEW_USEFUL_EVIDENCE`와 `HUMAN_REVIEW`로 자동 수집을 중단합니다.
+`NO_NEW_USEFUL_EVIDENCE`와 `HUMAN_REVIEW`로 자동 수집을 중단합니다. 확인할 후보가 남아
+있어도 요청 차수가 정책표의 `maxEvidenceRequests`를 넘으면
+`EVIDENCE_REQUEST_LIMIT_REACHED`와 `HUMAN_REVIEW`로 자동 판단을 중단합니다. 남은 후보가
+없을 때는 한도가 아니라 사실에 맞는 기존 중단 사유를 그대로 사용합니다.
 
 최신 보완평가·전후 비교·수집 판단의 연결이 완성되기 전에는 이전 요청을 재사용하지 않고
 `EVIDENCE_RESOLUTION_NOT_READY`를 반환합니다. 수집이 이미 `RESOLVED` 또는
 `HUMAN_REVIEW`로 끝났다면 `EVIDENCE_COLLECTION_CLOSED`를 반환합니다. 실제 후보 목록과
-가중치, 최대 요청 횟수는 은행 운영정책 확정이 필요한 항목이며 이번 구현은 임의의 최대
-횟수를 두지 않습니다.
+가중치, 최대 요청 횟수는 은행 운영정책 확정이 필요한 항목입니다. 현재 값은 합성 Demo
+정책표이며 실제 여신정책을 의미하지 않습니다.
 
 ## Demo Evidence 제출 상태 API
 
