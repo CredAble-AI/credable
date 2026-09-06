@@ -91,6 +91,7 @@ def test_assessment_is_not_run_before_first_execution(client: TestClient) -> Non
             "modelVersion": None,
             "reasonCode": None,
             "uncertainty": None,
+            "sourceAssessment": None,
             "demoOnly": True,
         },
     }
@@ -117,6 +118,7 @@ def test_run_without_model_returns_explicit_state_and_preserves_snapshot(
         "modelVersion",
         "reasonCode",
         "uncertainty",
+        "sourceAssessment",
         "demoOnly",
     }
     assert assessment["assessmentId"].startswith("asm_")
@@ -126,6 +128,7 @@ def test_run_without_model_returns_explicit_state_and_preserves_snapshot(
     assert assessment["modelVersion"] is None
     assert assessment["reasonCode"] == "DEMO_ASSESSMENT_MODEL_NOT_CONFIGURED"
     assert assessment["uncertainty"] is None
+    assert assessment["sourceAssessment"] is None
     assert assessment["demoOnly"] is True
     assert "score" not in response.text.lower()
     assert "grade" not in response.text.lower()
@@ -144,6 +147,7 @@ def test_run_without_model_returns_explicit_state_and_preserves_snapshot(
     assert {item.retrieval_status for item in snapshot.data_sources} == {"CONSENT_REQUIRED"}
     assert snapshot.source_snapshots == []
     assert snapshot.feature_snapshot is None
+    assert snapshot.source_assessment is None
     assert snapshot.feature_cutoff_at is not None
 
     event = session_repository.list_audit_events(session_id)[-1]
@@ -228,6 +232,24 @@ def test_demo_assessment_completes_small_business_fixture(
         "demoOnly": True,
     }
     assert assessment["demoOnly"] is True
+    assert assessment["sourceAssessment"] == {
+        "creditAssessmentId": "bca_demo_001",
+        "dataVersion": "synthetic-bank-data-v1",
+        "applicationId": "app_demo_001",
+        "assessmentType": "APPLICATION",
+        "assessedAt": "2026-08-21T14:20:00+09:00",
+        "featureCutoffAt": "2026-08-20T23:59:59+09:00",
+        "gradeCode": "DEMO_GRADE_C",
+        "gradeScaleVersion": "demo-bank-grade-scale-v1",
+        "reasonCodes": [
+            "DEMO_INFORMATION_GAP",
+            "DEMO_RECENT_PERFORMANCE_NOT_REFLECTED",
+        ],
+        "modelVersion": "demo-bank-champion-v1",
+        "featureSetVersion": "demo-bank-feature-set-v1",
+        "policyVersion": "demo-bank-credit-policy-v1",
+        "demoOnly": True,
+    }
     snapshot = assessment_repository.get_snapshot(assessment["assessmentId"])
     assert snapshot is not None
     assert {item.snapshot_type for item in snapshot.source_snapshots} == {
@@ -248,6 +270,10 @@ def test_demo_assessment_completes_small_business_fixture(
         for item in snapshot.source_snapshots
     )
     assert snapshot.feature_snapshot is not None
+    assert (
+        snapshot.source_assessment
+        == assessment_service.repository.get_latest(session_id).source_assessment
+    )
     assert snapshot.feature_snapshot.feature_snapshot_id.startswith("fts_")
     assert snapshot.feature_snapshot.feature_set_version == "demo-neutral-feature-set-v2"
     assert snapshot.feature_snapshot.feature_cutoff_at == snapshot.feature_cutoff_at
@@ -265,6 +291,11 @@ def test_demo_assessment_completes_small_business_fixture(
         "modelValidationStatus": "DEMO_ONLY",
         "modelOperationalState": "RUNNING",
         "modelFeatureSetVersion": "demo-neutral-feature-set-v2",
+        "sourceCreditAssessmentId": "bca_demo_001",
+        "sourceAssessmentDataVersion": "synthetic-bank-data-v1",
+        "sourceAssessmentModelVersion": "demo-bank-champion-v1",
+        "sourceAssessmentFeatureSetVersion": "demo-bank-feature-set-v1",
+        "sourceAssessmentPolicyVersion": "demo-bank-credit-policy-v1",
         "demoOnly": True,
     }
 
@@ -287,11 +318,41 @@ def test_demo_assessment_keeps_startup_as_insufficient_data(
     assert assessment["modelVersion"] is None
     assert assessment["uncertainty"] is None
     assert "score" not in response.text.lower()
-    assert "grade" not in response.text.lower()
+    assert assessment["sourceAssessment"]["creditAssessmentId"] == "bca_demo_002"
+    assert assessment["sourceAssessment"]["assessmentType"] == "PERIODIC"
+    assert assessment["sourceAssessment"]["applicationId"] is None
+    assert assessment["sourceAssessment"]["gradeCode"] == "DEMO_GRADE_C"
     snapshot = assessment_repository.get_snapshot(assessment["assessmentId"])
     assert snapshot is not None
     assert len(snapshot.source_snapshots) == 4
     assert snapshot.feature_snapshot is not None
+    assert snapshot.source_assessment is not None
+    assert snapshot.source_assessment.credit_assessment_id == "bca_demo_002"
+
+
+def test_demo_assessment_does_not_invent_a_missing_existing_bank_assessment(
+    client: TestClient,
+    assessment_service: AssessmentService,
+    data_source_service: DataSourceService,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    session_id = create_session(client, "small-business")
+    prepare_required_demo_sources(client, session_id, data_source_service)
+    assessment_service.adapter = DemoAssessmentAdapter(settings.demo_assessments_path)
+    assert assessment_service.credit_history_repository is not None
+    monkeypatch.setattr(
+        assessment_service.credit_history_repository,
+        "get_snapshot",
+        lambda _: None,
+    )
+
+    response = client.post(f"/v1/sessions/{session_id}/assessment/run")
+
+    assert response.status_code == 200
+    assessment = response.json()["assessment"]
+    assert assessment["status"] == "INSUFFICIENT_DATA"
+    assert assessment["reasonCode"] == "EXISTING_BANK_ASSESSMENT_NOT_AVAILABLE"
+    assert assessment["sourceAssessment"] is None
 
 
 def test_assessment_excludes_required_snapshot_loaded_after_feature_cutoff(
