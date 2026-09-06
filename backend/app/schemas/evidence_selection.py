@@ -99,6 +99,7 @@ class EvidenceSelectionState(ApiModel):
     selection_id: str = Field(min_length=1)
     boundary_check_id: str = Field(min_length=1)
     resolution_id: str | None = Field(default=None, min_length=1)
+    rejected_quality_check_id: str | None = Field(default=None, min_length=1)
     iteration: int = Field(ge=1)
     status: EvidenceSelectionStatus
     selected_evidence: SelectedEvidenceCandidate | None = None
@@ -129,10 +130,11 @@ class EvidenceSelectionState(ApiModel):
             raise ValueError("baselineInformationCoverageCodes values must be unique")
         if self.baseline_feature_snapshot_id is None and self.baseline_information_coverage_codes:
             raise ValueError("baseline coverage requires baselineFeatureSnapshotId")
-        if self.iteration == 1 and self.resolution_id is not None:
-            raise ValueError("first selection cannot reference an Evidence resolution")
-        if self.iteration > 1 and self.resolution_id is None:
-            raise ValueError("repeated selection requires an Evidence resolution")
+        repeated_lineage = [self.resolution_id, self.rejected_quality_check_id]
+        if self.iteration == 1 and any(repeated_lineage):
+            raise ValueError("first selection cannot reference repeated-selection lineage")
+        if self.iteration > 1 and sum(item is not None for item in repeated_lineage) != 1:
+            raise ValueError("repeated selection requires exactly one lineage reference")
         if self.status == EvidenceSelectionStatus.SELECTED:
             if self.selected_evidence is None:
                 raise ValueError("SELECTED state requires selectedEvidence")

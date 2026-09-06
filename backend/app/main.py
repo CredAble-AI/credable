@@ -281,6 +281,7 @@ def build_evidence_selection_service(
         assessment_repository=assessment_service.repository,
         resolution_repository=policy_boundary_service.repository,
         submission_repository=SqliteEvidenceSubmissionRepository(settings.database_path),
+        quality_repository=SqliteEvidenceQualityRepository(settings.database_path),
         feature_snapshot_repository=feature_snapshot_service.repository,
         catalog=DemoEvidenceCandidateCatalog(settings.demo_evidence_candidates_path),
     )
