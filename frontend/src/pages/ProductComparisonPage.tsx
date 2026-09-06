@@ -4,7 +4,7 @@ import { liveAssessmentProvider } from '../api/assessmentClient'
 import { liveProductProvider, normalizeProductError } from '../api/productClient'
 import Header from '../components/Header'
 import CustomerTechnicalDetails from '../components/CustomerTechnicalDetails'
-import { isMockMode, selectProvider } from '../config/providerMode'
+import { selectProvider } from '../config/providerMode'
 import { useCustomerSession } from '../hooks/useCustomerSession'
 import { mockAssessmentProvider } from '../mocks/assessmentProvider'
 import { mockProductProvider } from '../mocks/productProvider'
@@ -106,7 +106,7 @@ function ProductComparisonPage() {
   if (sessionLoading || !session) return null
   return <div className="workspace-shell customer-flow"><Header /><main id="main-content" tabIndex={-1} className="products-page"><div className="container products-page__inner">
     <nav className="product-steps" aria-label="진행 단계"><span>시작</span><span>동의</span><span>데이터 연결</span><span>기준평가</span><strong aria-current="step">상품 비교</strong></nav>
-    <header className="products-heading"><div>{isMockMode && <span className="products-badge">시연용 합성 데이터</span>}<p className="flow-kicker">상품 조건 비교</p><h1>자사 대출상품 조건을 비교합니다</h1><p>현재 확인 가능한 상품 조건을 같은 기준으로 보여드립니다. 특정 상품을 권하거나 자동으로 선택하지 않으며, 정렬 기준과 상품은 고객이 직접 선택합니다.</p></div><aside><span>현재 시연 사례</span><strong>{session.demoProfile.displayName}</strong><small>합성 상품·조건이며 실제 승인 결과가 아닙니다.</small></aside></header>
+    <header className="products-heading"><div>{session.demoOnly && <span className="products-badge">시연용 합성 데이터</span>}<p className="flow-kicker">상품 조건 비교</p><h1>자사 대출상품 조건을 비교합니다</h1><p>현재 확인 가능한 상품 조건을 같은 기준으로 보여드립니다. 특정 상품을 권하거나 자동으로 선택하지 않으며, 정렬 기준과 상품은 고객이 직접 선택합니다.</p></div><aside><span>사업자 유형</span><strong>{session.demoProfile.displayName}</strong><small>현재 상품·조건 값은 합성 데이터이며 실제 승인 결과가 아닙니다.</small></aside></header>
     <div className="products-live" role="status" aria-live="polite">{loading && result ? '상품 조건을 다시 확인하고 있습니다.' : loading ? '자사 상품 조건을 확인하고 있습니다.' : error ? '상품 조건을 확인하지 못했습니다.' : result?.canViewProducts ? `${products.length}개 상품 조건을 확인했습니다.` : '상품 비교를 진행할 수 없는 상태입니다.'}</div>
     {error && <section className="products-error" role="alert"><div><strong>{error.message}</strong><small>오류 코드: {error.code}{error.requestId ? ` · Request ID: ${error.requestId}` : ''}</small></div>{error.retryable && <button type="button" onClick={() => void load()}>다시 확인</button>}</section>}
     {loading && !result && <div className="product-skeletons" aria-hidden="true"><span /><span /><span /></div>}

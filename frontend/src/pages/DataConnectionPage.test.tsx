@@ -86,7 +86,7 @@ describe('DataConnectionPage', () => {
     expect(screen.queryByText('시연 기술 정보 보기')).not.toBeInTheDocument()
     expect(screen.queryByText('은행 보유 · 필수')).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: /다시 조회/ })).not.toBeInTheDocument()
-    expect(screen.getByRole('button', { name: '데이터 확인 후 기준평가 시작' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: '데이터 확인 후 기존 평가 보기' })).toBeInTheDocument()
   })
 
   it('refreshes all sources before moving to the assessment', async () => {
@@ -101,7 +101,7 @@ describe('DataConnectionPage', () => {
     renderPage()
 
     await screen.findByText('연결 상태 · 조회 전')
-    fireEvent.click(screen.getByRole('button', { name: '데이터 확인 후 기준평가 시작' }))
+    fireEvent.click(screen.getByRole('button', { name: '데이터 확인 후 기존 평가 보기' }))
 
     await waitFor(() => expect(dataConnectionProvider.refresh).toHaveBeenCalledWith('ses_demo', expect.any(AbortSignal)))
     expect(await screen.findByRole('heading', { level: 1, name: '기준평가 화면' })).toBeInTheDocument()
@@ -119,6 +119,6 @@ describe('DataConnectionPage', () => {
     expect(await screen.findByRole('alert')).toHaveTextContent('데이터 출처를 불러오지 못했습니다.')
     expect(screen.getByText(/Request ID: req_demo/)).toBeInTheDocument()
     expect(screen.getByRole('button', { name: '다시 확인' })).toBeInTheDocument()
-    expect(screen.queryByRole('button', { name: '데이터 확인 후 기준평가 시작' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: '데이터 확인 후 기존 평가 보기' })).not.toBeInTheDocument()
   })
 })

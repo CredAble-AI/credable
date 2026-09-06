@@ -31,8 +31,8 @@ describe('AssessmentComparisonPanel', () => {
 
     await waitFor(() => expect(assessmentComparisonProvider.compare).toHaveBeenCalledWith('ses_demo', { baselineAssessmentId: 'asm_demo', supplementalAssessmentId: 'sam_demo', qualityCheckId: 'evq_demo' }, expect.any(AbortSignal)))
     expect(await screen.findByRole('heading', { name: '가능한 결과 범위가 줄었습니다' })).toBeInTheDocument()
-    expect(screen.getByText('DEMO_GRADE_B · DEMO_GRADE_C')).toBeInTheDocument()
-    expect(screen.getByText('DEMO_GRADE_B')).toBeInTheDocument()
+    expect(screen.getByText('평가 구간 B · 평가 구간 C')).toBeInTheDocument()
+    expect(screen.getByText('평가 구간 B')).toBeInTheDocument()
     expect(screen.getByText(/승인 가능성 상승/)).toBeInTheDocument()
     expect(screen.getByText('Evidence 수집 판단 패널')).toBeInTheDocument()
   })

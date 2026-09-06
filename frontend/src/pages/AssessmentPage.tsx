@@ -6,21 +6,21 @@ import AssessmentExplanationPanel from '../components/AssessmentExplanationPanel
 import AssessmentReviewPanel from '../components/AssessmentReviewPanel'
 import CustomerTechnicalDetails from '../components/CustomerTechnicalDetails'
 import Header from '../components/Header'
-import { isMockMode } from '../config/providerMode'
 import { assessmentProvider, policyBoundaryProvider } from '../hooks/useAssessmentState'
 import { useCustomerSession } from '../hooks/useCustomerSession'
 import type { ApiError } from '../types/api'
 import type { AssessmentResponse, AssessmentState, AssessmentStatus } from '../types/assessment'
 import type { BoundaryStatus, PolicyBoundaryCheckResponse, PolicyBoundaryCheckState } from '../types/policyBoundary'
+import { assessmentGradeLabel } from '../utils/assessmentDisplay'
 import './AssessmentPage.css'
 
 type Phase = 'loading' | 'running' | 'checking' | 'idle'
 type ErrorStage = 'load' | 'run' | 'boundary-load' | 'boundary-check'
 
 const statusCopy: Record<AssessmentStatus, { label: string; icon: string; description: string }> = {
-  NOT_RUN: { label: '평가 준비 완료', icon: '…', description: '연결된 정보를 기준으로 평가를 시작할 수 있습니다.' },
+  NOT_RUN: { label: '기존 평가 확인 준비', icon: '…', description: '연결된 정보에서 은행의 기존 평가 결과를 불러올 수 있습니다.' },
   MODEL_NOT_CONFIGURED: { label: '평가 방식 미구성', icon: '○', description: '현재 환경에는 이 사업자 유형의 평가 방식이 구성되지 않았습니다.' },
-  COMPLETED: { label: '기준평가 완료', icon: '✓', description: '현재 확인 가능한 평가 범위와 다음 단계를 안내합니다.' },
+  COMPLETED: { label: '기존 은행 평가 확인 완료', icon: '✓', description: '기존 CB·SCB와 은행 내부 평가 결과에서 확인된 범위와 다음 단계를 안내합니다.' },
   INSUFFICIENT_DATA: { label: '현재 데이터로 산출 불가', icon: 'i', description: '확인된 데이터만으로는 현재 기준평가를 완료할 수 없습니다.' },
   UNSUPPORTED_CUSTOMER_TYPE: { label: '지원 대상 확인 필요', icon: '–', description: '현재 기준평가가 지원하지 않는 사업자 유형입니다.' },
   FAILED: { label: '기준평가 처리 실패', icon: '!', description: '일시적인 문제로 평가를 마치지 못했습니다. 다시 실행할 수 있습니다.' },
@@ -35,7 +35,7 @@ const boundaryCopy: Record<BoundaryStatus, { label: string; description: string 
 const formatDate = (value: string | null) => value
   ? new Intl.DateTimeFormat('ko-KR', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(value))
   : '확인되지 않음'
-const formatValue = (value: number | null) => value == null ? '제공되지 않음' : new Intl.NumberFormat('ko-KR').format(value)
+const formatValue = (value: number) => new Intl.NumberFormat('ko-KR').format(value)
 
 const validateAssessment = (result: AssessmentResponse, sessionId: string) => {
   if (result.sessionId !== sessionId) throw {
@@ -64,12 +64,12 @@ function UncertaintyPanel({ state }: { state: AssessmentState }) {
   if (!uncertainty) return null
   return <section className="assessment-panel assessment-uncertainty" aria-labelledby="uncertainty-title">
     <div className="assessment-panel__heading"><div><span>평가 범위</span><h2 id="uncertainty-title">현재 확인 가능한 결과</h2></div></div>
-    <p>현재 정보로 가능한 결과 범위를 표시합니다. 시연 등급은 실제 신용등급이나 승인 가능성을 뜻하지 않습니다.</p>
-    <div className="assessment-grade-set" aria-label="가능한 Demo 평가 범위">{uncertainty.gradeSet.length > 0 ? uncertainty.gradeSet.map((grade) => <code key={grade}>{grade}</code>) : <span>등급 범위가 제공되지 않았습니다.</span>}</div>
-    <dl>
-      <div><dt>모델 추정값</dt><dd>{formatValue(uncertainty.pointEstimate)}</dd></div>
-      <div><dt>추정 범위</dt><dd>{uncertainty.lowerBound == null && uncertainty.upperBound == null ? '제공되지 않음' : `${formatValue(uncertainty.lowerBound)} ~ ${formatValue(uncertainty.upperBound)}`}</dd></div>
-    </dl>
+    <p>기존 은행 평가에서 현재 정보로 확인 가능한 구간입니다. 시연 구간은 실제 신용등급이나 승인 가능성을 뜻하지 않습니다.</p>
+    <div className="assessment-grade-set" aria-label="가능한 시연 평가 구간">{uncertainty.gradeSet.length > 0 ? uncertainty.gradeSet.map((grade) => <span key={grade}>{assessmentGradeLabel(grade)}</span>) : <span>확인 가능한 평가 구간이 없습니다.</span>}</div>
+    {(uncertainty.pointEstimate !== null || uncertainty.lowerBound !== null || uncertainty.upperBound !== null) && <dl>
+      {uncertainty.pointEstimate !== null && <div><dt>모델 추정값</dt><dd>{formatValue(uncertainty.pointEstimate)}</dd></div>}
+      {(uncertainty.lowerBound !== null || uncertainty.upperBound !== null) && <div><dt>추정 범위</dt><dd>{uncertainty.lowerBound !== null && uncertainty.upperBound !== null ? `${formatValue(uncertainty.lowerBound)} ~ ${formatValue(uncertainty.upperBound)}` : formatValue((uncertainty.lowerBound ?? uncertainty.upperBound) as number)}</dd></div>}
+    </dl>}
     <CustomerTechnicalDetails><dl><div><dt>보정 방식</dt><dd><code>{uncertainty.calibrationMode}</code></dd></div><div><dt>보정 버전</dt><dd><code>{uncertainty.calibrationVersion}</code></dd></div></dl></CustomerTechnicalDetails>
   </section>
 }
@@ -211,16 +211,16 @@ function AssessmentPage() {
   const boundary = boundaryResult?.boundaryCheck ?? null
   const retry = errorStage === 'run' ? runAssessment : errorStage === 'boundary-check' ? checkBoundary : errorStage === 'boundary-load' ? recoverBoundary : loadInitial
   const actionCopy = !state ? '기준평가 상태를 불러오고 있습니다.'
-    : state.status === 'NOT_RUN' ? '사용자가 실행을 선택하기 전에는 기준평가를 자동으로 시작하지 않습니다.'
+    : state.status === 'NOT_RUN' ? '사용자가 확인을 선택하기 전에는 기존 은행 평가 결과를 불러오지 않습니다.'
       : state.status !== 'COMPLETED' ? '정책 경계 확인은 완료된 기준평가에서만 진행됩니다.'
         : !boundary ? '평가 결과에 따라 추가 자료가 필요한지 확인해주세요.'
           : boundaryCopy[boundary.decision.status].description
 
   return <div className="workspace-shell customer-flow"><Header /><main id="main-content" tabIndex={-1} className="assessment-page"><div className="container assessment-page__inner">
-    <nav className="assessment-steps" aria-label="진행 단계"><span>시작</span><span>동의</span><span>데이터 연결</span><strong aria-current="step">기준평가</strong><span>상품 비교</span></nav>
-    <header className="assessment-heading"><div>{isMockMode && <span className="assessment-badge">시연용 합성 데이터</span>}<p className="flow-kicker">기준평가</p><h1>연결된 정보를 바탕으로 평가 범위를 확인합니다</h1><p>현재 정보로 확인 가능한 결과 범위를 보여주고, 결과를 더 명확히 하는 데 추가 자료가 필요한지 안내합니다.</p></div><aside><span>현재 시연 사례</span><strong>{session.demoProfile.displayName}</strong><small>{session.demoProfile.description}</small></aside></header>
+    <nav className="assessment-steps" aria-label="진행 단계"><span>시작</span><span>동의</span><span>데이터 연결</span><strong aria-current="step">기존 평가</strong><span>상품 비교</span></nav>
+    <header className="assessment-heading"><div>{session.demoOnly && <span className="assessment-badge">시연용 합성 데이터</span>}<p className="flow-kicker">기존 은행 평가</p><h1>은행의 기존 평가 결과를 확인합니다</h1><p>기존 CB·SCB와 은행 내부 평가 결과를 기준점으로 불러옵니다. CredAble이 새로운 신용점수를 만드는 단계가 아닙니다.</p></div><aside><span>사업자 유형</span><strong>{session.demoProfile.displayName}</strong><small>평가 주체와 사용 데이터가 이 유형에 맞게 적용됩니다.</small></aside></header>
 
-    <div className="assessment-live" role="status" aria-live="polite">{phase === 'loading' ? '기준평가 상태를 확인하고 있습니다.' : phase === 'running' ? '기준평가를 실행하고 있습니다.' : phase === 'checking' ? '다음 단계를 확인하고 있습니다.' : error ? '요청을 완료하지 못했습니다.' : '현재 평가 상태를 확인했습니다.'}</div>
+    <div className="assessment-live" role="status" aria-live="polite">{phase === 'loading' ? '기존 평가 상태를 확인하고 있습니다.' : phase === 'running' ? '기존 은행 평가 결과를 불러오고 있습니다.' : phase === 'checking' ? '다음 단계를 확인하고 있습니다.' : error ? '요청을 완료하지 못했습니다.' : '현재 평가 상태를 확인했습니다.'}</div>
     {error && <section className="assessment-error" role="alert"><div><strong>{error.message}</strong><CustomerTechnicalDetails title="오류 기술 정보 보기"><dl><div><dt>오류 코드</dt><dd><code>{error.code}</code></dd></div>{error.requestId && <div><dt>요청 ID</dt><dd><code>{error.requestId}</code></dd></div>}</dl></CustomerTechnicalDetails></div>{error.retryable && <button type="button" onClick={() => void retry()}>{errorStage?.startsWith('boundary') ? '다음 단계 다시 확인' : '기준평가 다시 확인'}</button>}</section>}
     {phase !== 'idle' && !result && <div className="assessment-skeleton" aria-hidden="true"><span /><span /></div>}
 
@@ -234,7 +234,7 @@ function AssessmentPage() {
       {state.status === 'COMPLETED' && <AssessmentReviewPanel sessionId={session.sessionId} />}
     </>}
 
-    <section className="assessment-actions"><div><strong>{boundary ? boundaryCopy[boundary.decision.status].label : state?.status === 'COMPLETED' ? '다음 단계를 확인해주세요' : '기준평가 상태를 먼저 확인해주세요'}</strong><p>{actionCopy}</p>{boundary?.decision.status === 'STABLE' && <small>추가 자료 없이 자사 상품 조건을 확인할 수 있습니다.</small>}</div><div><Link className="button button--secondary" to="/data-connection">연결 정보 확인</Link>{state?.status === 'NOT_RUN' && <button className="button button--primary" type="button" onClick={() => void runAssessment()} disabled={phase !== 'idle'}>기준평가 시작</button>}{state && state.status !== 'NOT_RUN' && state.status !== 'COMPLETED' && <button className="button button--secondary" type="button" onClick={() => void runAssessment()} disabled={phase !== 'idle'}>기준평가 다시 실행</button>}{state?.status === 'COMPLETED' && !boundary && <button className="button button--primary" type="button" onClick={() => void checkBoundary()} disabled={phase !== 'idle'}>다음 단계 확인</button>}{boundary?.decision.status === 'STABLE' && <Link className="button button--primary" to="/products">자사 상품 조건 확인</Link>}{boundary?.decision.status === 'AMBIGUOUS' && <Link className="button button--primary" to="/evidence">필요한 자료 확인</Link>}</div></section>
+    <section className="assessment-actions"><div><strong>{boundary ? boundaryCopy[boundary.decision.status].label : state?.status === 'COMPLETED' ? '다음 단계를 확인해주세요' : '기존 평가 상태를 먼저 확인해주세요'}</strong><p>{actionCopy}</p>{boundary?.decision.status === 'STABLE' && <small>추가 자료 없이 자사 상품 조건을 확인할 수 있습니다.</small>}</div><div><Link className="button button--secondary" to="/data-connection">연결 정보 확인</Link>{state?.status === 'NOT_RUN' && <button className="button button--primary" type="button" onClick={() => void runAssessment()} disabled={phase !== 'idle'}>기존 평가 결과 불러오기</button>}{state && state.status !== 'NOT_RUN' && state.status !== 'COMPLETED' && <button className="button button--secondary" type="button" onClick={() => void runAssessment()} disabled={phase !== 'idle'}>기존 평가 다시 확인</button>}{state?.status === 'COMPLETED' && !boundary && <button className="button button--primary" type="button" onClick={() => void checkBoundary()} disabled={phase !== 'idle'}>다음 단계 확인</button>}{boundary?.decision.status === 'STABLE' && <Link className="button button--primary" to="/products">자사 상품 조건 확인</Link>}{boundary?.decision.status === 'AMBIGUOUS' && <Link className="button button--primary" to="/evidence">필요한 자료 확인</Link>}</div></section>
   </div></main></div>
 }
 

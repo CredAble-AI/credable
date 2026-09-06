@@ -122,13 +122,13 @@ describe('AssessmentPage', () => {
     vi.mocked(assessmentProvider.get).mockResolvedValue(notRun)
     renderPage()
 
-    expect(await screen.findByRole('heading', { name: '평가 준비 완료' })).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { name: '기존 평가 확인 준비' })).toBeInTheDocument()
     expect(screen.queryByText('시연 기술 정보 보기')).not.toBeInTheDocument()
     expect(assessmentProvider.get).toHaveBeenCalledTimes(1)
     expect(assessmentProvider.run).not.toHaveBeenCalled()
     expect(policyBoundaryProvider.get).not.toHaveBeenCalled()
     expect(policyBoundaryProvider.check).not.toHaveBeenCalled()
-    expect(screen.getByRole('button', { name: '기준평가 시작' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: '기존 평가 결과 불러오기' })).toBeInTheDocument()
   })
 
   it('runs a completed assessment and then checks the server policy boundary', async () => {
@@ -137,12 +137,14 @@ describe('AssessmentPage', () => {
     vi.mocked(policyBoundaryProvider.check).mockResolvedValue(ambiguous)
     renderPage()
 
-    fireEvent.click(await screen.findByRole('button', { name: '기준평가 시작' }))
+    fireEvent.click(await screen.findByRole('button', { name: '기존 평가 결과 불러오기' }))
 
     await waitFor(() => expect(policyBoundaryProvider.check).toHaveBeenCalledWith('ses_demo', expect.any(AbortSignal)))
     expect(await screen.findByRole('heading', { name: '현재 확인 가능한 결과' })).toBeInTheDocument()
-    expect(screen.getByText('DEMO_GRADE_B')).toBeInTheDocument()
-    expect(screen.getByText('DEMO_GRADE_C')).toBeInTheDocument()
+    expect(screen.getByText('평가 구간 B')).toBeInTheDocument()
+    expect(screen.getByText('평가 구간 C')).toBeInTheDocument()
+    expect(screen.queryByText('모델 추정값')).not.toBeInTheDocument()
+    expect(screen.queryByText('추정 범위')).not.toBeInTheDocument()
     expect(screen.getByRole('heading', { name: '추가 자료 확인 필요' })).toBeInTheDocument()
     expect(screen.getByText('심사역 재확인 패널')).toBeInTheDocument()
     expect(screen.getByText('2개 경로가 남아 있습니다.')).toBeInTheDocument()
@@ -167,7 +169,7 @@ describe('AssessmentPage', () => {
     })
     renderPage()
 
-    fireEvent.click(await screen.findByRole('button', { name: '기준평가 시작' }))
+    fireEvent.click(await screen.findByRole('button', { name: '기존 평가 결과 불러오기' }))
 
     expect(await screen.findByRole('heading', { name: '현재 데이터로 산출 불가' })).toBeInTheDocument()
     expect(screen.getByText('이 상태는 신용이 낮거나 대출 자격이 없다는 의미가 아닙니다.')).toBeInTheDocument()

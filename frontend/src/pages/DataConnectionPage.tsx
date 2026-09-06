@@ -3,7 +3,6 @@ import { Link, useNavigate } from 'react-router-dom'
 import { normalizeDataConnectionError } from '../api/dataConnectionClient'
 import Header from '../components/Header'
 import CustomerTechnicalDetails from '../components/CustomerTechnicalDetails'
-import { isMockMode } from '../config/providerMode'
 import { useCustomerSession } from '../hooks/useCustomerSession'
 import { dataConnectionProvider } from '../hooks/useDataConnectionState'
 import type { ApiError } from '../types/api'
@@ -168,7 +167,7 @@ function DataConnectionPage() {
           </nav>
           <header className="connection-heading">
             <div>
-              {isMockMode && <span className="connection-badge">시연용 합성 데이터</span>}
+              {session.demoOnly && <span className="connection-badge">시연용 합성 데이터</span>}
               <p className="flow-kicker">DATA CONNECTION</p>
               <h1>기준평가에 사용할 데이터 출처를 확인합니다</h1>
               <p>동의한 범위에서 평가에 필요한 정보가 준비됐는지 확인합니다. 정보가 없거나 추가 동의가 필요해도 신용상 불리한 결과를 뜻하지 않습니다.</p>
@@ -176,7 +175,7 @@ function DataConnectionPage() {
             <aside>
               <span>현재 사업자 유형</span>
               <strong>{session.demoProfile.displayName}</strong>
-              <small>합성 Demo 사례이며 실제 고객 정보를 사용하지 않습니다.</small>
+              <small>평가 주체와 연결 데이터가 이 유형에 맞게 적용됩니다.</small>
             </aside>
           </header>
 
@@ -216,12 +215,12 @@ function DataConnectionPage() {
 
           <section className="connection-actions" aria-label="데이터 연결 다음 작업">
             <div>
-              <strong>{result ? '다음은 기준평가입니다' : '데이터 출처 상태를 확인해주세요'}</strong>
-              <p>최신 연결 상태를 한 번 확인한 뒤 기준평가 화면으로 이동합니다.</p>
+              <strong>{result ? '다음은 기존 은행 평가 확인입니다' : '데이터 출처 상태를 확인해주세요'}</strong>
+              <p>최신 연결 상태를 확인한 뒤 은행이 보유한 기존 평가 결과를 불러옵니다.</p>
             </div>
             <div className="connection-actions__buttons">
               <Link className="connection-actions__consent" to="/consent">동의 내용 수정</Link>
-              {result && <button className="button button--primary" type="button" onClick={() => void continueToAssessment()} disabled={isLoading || Boolean(retrying)}>{isLoading ? '데이터 확인 중…' : '데이터 확인 후 기준평가 시작'}</button>}
+              {result && <button className="button button--primary" type="button" onClick={() => void continueToAssessment()} disabled={isLoading || Boolean(retrying)}>{isLoading ? '데이터 확인 중…' : '데이터 확인 후 기존 평가 보기'}</button>}
             </div>
           </section>
         </div>

@@ -4,6 +4,7 @@ import { assessmentComparisonProvider } from '../hooks/useAssessmentComparisonSt
 import type { ApiError } from '../types/api'
 import type { AssessmentUncertainty } from '../types/assessment'
 import type { AssessmentComparisonContext, AssessmentComparisonResponse, AssessmentComparisonState, AssessmentUncertaintyChange } from '../types/assessmentComparison'
+import { assessmentGradeSetLabel } from '../utils/assessmentDisplay'
 import EvidenceResolutionPanel from './EvidenceResolutionPanel'
 import CustomerTechnicalDetails from './CustomerTechnicalDetails'
 
@@ -21,7 +22,7 @@ const basisLabels = { GRADE_SET: '등급 집합', NUMERIC_INTERVAL: '수치 구�
 const formatDate = (value: string) => new Intl.DateTimeFormat('ko-KR', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(value))
 
 function UncertaintyCard({ label, uncertainty }: { label: string; uncertainty: AssessmentUncertainty | null }) {
-  const result = uncertainty?.gradeSet.length ? uncertainty.gradeSet.join(' · ') : uncertainty?.lowerBound !== null && uncertainty?.lowerBound !== undefined && uncertainty.upperBound !== null ? `${uncertainty.lowerBound} ~ ${uncertainty.upperBound}` : '비교 가능한 범위 없음'
+  const result = uncertainty?.gradeSet.length ? assessmentGradeSetLabel(uncertainty.gradeSet) : uncertainty?.lowerBound !== null && uncertainty?.lowerBound !== undefined && uncertainty.upperBound !== null ? `${uncertainty.lowerBound} ~ ${uncertainty.upperBound}` : '비교 가능한 범위 없음'
   return <article className="assessment-comparison__card"><span>{label}</span><strong>{result}</strong></article>
 }
 

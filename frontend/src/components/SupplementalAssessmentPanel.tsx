@@ -3,6 +3,7 @@ import { normalizeSupplementalAssessmentError } from '../api/supplementalAssessm
 import { supplementalAssessmentProvider } from '../hooks/useSupplementalAssessmentState'
 import type { ApiError } from '../types/api'
 import type { SupplementalAssessmentResponse, SupplementalAssessmentState } from '../types/supplementalAssessment'
+import { assessmentGradeSetLabel } from '../utils/assessmentDisplay'
 import AssessmentComparisonPanel from './AssessmentComparisonPanel'
 import AssessmentReviewPanel from './AssessmentReviewPanel'
 import CustomerTechnicalDetails from './CustomerTechnicalDetails'
@@ -11,7 +12,6 @@ interface SupplementalAssessmentPanelProps { sessionId: string; submissionId: st
 type Phase = 'loading' | 'running' | 'idle'
 
 const formatDate = (value: string) => new Intl.DateTimeFormat('ko-KR', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(value))
-const displayNumber = (value: number | null) => value === null ? '제공되지 않음' : String(value)
 
 function SupplementalAssessmentPanel({ sessionId, submissionId, qualityCheckId }: SupplementalAssessmentPanelProps) {
   const [assessment, setAssessment] = useState<SupplementalAssessmentState | null>(null)
@@ -66,7 +66,7 @@ function SupplementalAssessmentPanel({ sessionId, submissionId, qualityCheckId }
   return <section className={`supplemental-assessment supplemental-assessment--${assessment.status.toLowerCase()}`} aria-labelledby="supplemental-title">
     <div className="supplemental-assessment__heading"><div><span>보완평가</span><h3 id="supplemental-title">{assessment.status === 'COMPLETED' ? '보완평가를 완료했습니다' : '보완평가 결과를 확인해주세요'}</h3></div></div>
     <p>{assessment.status === 'COMPLETED' ? '품질을 확인한 자료를 반영한 결과입니다. 기존 평가와 나란히 비교할 수 있습니다.' : '현재 보완평가를 완료하지 못했습니다.'}</p>
-    {uncertainty && <div className="supplemental-assessment__result"><div><span>현재 확인 가능한 평가 범위</span><strong>{uncertainty.gradeSet.length > 0 ? uncertainty.gradeSet.join(' · ') : '평가 범위가 제공되지 않음'}</strong></div><dl><div><dt>모델 추정값</dt><dd>{displayNumber(uncertainty.pointEstimate)}</dd></div><div><dt>수치 범위</dt><dd>{uncertainty.lowerBound === null || uncertainty.upperBound === null ? '제공되지 않음' : `${uncertainty.lowerBound} ~ ${uncertainty.upperBound}`}</dd></div></dl></div>}
+    {uncertainty && <div className="supplemental-assessment__result"><div><span>현재 확인 가능한 평가 범위</span><strong>{uncertainty.gradeSet.length > 0 ? assessmentGradeSetLabel(uncertainty.gradeSet) : '확인 가능한 평가 구간이 없습니다.'}</strong></div>{(uncertainty.pointEstimate !== null || uncertainty.lowerBound !== null || uncertainty.upperBound !== null) && <dl>{uncertainty.pointEstimate !== null && <div><dt>모델 추정값</dt><dd>{uncertainty.pointEstimate}</dd></div>}{(uncertainty.lowerBound !== null || uncertainty.upperBound !== null) && <div><dt>수치 범위</dt><dd>{uncertainty.lowerBound !== null && uncertainty.upperBound !== null ? `${uncertainty.lowerBound} ~ ${uncertainty.upperBound}` : uncertainty.lowerBound ?? uncertainty.upperBound}</dd></div>}</dl>}</div>}
     <CustomerTechnicalDetails><dl><div><dt>처리 상태</dt><dd><code>{assessment.status}</code></dd></div><div><dt>상태 코드</dt><dd><code>{assessment.reasonCode ?? '없음'}</code></dd></div><div><dt>반영 자료</dt><dd>{assessment.acceptedEvidenceCount}건</dd></div><div><dt>계산 시점</dt><dd>{formatDate(assessment.calculatedAt)}</dd></div><div><dt>기준평가 ID</dt><dd><code>{assessment.baselineAssessmentId}</code></dd></div><div><dt>보완평가 ID</dt><dd><code>{assessment.supplementalAssessmentId}</code></dd></div><div><dt>입력 데이터 묶음</dt><dd><code>{assessment.inputSnapshotId}</code></dd></div><div><dt>모델 버전</dt><dd><code>{assessment.modelVersion ?? '제공되지 않음'}</code></dd></div>{uncertainty && <><div><dt>보정 방식</dt><dd><code>{uncertainty.calibrationMode}</code></dd></div><div><dt>보정 버전</dt><dd><code>{uncertainty.calibrationVersion}</code></dd></div></>}</dl></CustomerTechnicalDetails>
     {assessment.status === 'COMPLETED' && <AssessmentReviewPanel sessionId={sessionId} />}
     {assessment.status === 'COMPLETED' && <AssessmentComparisonPanel sessionId={sessionId} baselineAssessmentId={assessment.baselineAssessmentId} supplementalAssessmentId={assessment.supplementalAssessmentId} qualityCheckId={assessment.qualityCheckId} />}

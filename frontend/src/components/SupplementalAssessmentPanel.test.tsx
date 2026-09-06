@@ -31,7 +31,8 @@ describe('SupplementalAssessmentPanel', () => {
 
     await waitFor(() => expect(supplementalAssessmentProvider.run).toHaveBeenCalledWith('ses_demo', 'sub_demo', expect.any(AbortSignal)))
     expect(await screen.findByRole('heading', { name: '보완평가를 완료했습니다' })).toBeInTheDocument()
-    expect(screen.getByText('DEMO_GRADE_B')).toBeInTheDocument()
+    expect(screen.getByText('평가 구간 B')).toBeInTheDocument()
+    expect(screen.queryByText('모델 추정값')).not.toBeInTheDocument()
     expect(screen.getByText('품질을 확인한 자료를 반영한 결과입니다. 기존 평가와 나란히 비교할 수 있습니다.')).toBeInTheDocument()
     expect(screen.getByText('평가 전후 비교 패널')).toBeInTheDocument()
     expect(screen.getByText('심사역 재확인 패널')).toBeInTheDocument()
