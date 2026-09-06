@@ -9,7 +9,10 @@ from app.schemas.assessment import (
     SupplementalAssessmentResponse,
     SupplementalAssessmentRunRequest,
 )
-from app.schemas.assessment_review import AssessmentReviewRequestResponse
+from app.schemas.assessment_review import (
+    AssessmentReviewRequestCreateRequest,
+    AssessmentReviewRequestResponse,
+)
 from app.schemas.comparison import ProductComparisonResponse
 from app.schemas.consent import ConsentListResponse, ConsentState
 from app.schemas.data_source import DataSourceListResponse
@@ -273,10 +276,12 @@ async def get_assessment_review_request(
 )
 async def request_assessment_review(
     session_id: str,
+    payload: AssessmentReviewRequestCreateRequest,
     request: Request,
 ) -> AssessmentReviewRequestResponse:
     return get_assessment_review_request_service(request).request(
         session_id,
+        payload.customer_reason_code,
         request.state.request_id,
     )
 

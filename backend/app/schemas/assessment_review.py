@@ -13,6 +13,18 @@ class AssessmentReviewTargetType(StrEnum):
     SUPPLEMENTAL_ASSESSMENT = "SUPPLEMENTAL_ASSESSMENT"
 
 
+class CustomerAssessmentReviewReason(StrEnum):
+    """What the customer says is wrong, so review looks only at that."""
+
+    INCORRECT_INFORMATION = "INCORRECT_INFORMATION"
+    MISSING_RECENT_INFORMATION = "MISSING_RECENT_INFORMATION"
+    EXCLUDED_EVIDENCE_DISPUTED = "EXCLUDED_EVIDENCE_DISPUTED"
+
+
+class AssessmentReviewRequestCreateRequest(ApiModel):
+    customer_reason_code: CustomerAssessmentReviewReason
+
+
 class AssessmentReviewRequestState(ApiModel):
     review_request_id: str = Field(min_length=1)
     target_type: AssessmentReviewTargetType
@@ -20,6 +32,8 @@ class AssessmentReviewRequestState(ApiModel):
     reason_code: Literal["CUSTOMER_REQUESTED_ASSESSMENT_REVIEW"] = (
         "CUSTOMER_REQUESTED_ASSESSMENT_REVIEW"
     )
+    # Requests stored before customers could state a reason read back as None.
+    customer_reason_code: CustomerAssessmentReviewReason | None = None
     requested_at: datetime
     request_snapshot_hash: str = Field(pattern=r"^[0-9a-f]{64}$")
     data_version: str = Field(min_length=1)

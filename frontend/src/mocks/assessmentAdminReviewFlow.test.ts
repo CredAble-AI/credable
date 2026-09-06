@@ -7,7 +7,7 @@ describe('mock assessment and underwriter review flow', () => {
     const signal = new AbortController().signal
     const sessionId = 'ses_mock_linkage_test'
 
-    const requested = await mockAssessmentReviewProvider.request(sessionId, signal)
+    const requested = await mockAssessmentReviewProvider.request(sessionId, 'INCORRECT_INFORMATION', signal)
     const reviewId = requested.underwriterReviewId!
     expect((await mockAdminReviewProvider.get(reviewId, signal)).review.status).toBe('PENDING')
 

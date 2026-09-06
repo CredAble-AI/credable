@@ -31,7 +31,7 @@ export const mockAssessmentReviewProvider: AssessmentReviewProvider = {
     const existing = results.get(sessionId)
     return existing ? currentResponse(existing) : { sessionId, reviewRequest: null, underwriterReviewId: null, processing: null }
   },
-  async request(sessionId, signal) {
+  async request(sessionId, customerReasonCode, signal) {
     if (signal.aborted) throw new DOMException('Aborted', 'AbortError')
     const existing = results.get(sessionId)
     if (existing) return currentResponse(existing)
@@ -42,6 +42,7 @@ export const mockAssessmentReviewProvider: AssessmentReviewProvider = {
         targetType: 'BASELINE_ASSESSMENT',
         targetAssessmentId: `asm_demo_${sessionId}`,
         reasonCode: 'CUSTOMER_REQUESTED_ASSESSMENT_REVIEW',
+        customerReasonCode,
         requestedAt: new Date().toISOString(),
         requestSnapshotHash: '0'.repeat(64),
         dataVersion: 'demo-v1',
@@ -59,7 +60,7 @@ export const mockAssessmentReviewProvider: AssessmentReviewProvider = {
       triggerId: response.reviewRequest!.reviewRequestId,
       targetType: response.reviewRequest!.targetType,
       targetAssessmentId: response.reviewRequest!.targetAssessmentId,
-      reasonCodes: [response.reviewRequest!.reasonCode],
+      reasonCodes: [response.reviewRequest!.reasonCode, customerReasonCode],
       requestedAt: response.reviewRequest!.requestedAt,
       dataVersion: response.reviewRequest!.dataVersion,
       policyVersion: response.reviewRequest!.requestPolicyVersion,

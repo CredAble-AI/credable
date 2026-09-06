@@ -13,6 +13,9 @@ from app.services.assessment_service import AssessmentService, SupplementalAsses
 from app.services.data_source_service import DataSourceService
 
 
+REVIEW_REQUEST_BODY = {"customerReasonCode": "MISSING_RECENT_INFORMATION"}
+
+
 def create_session(client: TestClient) -> str:
     response = client.post(
         "/v1/sessions/demo",
@@ -96,7 +99,10 @@ def test_review_request_is_empty_before_creation(client: TestClient) -> None:
 def test_review_request_requires_a_completed_assessment(client: TestClient) -> None:
     session_id = create_session(client)
 
-    response = client.post(f"/v1/sessions/{session_id}/assessment/review-request")
+    response = client.post(
+        f"/v1/sessions/{session_id}/assessment/review-request",
+        json=REVIEW_REQUEST_BODY,
+    )
 
     assert response.status_code == 409
     assert response.json()["error"]["code"] == "ASSESSMENT_REVIEW_TARGET_NOT_READY"
@@ -117,8 +123,8 @@ def test_customer_can_request_idempotent_baseline_review(
     )
     endpoint = f"/v1/sessions/{session_id}/assessment/review-request"
 
-    first = client.post(endpoint)
-    second = client.post(endpoint)
+    first = client.post(endpoint, json=REVIEW_REQUEST_BODY)
+    second = client.post(endpoint, json=REVIEW_REQUEST_BODY)
     stored = client.get(endpoint)
 
     assert first.status_code == 200
@@ -168,7 +174,10 @@ def test_latest_completed_supplemental_assessment_becomes_review_target(
         supplemental_assessment_service,
     )
 
-    response = client.post(f"/v1/sessions/{session_id}/assessment/review-request")
+    response = client.post(
+        f"/v1/sessions/{session_id}/assessment/review-request",
+        json=REVIEW_REQUEST_BODY,
+    )
 
     assert response.status_code == 200
     review = response.json()["reviewRequest"]
@@ -189,7 +198,10 @@ def test_customer_review_request_appears_in_admin_queue_without_snapshot_hash(
         data_source_service,
         assessment_service,
     )
-    request_response = client.post(f"/v1/sessions/{session_id}/assessment/review-request")
+    request_response = client.post(
+        f"/v1/sessions/{session_id}/assessment/review-request",
+        json=REVIEW_REQUEST_BODY,
+    )
     review = request_response.json()["reviewRequest"]
 
     queue_response = client.get("/v1/admin/underwriter-reviews")
@@ -205,7 +217,10 @@ def test_customer_review_request_appears_in_admin_queue_without_snapshot_hash(
             "triggerId": review["reviewRequestId"],
             "targetType": "BASELINE_ASSESSMENT",
             "targetAssessmentId": assessment["assessmentId"],
-            "reasonCodes": ["CUSTOMER_REQUESTED_ASSESSMENT_REVIEW"],
+            "reasonCodes": [
+                "CUSTOMER_REQUESTED_ASSESSMENT_REVIEW",
+                "MISSING_RECENT_INFORMATION",
+            ],
             "requestedAt": review["requestedAt"],
             "dataVersion": review["dataVersion"],
             "policyVersion": "assessment-review-request-policy-v1",
@@ -239,7 +254,7 @@ def test_underwriter_processes_customer_review_without_changing_assessment(
         assessment_service,
     )
     customer_endpoint = f"/v1/sessions/{session_id}/assessment/review-request"
-    requested = client.post(customer_endpoint).json()
+    requested = client.post(customer_endpoint, json=REVIEW_REQUEST_BODY).json()
     review_id = requested["underwriterReviewId"]
     admin_endpoint = f"/v1/admin/underwriter-reviews/{review_id}"
 
@@ -327,3 +342,41 @@ def test_unknown_underwriter_review_is_not_exposed(client: TestClient) -> None:
 
     assert response.status_code == 404
     assert response.json()["error"]["code"] == "UNDERWRITER_REVIEW_NOT_FOUND"
+
+
+def test_review_request_records_what_the_customer_says_is_wrong(
+    client: TestClient,
+    data_source_service: DataSourceService,
+    assessment_service: AssessmentService,
+) -> None:
+    session_id = create_session(client)
+    run_baseline(client, session_id, data_source_service, assessment_service)
+    endpoint = f"/v1/sessions/{session_id}/assessment/review-request"
+
+    response = client.post(endpoint, json={"customerReasonCode": "EXCLUDED_EVIDENCE_DISPUTED"})
+
+    assert response.status_code == 200
+    review = response.json()["reviewRequest"]
+    assert review["customerReasonCode"] == "EXCLUDED_EVIDENCE_DISPUTED"
+    # The underwriter sees the customer's reason next to the request itself.
+    detail = client.get(f"/v1/admin/underwriter-reviews/{response.json()['underwriterReviewId']}")
+    assert detail.json()["review"]["reasonCodes"] == [
+        "CUSTOMER_REQUESTED_ASSESSMENT_REVIEW",
+        "EXCLUDED_EVIDENCE_DISPUTED",
+    ]
+
+
+def test_review_request_rejects_a_reason_the_service_does_not_define(
+    client: TestClient,
+    data_source_service: DataSourceService,
+    assessment_service: AssessmentService,
+) -> None:
+    session_id = create_session(client)
+    run_baseline(client, session_id, data_source_service, assessment_service)
+
+    response = client.post(
+        f"/v1/sessions/{session_id}/assessment/review-request",
+        json={"customerReasonCode": "I_JUST_WANT_A_BETTER_RESULT"},
+    )
+
+    assert response.status_code == 422

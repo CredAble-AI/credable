@@ -444,7 +444,11 @@ class UnderwriterReviewQueueService:
             trigger_id=review.review_request_id,
             target_type=review.target_type,
             target_assessment_id=review.target_assessment_id,
-            reason_codes=[review.reason_code],
+            reason_codes=[
+                code
+                for code in (review.reason_code, review.customer_reason_code)
+                if code is not None
+            ],
             requested_at=review.requested_at,
             data_version=review.data_version,
             policy_version=review.request_policy_version,

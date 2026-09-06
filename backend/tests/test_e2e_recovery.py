@@ -7,6 +7,9 @@ import app.main as main_module
 from app.core.config import Settings
 
 
+REVIEW_REQUEST_BODY = {"customerReasonCode": "MISSING_RECENT_INFORMATION"}
+
+
 def assert_ok(response) -> dict:
     assert response.status_code == 200, response.text
     return response.json()
@@ -61,7 +64,12 @@ def execute_complete_journey(client: TestClient) -> tuple[str, str, dict[str, di
     recovered["explanation"] = assert_ok(
         client.post(f"/v1/sessions/{session_id}/assessment/explanation/generate")
     )
-    review_request = assert_ok(client.post(f"/v1/sessions/{session_id}/assessment/review-request"))
+    review_request = assert_ok(
+        client.post(
+            f"/v1/sessions/{session_id}/assessment/review-request",
+            json=REVIEW_REQUEST_BODY,
+        )
+    )
     review_id = review_request["underwriterReviewId"]
     assert_ok(
         client.post(

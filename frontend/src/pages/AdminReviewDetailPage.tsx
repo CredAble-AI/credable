@@ -45,6 +45,11 @@ const comparisonLabels = { NARROWED: '불확실성 감소', UNCHANGED: '변화 �
 const resolutionLabels = { RESOLVED: '추가 수집 종료', MORE_EVIDENCE_REQUIRED: '다음 자료 필요', HUMAN_REVIEW: '심사역 확인 필요' } as const
 const dimensionLabels: Record<EvidenceQualityDimension, string> = { PROVENANCE: '출처', FRESHNESS: '최신성', AUTHENTICITY: '진위', COMPLETENESS: '완전성', CONSISTENCY: '일관성', MANIPULATION_RISK: '조작 위험' }
 const checkStatusLabels: Record<EvidenceQualityDimensionStatus, string> = { PASSED: '확인 완료', FAILED: '확인 필요', NOT_VERIFIED: '확인되지 않음' }
+const customerReasonLabels: Record<string, string> = {
+  INCORRECT_INFORMATION: '평가에 사용된 정보가 실제와 다르다는 요청입니다.',
+  MISSING_RECENT_INFORMATION: '최근 정보가 반영되지 않았다는 요청입니다.',
+  EXCLUDED_EVIDENCE_DISPUTED: '제출 자료가 제외된 사유를 확인해 달라는 요청입니다.',
+}
 const rationaleLabels: Record<string, string> = {
   DEMO_SERVER_DOCUMENT_PROVENANCE_CONFIRMED: '서버 발급 기록과 문서 식별자가 일치합니다.', DEMO_SERVER_DOCUMENT_PROVENANCE_INVALID: '서버 발급 기록과 문서 식별자가 일치하지 않습니다.',
   DEMO_MANIFEST_POINT_IN_TIME_VALID: '요청된 기준 기간 안의 자료입니다.', DEMO_MANIFEST_POINT_IN_TIME_INVALID: '요청된 기준 기간을 벗어난 자료입니다.',
@@ -105,7 +110,8 @@ function ComparisonContext({ context }: { context: AdminReviewCaseContext }) {
 
 function ReviewContext({ review, context }: { review: AdminReviewQueueItem; context: AdminReviewCaseContext }) {
   const guidance = reviewGuidance[review.triggerType]; const hasContext = Object.values(context).some(Boolean)
-  return <><section className="admin-review-brief" aria-labelledby="review-reason-title"><div><span>검토 사유</span><h2 id="review-reason-title">{guidance.title}</h2><p>{guidance.description}</p></div><aside><span>지금 할 일</span><strong>{guidance.action}</strong></aside></section><section className="admin-case-flow" aria-labelledby="case-flow-title"><div className="admin-section-heading"><div><span>검토 자료</span><h2 id="case-flow-title">이 요청과 직접 연결된 정보</h2><p>현재 검토 요청과 직접 연결된 서버 기록만 표시합니다.</p></div><Link to={`/admin/sessions/${encodeURIComponent(review.sessionId)}/audit`}>전체 처리 이력</Link></div>{hasContext ? <div className="admin-case-list"><AssessmentContext context={context} /><BoundaryContext context={context} /><SelectionContext context={context} /><EvidenceContext review={review} context={context} /><ComparisonContext context={context} /></div> : <p className="admin-case-flow__notice">이 검토 요청에 연결된 상세 자료를 찾지 못했습니다. 감사 이력에서 원본 기록을 확인해주세요.</p>}</section></>
+  const customerReason = review.reasonCodes.map((code) => customerReasonLabels[code]).find(Boolean)
+  return <><section className="admin-review-brief" aria-labelledby="review-reason-title"><div><span>검토 사유</span><h2 id="review-reason-title">{guidance.title}</h2><p>{guidance.description}</p>{customerReason && <p className="admin-review-brief__customer-reason"><b>고객이 지적한 내용</b> {customerReason}</p>}</div><aside><span>지금 할 일</span><strong>{guidance.action}</strong></aside></section><section className="admin-case-flow" aria-labelledby="case-flow-title"><div className="admin-section-heading"><div><span>검토 자료</span><h2 id="case-flow-title">이 요청과 직접 연결된 정보</h2><p>현재 검토 요청과 직접 연결된 서버 기록만 표시합니다.</p></div><Link to={`/admin/sessions/${encodeURIComponent(review.sessionId)}/audit`}>전체 처리 이력</Link></div>{hasContext ? <div className="admin-case-list"><AssessmentContext context={context} /><BoundaryContext context={context} /><SelectionContext context={context} /><EvidenceContext review={review} context={context} /><ComparisonContext context={context} /></div> : <p className="admin-case-flow__notice">이 검토 요청에 연결된 상세 자료를 찾지 못했습니다. 감사 이력에서 원본 기록을 확인해주세요.</p>}</section></>
 }
 
 function TechnicalDetails({ review }: { review: AdminReviewQueueItem }) {

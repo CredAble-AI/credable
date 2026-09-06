@@ -133,6 +133,7 @@ describe('customer journey integration', () => {
 
     expect(await screen.findByRole('heading', { level: 5, name: '추가 자료 확인을 마쳤습니다' })).toBeInTheDocument()
     expect(await screen.findByRole('heading', { level: 3, name: '추가 증빙 수집이 종료됐습니다' })).toBeInTheDocument()
+    fireEvent.click(await screen.findByRole('radio', { name: /최근 정보가 반영되지 않았습니다/ }))
     fireEvent.click(await screen.findByRole('button', { name: '평가 결과 재확인 요청' }))
     expect(await screen.findByRole('heading', { level: 3, name: '평가 결과 재확인 요청이 접수됐습니다' })).toBeInTheDocument()
     fireEvent.click(screen.getByRole('link', { name: '자사 상품 조건 확인' }))
