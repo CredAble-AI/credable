@@ -131,6 +131,7 @@ function ConsentPage() {
               {consents.map((consent) => {
                 const checked = consent.status === 'GRANTED'
                 const isUpdating = updatingSource === consent.sourceType
+                const visualStatus = isUpdating ? 'updating' : consent.status.toLowerCase()
                 return (
                   <label className="consent-item" key={consent.sourceType}>
                     <input type="checkbox" checked={checked} disabled={Boolean(updatingSource)} onChange={() => void toggleConsent(consent)} />
@@ -138,7 +139,7 @@ function ConsentPage() {
                     <span className="consent-item__content">
                       <strong>{consent.displayName}</strong>
                       <small className="consent-item__description">{consent.description}</small>
-                      <small className="consent-item__status"><b>현재 상태</b>{isUpdating ? '처리 중' : statusLabel(consent.status)}</small>
+                      <small className={`consent-item__status consent-item__status--${visualStatus}`}><b>현재 상태</b><span>{isUpdating ? '처리 중' : statusLabel(consent.status)}</span></small>
                       <em className={consent.required === true ? 'consent-item__requirement--required' : ''}>{requirementLabel(consent.required)}</em>
                     </span>
                   </label>
