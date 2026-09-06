@@ -19,7 +19,7 @@
       "observedAt": "2026-08-31T00:00:00Z",
       "qualityReferenceAt": "2026-09-06T00:00:00Z",
       "dataVersion": "demo-recent-revenue-summary-v1",
-      "qualityPolicyVersion": "demo-binary-evidence-quality-policy-v1",
+      "qualityPolicyVersion": "demo-binary-evidence-quality-policy-v2",
       "requiredManifestFields": [
         "businessName",
         "periodStart",
@@ -36,12 +36,42 @@
         "generatedOn": "2026-09-06",
         "demoNotice": "합성 Demo 자료 · 실제 제출용 아님",
         "monthlySummaries": [
-          {"month": "2026-03", "salesAmount": 42000000, "depositAmount": 40500000, "differenceAmount": 1500000},
-          {"month": "2026-04", "salesAmount": 45000000, "depositAmount": 44000000, "differenceAmount": 1000000},
-          {"month": "2026-05", "salesAmount": 47500000, "depositAmount": 46800000, "differenceAmount": 700000},
-          {"month": "2026-06", "salesAmount": 49000000, "depositAmount": 48600000, "differenceAmount": 400000},
-          {"month": "2026-07", "salesAmount": 51000000, "depositAmount": 50400000, "differenceAmount": 600000},
-          {"month": "2026-08", "salesAmount": 53000000, "depositAmount": 52500000, "differenceAmount": 500000}
+          {
+            "month": "2026-03",
+            "salesAmount": 42000000,
+            "depositAmount": 40500000,
+            "differenceAmount": 1500000
+          },
+          {
+            "month": "2026-04",
+            "salesAmount": 45000000,
+            "depositAmount": 44000000,
+            "differenceAmount": 1000000
+          },
+          {
+            "month": "2026-05",
+            "salesAmount": 47500000,
+            "depositAmount": 46800000,
+            "differenceAmount": 700000
+          },
+          {
+            "month": "2026-06",
+            "salesAmount": 49000000,
+            "depositAmount": 48600000,
+            "differenceAmount": 400000
+          },
+          {
+            "month": "2026-07",
+            "salesAmount": 51000000,
+            "depositAmount": 50400000,
+            "differenceAmount": 600000
+          },
+          {
+            "month": "2026-08",
+            "salesAmount": 53000000,
+            "depositAmount": 52500000,
+            "differenceAmount": 500000
+          }
         ],
         "totals": {
           "salesAmount": 287500000,
@@ -50,9 +80,18 @@
         }
       },
       "uploadPolicy": {
-        "allowedContentTypes": ["application/pdf"],
-        "allowedExtensions": [".pdf"],
+        "allowedContentTypes": [
+          "application/pdf"
+        ],
+        "allowedExtensions": [
+          ".pdf"
+        ],
         "maxSizeBytes": 5242880
+      },
+      "manifestSignature": {
+        "algorithm": "RS256",
+        "keyId": "credable-demo-manifest-rs256-v1",
+        "value": "tRuPm5HoK2gPYO7856FNByQYmZqmuE4dUXwLcQZiiePFGE1GbLTCeur99KbK90c3uQtc31VHwCJxcokAyGOVebu3KtYwvjaZ5SgAf/sv8RlvjJDs4Gpc1qpzRbjAm2TwWW5zhl49Zl+NAlHtkjrPz43BUTzHc8tbt9P+IKaJ/jU1J7yRvsloxJuMMJpdoRlfobh1WViW4LR0JR2fVS7y3OgA0F7G5D/WcLu7OXIsj7T9Jgc1364we/q77clXdBNZD2jVp3+9CYfAFMVSsHdwJaKs6PGYxE+d8S6Nj63K52RFfcoNZ6K6tmYtixAcbU+uVwxo+VyWhOA/Lnq3exIwBg=="
       }
     },
     {
@@ -73,8 +112,16 @@
       "observedAt": "2026-09-05T00:00:00Z",
       "qualityReferenceAt": "2026-08-31T00:00:00Z",
       "dataVersion": "demo-recent-revenue-point-in-time-invalid-v1",
-      "qualityPolicyVersion": "demo-binary-evidence-quality-policy-v1",
-      "requiredManifestFields": ["businessName", "periodStart", "periodEnd", "generatedOn", "demoNotice", "monthlySummaries", "totals"],
+      "qualityPolicyVersion": "demo-binary-evidence-quality-policy-v2",
+      "requiredManifestFields": [
+        "businessName",
+        "periodStart",
+        "periodEnd",
+        "generatedOn",
+        "demoNotice",
+        "monthlySummaries",
+        "totals"
+      ],
       "manifest": {
         "businessName": "도담상점(합성)",
         "periodStart": "2026-04-01",
@@ -82,12 +129,39 @@
         "generatedOn": "2026-09-05",
         "demoNotice": "합성 Demo 자료 · 실제 제출용 아님",
         "monthlySummaries": [
-          {"month": "2026-04", "salesAmount": 45000000, "depositAmount": 44000000, "differenceAmount": 1000000},
-          {"month": "2026-05", "salesAmount": 47500000, "depositAmount": 46800000, "differenceAmount": 700000}
+          {
+            "month": "2026-04",
+            "salesAmount": 45000000,
+            "depositAmount": 44000000,
+            "differenceAmount": 1000000
+          },
+          {
+            "month": "2026-05",
+            "salesAmount": 47500000,
+            "depositAmount": 46800000,
+            "differenceAmount": 700000
+          }
         ],
-        "totals": {"salesAmount": 92500000, "depositAmount": 90800000, "differenceAmount": 1700000}
+        "totals": {
+          "salesAmount": 92500000,
+          "depositAmount": 90800000,
+          "differenceAmount": 1700000
+        }
       },
-      "uploadPolicy": {"allowedContentTypes": ["application/pdf"], "allowedExtensions": [".pdf"], "maxSizeBytes": 5242880}
+      "uploadPolicy": {
+        "allowedContentTypes": [
+          "application/pdf"
+        ],
+        "allowedExtensions": [
+          ".pdf"
+        ],
+        "maxSizeBytes": 5242880
+      },
+      "manifestSignature": {
+        "algorithm": "RS256",
+        "keyId": "credable-demo-manifest-rs256-v1",
+        "value": "KH1rMQZLQg5H7jvbKPc+OwnWvxIPDs23rCS9lpb1fMlJY+I8446/zS3VRk4+foRVLLPbi6f+212VIwkQOzdTN9vX5G7XlE+oFwW8KmP3zrImXTnrBzxO7AhqTRjuxT2SWpfNAjvgQcp/0iwSP7+MkttIIjKOvlmwzFfvl4AH4bzJGoNDlCZo7H9SwVgeJq6BqTvW3GLFFd66F2h5/kYIFjckTiDeCiArXhf+vKUuVynpmdYsFViS/SAc8IWxv2z92zEM91Wi3s0VBuboMNCvw79Dt/g7FV45sx0azY0Jdtf0HIBpzqn+Mq5/mA/pWLYQOCEM5AIddU05w3Jm1BZvfg=="
+      }
     },
     {
       "demoFileId": "demo_recent_revenue_incomplete_v1",
@@ -107,8 +181,16 @@
       "observedAt": "2026-08-31T00:00:00Z",
       "qualityReferenceAt": "2026-09-06T00:00:00Z",
       "dataVersion": "demo-recent-revenue-incomplete-v1",
-      "qualityPolicyVersion": "demo-binary-evidence-quality-policy-v1",
-      "requiredManifestFields": ["businessName", "periodStart", "periodEnd", "generatedOn", "demoNotice", "monthlySummaries", "totals"],
+      "qualityPolicyVersion": "demo-binary-evidence-quality-policy-v2",
+      "requiredManifestFields": [
+        "businessName",
+        "periodStart",
+        "periodEnd",
+        "generatedOn",
+        "demoNotice",
+        "monthlySummaries",
+        "totals"
+      ],
       "manifest": {
         "businessName": "도담상점(합성)",
         "periodStart": "2026-03-01",
@@ -116,12 +198,39 @@
         "generatedOn": "2026-09-06",
         "demoNotice": null,
         "monthlySummaries": [
-          {"month": "2026-07", "salesAmount": 51000000, "depositAmount": 50400000, "differenceAmount": 600000},
-          {"month": "2026-08", "salesAmount": 53000000, "depositAmount": 52500000, "differenceAmount": 500000}
+          {
+            "month": "2026-07",
+            "salesAmount": 51000000,
+            "depositAmount": 50400000,
+            "differenceAmount": 600000
+          },
+          {
+            "month": "2026-08",
+            "salesAmount": 53000000,
+            "depositAmount": 52500000,
+            "differenceAmount": 500000
+          }
         ],
-        "totals": {"salesAmount": 104000000, "depositAmount": 102900000, "differenceAmount": 1100000}
+        "totals": {
+          "salesAmount": 104000000,
+          "depositAmount": 102900000,
+          "differenceAmount": 1100000
+        }
       },
-      "uploadPolicy": {"allowedContentTypes": ["application/pdf"], "allowedExtensions": [".pdf"], "maxSizeBytes": 5242880}
+      "uploadPolicy": {
+        "allowedContentTypes": [
+          "application/pdf"
+        ],
+        "allowedExtensions": [
+          ".pdf"
+        ],
+        "maxSizeBytes": 5242880
+      },
+      "manifestSignature": {
+        "algorithm": "RS256",
+        "keyId": "credable-demo-manifest-rs256-v1",
+        "value": "eZ6qYNbJ6SNUTRwd0/PFev/LIkEHMvcywZCCTyydCPmqMDO8qOcS8AUJtWfzIyVzOivQP6QfHC+U1XLbA0x0D4B9CDJRMtnb702w/OiRfQ1XXKZnhWlcPmPSqHQ2LSgaa9Ph7PhPWrtxorucRx+Zd7C2/J5WNGLcNnFwz1/efm/9HB6UBuDx4WdUuFXe7/fuLOuKg+Uq5qEzAh3Ws5oe9oFTBVydma8OLRIR9tiNLLhu9g0I0/pAyG0OrgG9IsHCszYO/fTCa9C2DftaMtYiERylj1qsEyh4uILV5NRPFiDc0DezzGEdXLC1L7Bcw/U/UJufyajQwKj3qOAQp3wlww=="
+      }
     },
     {
       "demoFileId": "demo_recent_revenue_tampered_v1",
@@ -142,8 +251,16 @@
       "observedAt": "2026-08-31T00:00:00Z",
       "qualityReferenceAt": "2026-09-06T00:00:00Z",
       "dataVersion": "demo-recent-revenue-tampered-v1",
-      "qualityPolicyVersion": "demo-binary-evidence-quality-policy-v1",
-      "requiredManifestFields": ["businessName", "periodStart", "periodEnd", "generatedOn", "demoNotice", "monthlySummaries", "totals"],
+      "qualityPolicyVersion": "demo-binary-evidence-quality-policy-v2",
+      "requiredManifestFields": [
+        "businessName",
+        "periodStart",
+        "periodEnd",
+        "generatedOn",
+        "demoNotice",
+        "monthlySummaries",
+        "totals"
+      ],
       "manifest": {
         "businessName": "도담상점(합성)",
         "periodStart": "2026-03-01",
@@ -151,12 +268,39 @@
         "generatedOn": "2026-09-06",
         "demoNotice": "합성 Demo 자료 · 실제 제출용 아님",
         "monthlySummaries": [
-          {"month": "2026-07", "salesAmount": 51000000, "depositAmount": 50400000, "differenceAmount": 600000},
-          {"month": "2026-08", "salesAmount": 53000000, "depositAmount": 52500000, "differenceAmount": 500000}
+          {
+            "month": "2026-07",
+            "salesAmount": 51000000,
+            "depositAmount": 50400000,
+            "differenceAmount": 600000
+          },
+          {
+            "month": "2026-08",
+            "salesAmount": 53000000,
+            "depositAmount": 52500000,
+            "differenceAmount": 500000
+          }
         ],
-        "totals": {"salesAmount": 104000000, "depositAmount": 102900000, "differenceAmount": 1100000}
+        "totals": {
+          "salesAmount": 104000000,
+          "depositAmount": 102900000,
+          "differenceAmount": 1100000
+        }
       },
-      "uploadPolicy": {"allowedContentTypes": ["application/pdf"], "allowedExtensions": [".pdf"], "maxSizeBytes": 5242880}
+      "uploadPolicy": {
+        "allowedContentTypes": [
+          "application/pdf"
+        ],
+        "allowedExtensions": [
+          ".pdf"
+        ],
+        "maxSizeBytes": 5242880
+      },
+      "manifestSignature": {
+        "algorithm": "RS256",
+        "keyId": "credable-demo-manifest-rs256-v1",
+        "value": "FPcRLguEa3yPxlWsF8KVpGVrurbVqKGBs5/YelMxpEJB8Zacg/KDfpfNrb8/8nybGre3knT8j13vcW6XvwNlbKxWP6yuWqqEtHViQ57v1fIjwU4vBgtBmM2SNikBFgZDS7C64rbOtjFf/pNtUQSs0a1uTQ5VMG8xMTQmtTVl2BoiznAcGHtImGHo09BhTYlvElAg3tqwEduElEjMOlpXYjHhRs7SvASUYGyRuqCEFf0I0n3mFaSLDao8y/GugGT4ZBdLo5ngjV/iNUtcZyEWrCm1jR/m28dUt5b7s10A7NIGZX80fqL5iT7x+fB8UCTXjy0teJE7jNSjYNuQofkj6Q=="
+      }
     }
   ],
   "demoOnly": true

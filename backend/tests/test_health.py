@@ -167,6 +167,10 @@ def test_ready_returns_current_dependency_checks(client: TestClient) -> None:
                 "status": "ok",
             },
             {
+                "name": "demo_evidence_trust_verifier",
+                "status": "ok",
+            },
+            {
                 "name": "product_catalog_repository",
                 "status": "ok",
             },

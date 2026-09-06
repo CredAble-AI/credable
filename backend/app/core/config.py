@@ -61,6 +61,9 @@ class Settings(BaseModel):
         BACKEND_ROOT / "app" / "data" / "demo_evidence_submissions.json"
     )
     demo_evidence_files_path: Path = BACKEND_ROOT / "app" / "data" / "demo_evidence_files.json"
+    demo_evidence_trust_keys_path: Path = (
+        BACKEND_ROOT / "app" / "data" / "demo_evidence_trust_keys.json"
+    )
     demo_evidence_quality_path: Path = BACKEND_ROOT / "app" / "data" / "demo_evidence_quality.json"
     demo_products_path: Path = BACKEND_ROOT / "app" / "data" / "demo_products.json"
     demo_product_conditions_path: Path = (

@@ -6,6 +6,7 @@ from pydantic import Field, model_validator
 
 from app.schemas.base import ApiModel
 from app.schemas.consent import ConsentSourceType
+from app.schemas.evidence_trust import DemoManifestSignature
 
 
 class EvidenceCollectionMode(StrEnum):
@@ -116,6 +117,7 @@ class DemoEvidenceFileDefinition(ApiModel):
     quality_reference_at: datetime
     data_version: str = Field(min_length=1)
     quality_policy_version: str = Field(min_length=1)
+    manifest_signature: DemoManifestSignature | None = None
     required_manifest_fields: list[str] = Field(min_length=1)
     manifest: DemoRevenueSummaryManifest
     upload_policy: EvidenceUploadPolicy = Field(default_factory=EvidenceUploadPolicy)

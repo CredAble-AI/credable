@@ -75,6 +75,9 @@ class DemoEvidenceFileCatalog:
         self._load()
         return self._files_by_id.get(demo_file_id)
 
+    def list_all(self) -> list[DemoEvidenceFileDefinition]:
+        return list(self._load().files)
+
     def list_for_evidence_type(self, evidence_type: str) -> list[DemoEvidenceFileDefinition]:
         self._load()
         return list(self._scenario_files_by_evidence_type.get(evidence_type, []))

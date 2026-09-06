@@ -465,14 +465,31 @@ Snapshot 중 하나라도 일치하지 않으면 재평가 입력 자격을 주�
 일치하지 않으면 `EVIDENCE_CONSENT_NOT_ACTIVE`로 차단합니다. 이미 저장된 품질 결과는
 감사 가능한 과거 이력으로 유지합니다.
 
+Demo manifest에는 문서 ID·Evidence 유형·출처·신뢰할 문서 해시·관측시점·검증 기준시점·필수
+필드·manifest 본문·데이터 및 품질정책 버전을 하나의 정규화된 payload로 묶은 RS256 서명이
+포함됩니다. 서버는 저장소에 포함된 공개키로 서명을 검증하고 성공한 경우에만
+`trustVerification.status: VERIFIED`, `channel: SERVER_SIGNED_MANIFEST`를 반환합니다. 서명 후
+manifest나 정책 버전이 바뀌거나 등록되지 않은 키를 사용하면 `NOT_VERIFIED`가 되며 진위 검사를
+통과시키지 않고 심사역 확인으로 보냅니다. 개인키는 저장소에 포함하지 않습니다.
+
+`verifiedScopes`는 `DOCUMENT_INTEGRITY`, `MANIFEST_BINDING`, `DEMO_ISSUER_IDENTITY`만 제공합니다.
+이는 합성 문서가 CredAble Demo 발급 서버의 검증정보와 일치한다는 뜻이며 실제 금융기관 발급
+사실이나 문서 내용의 현실 사실성을 증명한다는 뜻이 아닙니다. 운영 환경에서는 같은
+`EvidenceTrustVerifier` 계약에 내부 원장, 발급기관 API, PDF 전자서명 또는 발급번호 조회
+Adapter를 연결하고, 신뢰 통로가 없으면 `UNVERIFIED_DOCUMENT`로 자동평가에서 제외해야 합니다.
+
 기존 `DEMO_FIXTURE_REFERENCE` 제출은 하위 호환을 위해 기존 품질 Fixture를 사용합니다. 같은
 `submissionId`를 다시 검증하면 저장된 결과를 반환해 중복 판정과 중복 Audit을 만들지 않습니다.
-이번 binary 검증은 서버가 직접 발급한 합성 Demo PDF에 대한 실제 검증이며 임의의 실물
-금융문서 진위 판별, 운영 수준 OCR 또는 악성파일 검사를 의미하지 않습니다.
+이번 binary 검증은 서버가 직접 발급한 합성 Demo PDF의 서명·원본성·무결성·최신성·정합성에
+대한 실제 검증이며 임의의 무서명 실물 금융문서 진위 판별, 운영 수준 OCR 또는 악성파일
+검사를 의미하지 않습니다.
 
 시나리오 PDF는 `python3 backend/scripts/generate_demo_evidence_scenarios.py`로 동일하게 다시
 생성할 수 있습니다. 생성 후에는 `demo_evidence_files.json`의 크기와 SHA-256이 결과물과
-일치하는지 확인해야 하며, 불일치하면 서버 readiness가 실패합니다.
+일치하는지 확인해야 하며, 불일치하면 서버 readiness가 실패합니다. manifest를 변경한 경우에는
+저장소 밖에서 관리하는 RSA 개인키를 사용해
+`PYTHONPATH=backend backend/.venv/bin/python backend/scripts/sign_demo_evidence_manifests.py --private-key <path>`로
+다시 서명해야 합니다. 이 명령은 공개키와 서명값만 갱신합니다.
 
 실제 운영 규칙은 은행이 인정하는 발급처, 유효기간, 필수 필드, 교차검증 원천과 조작 탐지
 방식이 확정된 뒤 Adapter로 교체해야 합니다. 품질 검증을 통과하지 못한 Evidence는 다음
