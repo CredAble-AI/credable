@@ -2,12 +2,12 @@ import { providerMode, type ProviderMode } from '../config/providerMode'
 
 const environmentCopy: Record<ProviderMode, { label: string; description: string }> = {
   mock: {
-    label: 'Mock · Demo Only',
-    description: '브라우저의 합성 Mock 데이터를 사용하는 Demo 환경',
+    label: '시연용 합성 데이터',
+    description: '실제 고객 정보가 아닌 합성 데이터로 동작하는 시연 환경',
   },
   live: {
-    label: 'API · Demo Only',
-    description: '백엔드 API에 연결된 합성 Demo 환경',
+    label: '시연용 합성 데이터',
+    description: '실제 고객 정보가 아닌 합성 데이터로 동작하는 시연 환경',
   },
 }
 
@@ -26,7 +26,7 @@ function EnvironmentIndicator({ mode = providerMode }: EnvironmentIndicatorProps
     >
       <i aria-hidden="true" />
       <span className="environment-indicator__full">{copy.label}</span>
-      <span className="environment-indicator__compact" aria-hidden="true">{mode === 'mock' ? 'Mock' : 'API'}</span>
+      <span className="environment-indicator__compact" aria-hidden="true">시연</span>
     </span>
   )
 }

@@ -23,18 +23,18 @@ describe('AssessmentExplanationPanel', () => {
   it('recovers with GET and waits for explicit generation', async () => {
     render(<AssessmentExplanationPanel sessionId="ses_demo" />)
 
-    expect(await screen.findByRole('button', { name: '평가 결과 설명 생성' })).toBeInTheDocument()
+    expect(await screen.findByRole('button', { name: '평가 결과 설명 보기' })).toBeInTheDocument()
     expect(assessmentExplanationProvider.get).toHaveBeenCalledWith('ses_demo', expect.any(AbortSignal))
     expect(assessmentExplanationProvider.generate).not.toHaveBeenCalled()
   })
 
   it('renders only the server response after explicit generation', async () => {
     render(<AssessmentExplanationPanel sessionId="ses_demo" />)
-    fireEvent.click(await screen.findByRole('button', { name: '평가 결과 설명 생성' }))
+    fireEvent.click(await screen.findByRole('button', { name: '평가 결과 설명 보기' }))
 
     await waitFor(() => expect(assessmentExplanationProvider.generate).toHaveBeenCalledWith('ses_demo', expect.any(AbortSignal)))
     expect(await screen.findByRole('heading', { level: 3, name: explanation.headline })).toBeInTheDocument()
-    expect(screen.getByText('Demo 템플릿')).toBeInTheDocument()
+    expect(screen.getByText('시연용 안내')).toBeInTheDocument()
     expect(screen.getByText(explanation.sections[0].text)).toBeInTheDocument()
     expect(screen.getByText(explanation.cautionText)).toBeInTheDocument()
   })
@@ -43,8 +43,8 @@ describe('AssessmentExplanationPanel', () => {
     vi.mocked(assessmentExplanationProvider.get).mockResolvedValue(response({ ...explanation, renderingMode: 'RULE_FALLBACK', fallbackApplied: true, fallbackReasonCode: 'EXPLANATION_PROVIDER_ERROR', providerVersion: 'rule-fallback-v1' }))
     render(<AssessmentExplanationPanel sessionId="ses_demo" />)
 
-    expect(await screen.findByText('규칙 기반 설명')).toBeInTheDocument()
-    expect(screen.getByRole('status')).toHaveTextContent('EXPLANATION_PROVIDER_ERROR')
+    expect(await screen.findByText('기본 안내')).toBeInTheDocument()
+    expect(screen.getByRole('status')).toHaveTextContent('동일한 평가 결과를 기본 안내 문구로 보여드립니다')
   })
 
   it('rejects a response from another session', async () => {

@@ -47,7 +47,7 @@ describe('EvidenceSelectionPage', () => {
     vi.mocked(evidenceSelectionProvider.get).mockResolvedValue({ sessionId: session.sessionId, selection: null })
     renderPage()
 
-    expect(await screen.findByRole('button', { name: '다음 Evidence 확인' })).toBeInTheDocument()
+    expect(await screen.findByRole('button', { name: '필요한 자료 확인' })).toBeInTheDocument()
     expect(evidenceSelectionProvider.get).toHaveBeenCalledWith('ses_demo', expect.any(AbortSignal))
     expect(evidenceSelectionProvider.selectNext).not.toHaveBeenCalled()
   })
@@ -57,13 +57,13 @@ describe('EvidenceSelectionPage', () => {
     vi.mocked(evidenceSelectionProvider.selectNext).mockResolvedValue(selected)
     renderPage()
 
-    fireEvent.click(await screen.findByRole('button', { name: '다음 Evidence 확인' }))
+    fireEvent.click(await screen.findByRole('button', { name: '필요한 자료 확인' }))
 
     expect(await screen.findByRole('heading', { name: '최근 매출·입금 요약' })).toBeInTheDocument()
     expect(screen.getByText('동의 확인 필요')).toBeInTheDocument()
     expect(screen.getByText('2건')).toBeInTheDocument()
     expect(screen.getByText('DEMO_MINIMUM_SINGLE_REQUEST')).toBeInTheDocument()
-    expect(screen.getByText('검토 후보 수는 서버가 비교한 후보 개수이며 순위나 추천 점수가 아닙니다.')).toBeInTheDocument()
+    expect(screen.getByText('불필요한 추가 요청을 막기 위해 한 건만 선택했습니다.')).toBeInTheDocument()
     expect(screen.queryByText(/최적 Evidence|utility/i)).not.toBeInTheDocument()
     expect(evidenceSelectionProvider.selectNext).toHaveBeenCalledWith('ses_demo', expect.any(AbortSignal))
   })

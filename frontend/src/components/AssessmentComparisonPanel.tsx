@@ -5,23 +5,24 @@ import type { ApiError } from '../types/api'
 import type { AssessmentUncertainty } from '../types/assessment'
 import type { AssessmentComparisonContext, AssessmentComparisonResponse, AssessmentComparisonState, AssessmentUncertaintyChange } from '../types/assessmentComparison'
 import EvidenceResolutionPanel from './EvidenceResolutionPanel'
+import CustomerTechnicalDetails from './CustomerTechnicalDetails'
 
 interface AssessmentComparisonPanelProps extends AssessmentComparisonContext { sessionId: string }
 type Phase = 'loading' | 'comparing' | 'idle'
 
 const changeCopy: Record<AssessmentUncertaintyChange, { title: string; description: string }> = {
-  NARROWED: { title: '가능한 결과 범위가 줄었습니다', description: '서버 비교 결과에서 가능한 결과의 구조적 범위가 이전보다 좁아졌습니다.' },
-  UNCHANGED: { title: '가능한 결과 범위가 유지되었습니다', description: '서버 비교 결과에서 가능한 결과의 구조적 범위가 동일하게 유지됐습니다.' },
-  EXPANDED: { title: '가능한 결과 범위가 넓어졌습니다', description: '서버 비교 결과에서 가능한 결과의 구조적 범위가 이전보다 넓어졌습니다.' },
-  SHIFTED: { title: '가능한 결과 범위가 이동했습니다', description: '서버 비교 결과에서 가능한 결과의 구조적 범위가 다른 구간으로 이동했습니다.' },
-  NOT_COMPARABLE: { title: '동일 기준으로 비교할 수 없습니다', description: '서버가 두 평가의 보정 기준 또는 결과 형태를 비교할 수 없다고 판단했습니다.' },
+  NARROWED: { title: '가능한 결과 범위가 줄었습니다', description: '추가 자료를 반영한 뒤 가능한 결과 범위가 더 명확해졌습니다.' },
+  UNCHANGED: { title: '가능한 결과 범위가 유지되었습니다', description: '추가 자료를 반영했지만 가능한 결과 범위는 동일합니다.' },
+  EXPANDED: { title: '가능한 결과 범위가 넓어졌습니다', description: '추가 자료를 반영한 뒤 가능한 결과 범위가 넓어졌습니다.' },
+  SHIFTED: { title: '가능한 결과 범위가 이동했습니다', description: '추가 자료를 반영한 뒤 가능한 결과 범위가 다른 구간으로 이동했습니다.' },
+  NOT_COMPARABLE: { title: '같은 기준으로 비교할 수 없습니다', description: '두 평가의 기준 또는 결과 형태가 달라 직접 비교하지 않습니다.' },
 }
 const basisLabels = { GRADE_SET: '등급 집합', NUMERIC_INTERVAL: '수치 구간', NOT_COMPARABLE: '비교 불가' }
 const formatDate = (value: string) => new Intl.DateTimeFormat('ko-KR', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(value))
 
 function UncertaintyCard({ label, uncertainty }: { label: string; uncertainty: AssessmentUncertainty | null }) {
   const result = uncertainty?.gradeSet.length ? uncertainty.gradeSet.join(' · ') : uncertainty?.lowerBound !== null && uncertainty?.lowerBound !== undefined && uncertainty.upperBound !== null ? `${uncertainty.lowerBound} ~ ${uncertainty.upperBound}` : '비교 가능한 범위 없음'
-  return <article className="assessment-comparison__card"><span>{label}</span><strong>{result}</strong>{uncertainty && <dl><div><dt>보정 방식</dt><dd>{uncertainty.calibrationMode}</dd></div><div><dt>보정 버전</dt><dd><code>{uncertainty.calibrationVersion}</code></dd></div></dl>}</article>
+  return <article className="assessment-comparison__card"><span>{label}</span><strong>{result}</strong></article>
 }
 
 function AssessmentComparisonPanel({ sessionId, baselineAssessmentId, supplementalAssessmentId, qualityCheckId }: AssessmentComparisonPanelProps) {
@@ -72,16 +73,15 @@ function AssessmentComparisonPanel({ sessionId, baselineAssessmentId, supplement
 
   if (phase === 'loading' && !comparison) return <section className="assessment-comparison assessment-comparison--loading" aria-label="평가 전후 비교 상태 확인"><span /><span /></section>
 
-  if (!comparison) return <section className="assessment-comparison" aria-labelledby="comparison-title"><div className="assessment-comparison__heading"><div><span>BEFORE / AFTER</span><h4 id="comparison-title">두 평가의 범위를 비교합니다</h4></div><strong>비교 전</strong></div><p>서버가 기준평가와 보완평가의 불확실성을 같은 보정 기준에서 구조적으로 비교합니다.</p>{error && <div className="assessment-comparison__error" role="alert"><p>{error.message}</p><small>{error.code}{error.requestId ? ` · 요청 ID ${error.requestId}` : ''}</small></div>}<button className="button button--secondary" type="button" disabled={phase === 'comparing'} onClick={() => void request(true)}>{phase === 'comparing' ? '백엔드에서 비교 중…' : '평가 전후 비교'}</button></section>
+  if (!comparison) return <section className="assessment-comparison" aria-labelledby="comparison-title"><div className="assessment-comparison__heading"><div><span>평가 전후 비교</span><h4 id="comparison-title">추가 자료 반영 전후를 비교합니다</h4></div><strong>비교 전</strong></div><p>기준평가와 보완평가를 같은 기준에서 비교해 결과 범위가 어떻게 달라졌는지 보여드립니다.</p>{error && <div className="assessment-comparison__error" role="alert"><p>{error.message}</p></div>}<button className="button button--secondary" type="button" disabled={phase === 'comparing'} onClick={() => void request(true)}>{phase === 'comparing' ? '비교하는 중…' : '평가 전후 비교'}</button></section>
 
   const copy = changeCopy[comparison.uncertaintyChange]
   return <section className={`assessment-comparison assessment-comparison--${comparison.uncertaintyChange.toLowerCase()}`} aria-labelledby="comparison-title">
-    <div className="assessment-comparison__heading"><div><span>BEFORE / AFTER</span><h4 id="comparison-title">{copy.title}</h4></div><strong>{comparison.uncertaintyChange}</strong></div>
+    <div className="assessment-comparison__heading"><div><span>평가 전후 비교</span><h4 id="comparison-title">{copy.title}</h4></div></div>
     <p>{copy.description}</p>
     <div className="assessment-comparison__notice">이는 신용도 개선, 승인 가능성 상승 또는 대출 조건 확정을 의미하지 않습니다.</div>
     <div className="assessment-comparison__cards"><UncertaintyCard label="기준평가" uncertainty={comparison.beforeUncertainty} /><UncertaintyCard label="보완평가" uncertainty={comparison.afterUncertainty} /></div>
-    <div className="assessment-comparison__reasons"><span>서버 비교 근거</span>{comparison.rationaleCodes.map((code) => <code key={code}>{code}</code>)}</div>
-    <dl className="assessment-comparison__metadata"><div><dt>비교 기준</dt><dd>{basisLabels[comparison.basis]}</dd></div><div><dt>비교 시점</dt><dd>{formatDate(comparison.comparedAt)}</dd></div><div><dt>비교 ID</dt><dd><code>{comparison.comparisonId}</code></dd></div><div><dt>기준평가 모델</dt><dd><code>{comparison.baselineModelVersion ?? '제공되지 않음'}</code></dd></div><div><dt>보완평가 모델</dt><dd><code>{comparison.supplementalModelVersion ?? '제공되지 않음'}</code></dd></div></dl>
+    <CustomerTechnicalDetails><dl><div><dt>변화 상태</dt><dd><code>{comparison.uncertaintyChange}</code></dd></div><div><dt>비교 기준</dt><dd>{basisLabels[comparison.basis]}</dd></div><div><dt>비교 시점</dt><dd>{formatDate(comparison.comparedAt)}</dd></div><div><dt>비교 ID</dt><dd><code>{comparison.comparisonId}</code></dd></div><div><dt>기준평가 모델</dt><dd><code>{comparison.baselineModelVersion ?? '제공되지 않음'}</code></dd></div><div><dt>보완평가 모델</dt><dd><code>{comparison.supplementalModelVersion ?? '제공되지 않음'}</code></dd></div>{comparison.beforeUncertainty && <><div><dt>이전 보정 방식</dt><dd><code>{comparison.beforeUncertainty.calibrationMode}</code></dd></div><div><dt>이전 보정 버전</dt><dd><code>{comparison.beforeUncertainty.calibrationVersion}</code></dd></div></>}{comparison.afterUncertainty && <><div><dt>이후 보정 방식</dt><dd><code>{comparison.afterUncertainty.calibrationMode}</code></dd></div><div><dt>이후 보정 버전</dt><dd><code>{comparison.afterUncertainty.calibrationVersion}</code></dd></div></>}{comparison.rationaleCodes.map((code) => <div key={code}><dt>비교 근거 코드</dt><dd><code>{code}</code></dd></div>)}</dl></CustomerTechnicalDetails>
     <EvidenceResolutionPanel sessionId={sessionId} comparisonId={comparison.comparisonId} supplementalAssessmentId={comparison.supplementalAssessmentId} />
   </section>
 }

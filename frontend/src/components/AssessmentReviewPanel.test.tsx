@@ -31,7 +31,7 @@ describe('AssessmentReviewPanel', () => {
     expect(await screen.findByRole('button', { name: '평가 결과 재확인 요청' })).toBeInTheDocument()
     expect(assessmentReviewProvider.get).toHaveBeenCalledWith('ses_demo', expect.any(AbortSignal))
     expect(assessmentReviewProvider.request).not.toHaveBeenCalled()
-    expect(screen.queryByRole('complementary', { name: 'Demo 화면 전환' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('complementary', { name: '시연 화면 전환' })).not.toBeInTheDocument()
   })
 
   it('submits an explicit request and displays the server-selected assessment target', async () => {
@@ -44,9 +44,9 @@ describe('AssessmentReviewPanel', () => {
     expect(screen.getByText('보완평가')).toBeInTheDocument()
     expect(screen.getByText('sam_demo')).toBeInTheDocument()
     expect(screen.getByText('PENDING')).toBeInTheDocument()
-    expect(screen.getByRole('link', { name: '심사역 검토 화면 보기 (Demo)' })).toHaveAttribute('href', '/admin/reviews/uwr_demo')
-    expect(screen.getByRole('complementary', { name: 'Demo 화면 전환' })).toBeInTheDocument()
-    expect(screen.getByRole('link', { name: '심사역 검토로 전환' })).toHaveAttribute('href', '/admin/reviews/uwr_demo')
+    expect(screen.getByRole('link', { name: '담당자 검토 화면 보기' })).toHaveAttribute('href', '/admin/reviews/uwr_demo')
+    expect(screen.getByRole('complementary', { name: '시연 화면 전환' })).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: '담당자 검토로 전환' })).toHaveAttribute('href', '/admin/reviews/uwr_demo')
     expect(screen.getByText(/실제 운영 환경에서는 권한이 분리된 별도 심사역 시스템/)).toBeInTheDocument()
   })
 
@@ -57,7 +57,7 @@ describe('AssessmentReviewPanel', () => {
     })
     renderPanel()
 
-    expect(await screen.findByRole('heading', { name: '처리 결과가 기록되었습니다' })).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { name: '재확인 처리가 완료됐습니다' })).toBeInTheDocument()
     expect(screen.getByText('ADDITIONAL_INFORMATION_REQUIRED')).toBeInTheDocument()
   })
 

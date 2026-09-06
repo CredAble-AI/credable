@@ -49,7 +49,7 @@ describe('AssessmentComparisonPanel', () => {
     vi.mocked(assessmentComparisonProvider.get).mockResolvedValue(response({ ...comparison, basis: 'NOT_COMPARABLE', uncertaintyChange: 'NOT_COMPARABLE', beforeUncertainty: null, afterUncertainty: null, rationaleCodes: ['CALIBRATION_VERSION_MISMATCH'] }))
     renderPanel()
 
-    expect(await screen.findByRole('heading', { name: '동일 기준으로 비교할 수 없습니다' })).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { name: '같은 기준으로 비교할 수 없습니다' })).toBeInTheDocument()
     expect(screen.getAllByText('비교 가능한 범위 없음')).toHaveLength(2)
     expect(screen.getByText('CALIBRATION_VERSION_MISMATCH')).toBeInTheDocument()
   })

@@ -18,8 +18,8 @@ const statusCopy: Record<ProductConditionStatus, { label: string; icon: string; 
   PUBLIC_ONLY: { label: '공개 조건만 확인됨', icon: 'i', message: '은행이 공개한 일반 상품 조건입니다. 고객별 조회 결과가 아닙니다.' },
   INELIGIBLE: { label: '상품별 자격조건 미충족', icon: '–', message: '은행이 확정한 이 상품의 상태입니다. 다른 상품의 상태를 의미하지 않습니다.' },
   INSUFFICIENT_DATA: { label: '데이터 부족으로 산출 불가', icon: '○', message: '현재 확인된 데이터만으로는 개인화 조건을 산출할 수 없습니다. 이는 신용이 낮거나 대출 자격이 없다는 의미가 아닙니다.' },
-  POLICY_NOT_CONFIGURED: { label: '개인화 정책 미구성', icon: '!', message: '현재 Demo 환경에는 이 상품의 개인화 정책이 구성되지 않았습니다.' },
-  QUERY_FAILED: { label: '상품 조건 조회 실패', icon: '!', message: '이 상품의 조건을 현재 조회할 수 없습니다. 오류를 공개 조건이나 Mock 결과로 대체하지 않았습니다.' },
+  POLICY_NOT_CONFIGURED: { label: '개인화 정책 미구성', icon: '!', message: '현재 시연 환경에는 이 상품의 개인화 정책이 구성되지 않았습니다.' },
+  QUERY_FAILED: { label: '상품 조건 조회 실패', icon: '!', message: '이 상품의 조건을 현재 조회할 수 없습니다. 확인되지 않은 값으로 대체하지 않습니다.' },
 }
 const money = (value: MoneyAmount | null) => value ? `${value.amount} ${value.currency}` : '확인되지 않음'
 const rate = (value: AnnualRateRange | null) => value ? `연 ${value.minPercent}% ~ ${value.maxPercent}%` : '확인되지 않음'
@@ -32,7 +32,7 @@ function DetailContent({ item, onRetry, busy }: { item: ProductView; onRetry: ()
   const personalized = product.conditionStatus === 'PERSONALIZED_AVAILABLE'
   const personalizedConditions = product.personalizedConditions
   return <>
-    <header className="detail-heading"><Link to="/products" className="detail-back">← 상품 비교로 돌아가기</Link><div className="detail-heading__badges"><span className={`detail-status detail-status--${(product.conditionStatus ?? 'PUBLIC_ONLY').toLowerCase()}`}><b aria-hidden="true">{status.icon}</b>{status.label}</span>{isMockMode && <span>Mock · Demo Only</span>}</div><h1>{product.productName}</h1><p>고객이 선택한 상품의 현재 확인 가능한 조건입니다. 최종 조건은 은행의 정식 심사와 약정 과정에서 확정됩니다.</p></header>
+    <header className="detail-heading"><Link to="/products" className="detail-back">← 상품 비교로 돌아가기</Link><div className="detail-heading__badges"><span className={`detail-status detail-status--${(product.conditionStatus ?? 'PUBLIC_ONLY').toLowerCase()}`}><b aria-hidden="true">{status.icon}</b>{status.label}</span>{isMockMode && <span>시연용 합성 데이터</span>}</div><h1>{product.productName}</h1><p>고객이 선택한 상품의 현재 확인 가능한 조건입니다. 최종 조건은 은행의 정식 심사와 약정 과정에서 확정됩니다.</p></header>
     <section className="detail-notice" aria-labelledby="detail-status-title"><span aria-hidden="true">{status.icon}</span><div><h2 id="detail-status-title">현재 상품 결과 상태</h2><p>{status.message}</p>{product.conditionReasonCode && <small>상태 코드: {product.conditionReasonCode}</small>}{product.conditionStatus === 'QUERY_FAILED' && <button type="button" onClick={onRetry} disabled={busy}>{busy ? '다시 조회 중…' : '상품 조건 다시 조회'}</button>}</div></section>
     <div className="detail-grid">
       <section className="detail-card"><p className="detail-card__number">01</p><h2>기본 상품 정보</h2><dl><div><dt>상품명</dt><dd>{product.productName}</dd></div><div><dt>가입 대상·주요 조건</dt><dd>{product.eligibilitySummary}</dd></div><div><dt>상품 버전</dt><dd>{product.productVersion}</dd></div><div><dt>신청 안내 참조</dt><dd>{product.applicationReference ?? '은행 심사 후 확인'}</dd></div></dl></section>

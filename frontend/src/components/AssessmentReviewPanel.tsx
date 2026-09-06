@@ -4,15 +4,16 @@ import { normalizeAssessmentReviewError } from '../api/assessmentReviewClient'
 import { assessmentReviewProvider } from '../hooks/useAssessmentReviewState'
 import type { ApiError } from '../types/api'
 import type { AssessmentReviewProcessingStatus, AssessmentReviewRequestResponse } from '../types/assessmentReview'
+import CustomerTechnicalDetails from './CustomerTechnicalDetails'
 import './AssessmentReviewPanel.css'
 
 interface AssessmentReviewPanelProps { sessionId: string }
 type Phase = 'loading' | 'requesting' | 'idle'
 
 const statusCopy: Record<AssessmentReviewProcessingStatus, { title: string; description: string }> = {
-  PENDING: { title: '평가 결과 재확인 요청이 접수됐습니다', description: '요청이 대기열에 등록됐습니다. 기존 평가 결과는 심사역 처리 전까지 그대로 유지됩니다.' },
-  IN_REVIEW: { title: '심사역이 평가 결과를 확인하고 있습니다', description: '서버가 심사역 검토 시작 상태를 반환했습니다. 처리 결과가 확정될 때까지 기존 평가 결과를 유지합니다.' },
-  COMPLETED: { title: '처리 결과가 기록되었습니다', description: '서버가 심사역 처리 결과 코드를 반환했습니다. 프론트엔드는 결과의 의미를 다시 판단하지 않습니다.' },
+  PENDING: { title: '평가 결과 재확인 요청이 접수됐습니다', description: '요청이 대기열에 등록됐습니다. 담당자가 확인하기 전까지 현재 평가 결과가 유지됩니다.' },
+  IN_REVIEW: { title: '담당자가 평가 결과를 확인하고 있습니다', description: '담당자가 검토를 시작했습니다. 결과가 확정될 때까지 현재 평가 결과가 유지됩니다.' },
+  COMPLETED: { title: '재확인 처리가 완료됐습니다', description: '담당자의 처리 결과가 기록됐습니다.' },
 }
 const targetLabels = { BASELINE_ASSESSMENT: '기준평가', SUPPLEMENTAL_ASSESSMENT: '보완평가' } as const
 const formatDate = (value: string | null) => value ? new Intl.DateTimeFormat('ko-KR', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(value)) : '확인되지 않음'
@@ -59,8 +60,8 @@ function AssessmentReviewPanel({ sessionId }: AssessmentReviewPanelProps) {
   const review = result?.reviewRequest ?? null
   const processing = result?.processing ?? null
   if (!review) return <section className="assessment-review" aria-labelledby="assessment-review-title">
-    <div className="assessment-review__heading"><div><span>CUSTOMER REVIEW REQUEST</span><h3 id="assessment-review-title">평가 결과 재확인을 요청할 수 있습니다</h3></div><strong>요청 전</strong></div>
-    <p>완료된 평가 결과를 심사역이 다시 확인하도록 요청합니다. 대상 평가는 백엔드가 현재 평가 이력에 따라 확정하며 요청만으로 평가 결과가 변경되지는 않습니다.</p>
+    <div className="assessment-review__heading"><div><span>평가 결과 재확인</span><h3 id="assessment-review-title">담당자에게 재확인을 요청할 수 있습니다</h3></div><strong>요청 전</strong></div>
+    <p>완료된 평가 결과를 담당자가 다시 확인하도록 요청합니다. 요청만으로 평가 결과가 변경되지는 않습니다.</p>
     {error && <div className="assessment-review__error" role="alert"><p>{error.message}</p><small>{error.code}{error.requestId ? ` · 요청 ID ${error.requestId}` : ''}</small></div>}
     {error ? error.retryable && <button className="button button--secondary" type="button" onClick={() => void send(false)}>요청 상태 다시 확인</button> : <button className="button button--primary" type="button" disabled={phase !== 'idle'} onClick={() => void send(true)}>{phase === 'requesting' ? '재확인 요청 중…' : '평가 결과 재확인 요청'}</button>}
   </section>
@@ -68,13 +69,14 @@ function AssessmentReviewPanel({ sessionId }: AssessmentReviewPanelProps) {
   const underwriterReviewId = result!.underwriterReviewId!
   const copy = processing ? statusCopy[processing.status] : { title: '평가 결과 재확인 요청이 저장됐습니다', description: '처리 상태는 서버 응답에서 확인되지 않았습니다.' }
   return <><section className={`assessment-review assessment-review--${processing?.status.toLowerCase() ?? 'unknown'}`} aria-labelledby="assessment-review-title">
-    <div className="assessment-review__heading"><div><span>CUSTOMER REVIEW REQUEST</span><h3 id="assessment-review-title">{copy.title}</h3></div><strong>{processing?.status ?? 'STATUS_UNKNOWN'}</strong></div>
+    <div className="assessment-review__heading"><div><span>평가 결과 재확인</span><h3 id="assessment-review-title">{copy.title}</h3></div></div>
     <p>{copy.description}</p>
     {error && <div className="assessment-review__error" role="alert"><p>{error.message}</p><small>{error.code}{error.requestId ? ` · 요청 ID ${error.requestId}` : ''}</small></div>}
-    <dl className="assessment-review__metadata"><div><dt>검토 대상</dt><dd>{targetLabels[review.targetType]}</dd></div><div><dt>대상 평가 ID</dt><dd><code>{review.targetAssessmentId}</code></dd></div><div><dt>처리 결과 코드</dt><dd><code>{processing?.resultCode ?? '처리 중'}</code></dd></div><div><dt>요청 시점</dt><dd>{formatDate(review.requestedAt)}</dd></div><div><dt>검토 시작</dt><dd>{formatDate(processing?.startedAt ?? null)}</dd></div><div><dt>검토 완료</dt><dd>{formatDate(processing?.completedAt ?? null)}</dd></div><div><dt>모델 버전</dt><dd><code>{review.modelVersion}</code></dd></div><div><dt>요청 정책 버전</dt><dd><code>{review.requestPolicyVersion}</code></dd></div></dl>
-    <div className="assessment-review__actions"><button className="button button--secondary" type="button" disabled={phase !== 'idle'} onClick={() => void send(false)}>{phase === 'loading' ? '처리 상태 확인 중…' : '처리 상태 다시 확인'}</button><Link className="button button--primary" to={`/admin/reviews/${encodeURIComponent(underwriterReviewId)}`}>심사역 검토 화면 보기 (Demo)</Link></div>
+    <dl className="assessment-review__metadata"><div><dt>검토 대상</dt><dd>{targetLabels[review.targetType]}</dd></div><div><dt>요청 시점</dt><dd>{formatDate(review.requestedAt)}</dd></div><div><dt>검토 시작</dt><dd>{formatDate(processing?.startedAt ?? null)}</dd></div><div><dt>검토 완료</dt><dd>{formatDate(processing?.completedAt ?? null)}</dd></div></dl>
+    <CustomerTechnicalDetails><dl><div><dt>처리 상태</dt><dd><code>{processing?.status ?? '확인되지 않음'}</code></dd></div><div><dt>대상 평가 ID</dt><dd><code>{review.targetAssessmentId}</code></dd></div><div><dt>처리 결과 코드</dt><dd><code>{processing?.resultCode ?? '처리 중'}</code></dd></div><div><dt>모델 버전</dt><dd><code>{review.modelVersion}</code></dd></div><div><dt>요청 정책 버전</dt><dd><code>{review.requestPolicyVersion}</code></dd></div></dl></CustomerTechnicalDetails>
+    <div className="assessment-review__actions"><button className="button button--secondary" type="button" disabled={phase !== 'idle'} onClick={() => void send(false)}>{phase === 'loading' ? '처리 상태 확인 중…' : '처리 상태 다시 확인'}</button><Link className="button button--primary" to={`/admin/reviews/${encodeURIComponent(underwriterReviewId)}`}>담당자 검토 화면 보기</Link></div>
     <p className="assessment-review__demo-note">시연 편의를 위해 고객 화면과 심사역 화면을 연결했습니다. 실제 운영 환경에서는 권한이 분리된 별도 심사역 시스템에서만 접근합니다.</p>
-  </section><aside className="demo-underwriter-switcher" aria-label="Demo 화면 전환"><div><span>DEMO NEXT STEP</span><strong>고객 요청이 심사역 대기열에 등록됐습니다</strong></div><Link to={`/admin/reviews/${encodeURIComponent(underwriterReviewId)}`}>심사역 검토로 전환 <span aria-hidden="true">→</span></Link></aside></>
+  </section><aside className="demo-underwriter-switcher" aria-label="시연 화면 전환"><div><span>시연 다음 단계</span><strong>고객 요청이 담당자 대기열에 등록됐습니다</strong></div><Link to={`/admin/reviews/${encodeURIComponent(underwriterReviewId)}`}>담당자 검토로 전환 <span aria-hidden="true">→</span></Link></aside></>
 }
 
 export default AssessmentReviewPanel

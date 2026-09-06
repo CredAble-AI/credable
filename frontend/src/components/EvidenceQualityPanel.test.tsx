@@ -39,13 +39,13 @@ describe('EvidenceQualityPanel', () => {
   it('runs no check automatically and displays every server check after confirmation', async () => {
     renderPanel()
 
-    const button = await screen.findByRole('button', { name: '증빙 품질 확인' })
+    const button = await screen.findByRole('button', { name: '자료 품질 확인' })
     expect(evidenceQualityProvider.check).not.toHaveBeenCalled()
     fireEvent.click(button)
 
     await waitFor(() => expect(evidenceQualityProvider.check).toHaveBeenCalledWith('ses_demo', 'sub_demo', expect.any(AbortSignal)))
-    expect(await screen.findByRole('heading', { name: '품질검증을 통과했습니다' })).toBeInTheDocument()
-    expect(screen.getAllByText('PASSED')).toHaveLength(6)
+    expect(await screen.findByRole('heading', { name: '자료 확인을 완료했습니다' })).toBeInTheDocument()
+    expect(screen.getAllByText('확인 완료')).toHaveLength(6)
     expect(screen.getByText('RUN_REASSESSMENT')).toBeInTheDocument()
     expect(screen.getByText('보완평가 패널')).toBeInTheDocument()
   })
@@ -54,7 +54,7 @@ describe('EvidenceQualityPanel', () => {
     vi.mocked(evidenceQualityProvider.get).mockResolvedValue(response(quality('REVIEW_REQUIRED')))
     renderPanel()
 
-    expect(await screen.findByRole('heading', { name: '심사역 확인이 필요합니다' })).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { name: '담당자 확인이 필요합니다' })).toBeInTheDocument()
     expect(screen.getAllByText('DEMO_AUTHENTICITY_FAILED')).toHaveLength(3)
     expect(screen.getByText('UNDERWRITER_REVIEW')).toBeInTheDocument()
     expect(screen.getByText('필요')).toBeInTheDocument()
@@ -64,7 +64,7 @@ describe('EvidenceQualityPanel', () => {
     vi.mocked(evidenceQualityProvider.get).mockResolvedValue(response(quality('REJECTED')))
     renderPanel()
 
-    const link = await screen.findByRole('link', { name: '다음 Evidence 한 건 확인' })
+    const link = await screen.findByRole('link', { name: '다음 자료 한 건 확인' })
     expect(link).toHaveAttribute('href', '/evidence?selectNext=1')
     expect(screen.queryByText('보완평가 패널')).not.toBeInTheDocument()
   })

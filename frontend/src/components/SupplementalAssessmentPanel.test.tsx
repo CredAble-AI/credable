@@ -50,9 +50,9 @@ describe('SupplementalAssessmentPanel', () => {
     vi.mocked(supplementalAssessmentProvider.get).mockResolvedValue(response({ ...completed, status: 'INSUFFICIENT_DATA', modelVersion: null, reasonCode: 'EVIDENCE_AFTER_FEATURE_CUTOFF', uncertainty: null }))
     renderPanel()
 
-    expect(await screen.findByText('서버 상태 코드 EVIDENCE_AFTER_FEATURE_CUTOFF')).toBeInTheDocument()
+    expect(await screen.findByText('현재 보완평가를 완료하지 못했습니다.')).toBeInTheDocument()
     expect(screen.getByText('INSUFFICIENT_DATA')).toBeInTheDocument()
-    expect(screen.queryByText('가능한 Demo 평가 범위')).not.toBeInTheDocument()
+    expect(screen.queryByText('현재 확인 가능한 평가 범위')).not.toBeInTheDocument()
   })
 
   it('rejects a result from another quality check', async () => {

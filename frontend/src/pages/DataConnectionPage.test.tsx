@@ -80,10 +80,10 @@ describe('DataConnectionPage', () => {
     expect(screen.getAllByRole('heading', { level: 3 }).map((heading) => heading.textContent)).toEqual([
       '은행 내부 데이터', '신용정보', '고객 제출 데이터', '외부 연결 데이터',
     ])
-    expect(screen.getByText('조회 · 동의 필요')).toBeInTheDocument()
-    expect(screen.getByText('조회 · 조회 가능한 데이터 없음')).toBeInTheDocument()
-    expect(screen.getByText('조회 · 조회 실패')).toBeInTheDocument()
-    expect(screen.getAllByText('상세 추적 정보')).toHaveLength(4)
+    expect(screen.getByText('연결 상태 · 동의 필요')).toBeInTheDocument()
+    expect(screen.getByText('연결 상태 · 조회 가능한 데이터 없음')).toBeInTheDocument()
+    expect(screen.getByText('연결 상태 · 조회 실패')).toBeInTheDocument()
+    expect(screen.getAllByText('시연 기술 정보 보기')).toHaveLength(4)
     expect(screen.queryByText('은행 보유 · 필수')).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: /다시 조회/ })).not.toBeInTheDocument()
     expect(screen.getByRole('link', { name: '기준평가 실행' })).toHaveAttribute('href', '/assessment')
@@ -100,13 +100,13 @@ describe('DataConnectionPage', () => {
     })]))
     renderPage()
 
-    await screen.findByText('조회 · 조회 전')
+    await screen.findByText('연결 상태 · 조회 전')
     fireEvent.click(screen.getByRole('button', { name: '전체 출처 새로고침' }))
 
     await waitFor(() => expect(dataConnectionProvider.refresh).toHaveBeenCalledWith('ses_demo', expect.any(AbortSignal)))
     const card = screen.getByRole('heading', { level: 3, name: '은행 내부 데이터' }).closest('article')
     expect(card).not.toBeNull()
-    expect(within(card as HTMLElement).getByText('조회 · 조회 완료')).toBeInTheDocument()
+    expect(within(card as HTMLElement).getByText('연결 상태 · 조회 완료')).toBeInTheDocument()
     expect(within(card as HTMLElement).getByText('synthetic-bank-data-v1')).toBeInTheDocument()
   })
 
