@@ -87,7 +87,11 @@ def test_review_request_is_empty_before_creation(client: TestClient) -> None:
     response = client.get(f"/v1/sessions/{session_id}/assessment/review-request")
 
     assert response.status_code == 200
-    assert response.json() == {"sessionId": session_id, "reviewRequest": None}
+    assert response.json() == {
+        "sessionId": session_id,
+        "reviewRequest": None,
+        "processing": None,
+    }
 
 
 def test_review_request_requires_a_completed_assessment(client: TestClient) -> None:
@@ -122,6 +126,12 @@ def test_customer_can_request_idempotent_baseline_review(
     assert second.json() == first.json()
     assert stored.json() == first.json()
     review = first.json()["reviewRequest"]
+    assert first.json()["processing"] == {
+        "status": "PENDING",
+        "resultCode": None,
+        "startedAt": None,
+        "completedAt": None,
+    }
     assert review["reviewRequestId"].startswith("arr_")
     assert review["targetType"] == "BASELINE_ASSESSMENT"
     assert review["targetAssessmentId"] == assessment["assessmentId"]
@@ -200,7 +210,131 @@ def test_customer_review_request_appears_in_admin_queue_without_snapshot_hash(
             "requestedAt": review["requestedAt"],
             "dataVersion": review["dataVersion"],
             "policyVersion": "assessment-review-request-policy-v1",
+            "status": "PENDING",
             "demoOnly": True,
         }
     ]
     assert "requestSnapshotHash" not in queue_response.text
+
+
+def test_underwriter_processes_customer_review_without_changing_assessment(
+    client: TestClient,
+    data_source_service: DataSourceService,
+    assessment_service: AssessmentService,
+    session_repository: SqliteCustomerSessionRepository,
+) -> None:
+    session_id = create_session(client)
+    assessment = run_baseline(
+        client,
+        session_id,
+        data_source_service,
+        assessment_service,
+    )
+    customer_endpoint = f"/v1/sessions/{session_id}/assessment/review-request"
+    requested = client.post(customer_endpoint).json()
+    review_id = f"uwr_{requested['reviewRequest']['reviewRequestId'].removeprefix('arr_')}"
+    admin_endpoint = f"/v1/admin/underwriter-reviews/{review_id}"
+
+    pending = client.get(admin_endpoint, headers=ADMIN_HEADERS)
+    premature = client.post(
+        f"{admin_endpoint}/complete",
+        headers=ADMIN_HEADERS,
+        json={"resultCode": "ASSESSMENT_CONFIRMED"},
+    )
+    first_claim = client.post(f"{admin_endpoint}/claim", headers=ADMIN_HEADERS)
+    repeated_claim = client.post(f"{admin_endpoint}/claim", headers=ADMIN_HEADERS)
+    invalid_result = client.post(
+        f"{admin_endpoint}/complete",
+        headers=ADMIN_HEADERS,
+        json={"resultCode": "EVIDENCE_CONFIRMED"},
+    )
+    completed = client.post(
+        f"{admin_endpoint}/complete",
+        headers=ADMIN_HEADERS,
+        json={"resultCode": "ASSESSMENT_CONFIRMED"},
+    )
+    repeated_completion = client.post(
+        f"{admin_endpoint}/complete",
+        headers=ADMIN_HEADERS,
+        json={"resultCode": "ASSESSMENT_CONFIRMED"},
+    )
+    conflicting_completion = client.post(
+        f"{admin_endpoint}/complete",
+        headers=ADMIN_HEADERS,
+        json={"resultCode": "CORRECTION_REQUIRED"},
+    )
+    reclaim = client.post(f"{admin_endpoint}/claim", headers=ADMIN_HEADERS)
+
+    assert pending.status_code == 200
+    assert pending.json()["review"]["status"] == "PENDING"
+    assert premature.status_code == 409
+    assert premature.json()["error"]["code"] == "UNDERWRITER_REVIEW_NOT_CLAIMED"
+    assert first_claim.status_code == 200
+    assert first_claim.json()["review"]["status"] == "IN_REVIEW"
+    assert first_claim.json()["review"]["startedAt"].endswith("Z")
+    assert repeated_claim.json() == first_claim.json()
+    assert invalid_result.status_code == 409
+    assert invalid_result.json()["error"]["code"] == "UNDERWRITER_REVIEW_RESULT_NOT_ALLOWED"
+    assert completed.status_code == 200
+    assert completed.json()["review"]["status"] == "COMPLETED"
+    assert completed.json()["review"]["resultCode"] == "ASSESSMENT_CONFIRMED"
+    assert completed.json()["review"]["completedAt"].endswith("Z")
+    assert repeated_completion.json() == completed.json()
+    assert conflicting_completion.status_code == 409
+    assert conflicting_completion.json()["error"]["code"] == ("UNDERWRITER_REVIEW_RESULT_CONFLICT")
+    assert reclaim.status_code == 409
+    assert reclaim.json()["error"]["code"] == "UNDERWRITER_REVIEW_ALREADY_COMPLETED"
+
+    customer_state = client.get(customer_endpoint).json()["processing"]
+    assert customer_state == {
+        "status": "COMPLETED",
+        "resultCode": "ASSESSMENT_CONFIRMED",
+        "startedAt": completed.json()["review"]["startedAt"],
+        "completedAt": completed.json()["review"]["completedAt"],
+    }
+    unchanged = client.get(f"/v1/sessions/{session_id}/assessment").json()["assessment"]
+    assert unchanged == assessment
+    completed_queue = client.get(
+        "/v1/admin/underwriter-reviews?status=COMPLETED",
+        headers=ADMIN_HEADERS,
+    ).json()
+    assert completed_queue["totalCount"] == 1
+    assert completed_queue["items"][0]["reviewId"] == review_id
+    assert (
+        client.get(
+            "/v1/admin/underwriter-reviews?status=PENDING",
+            headers=ADMIN_HEADERS,
+        ).json()["totalCount"]
+        == 0
+    )
+    workflow_events = [
+        event
+        for event in session_repository.list_audit_events(session_id)
+        if event.stage
+        in {
+            AuditStage.UNDERWRITER_REVIEW_STARTED,
+            AuditStage.UNDERWRITER_REVIEW_COMPLETED,
+        }
+    ]
+    assert [event.stage for event in workflow_events] == [
+        AuditStage.UNDERWRITER_REVIEW_STARTED,
+        AuditStage.UNDERWRITER_REVIEW_COMPLETED,
+    ]
+    assert {event.actor for event in workflow_events} == {AuditActor.UNDERWRITER}
+
+
+def test_underwriter_review_actions_require_admin_authentication(client: TestClient) -> None:
+    response = client.post("/v1/admin/underwriter-reviews/uwr_unknown/claim")
+
+    assert response.status_code == 401
+    assert response.json()["error"]["code"] == "ADMIN_AUTHENTICATION_FAILED"
+
+
+def test_unknown_underwriter_review_is_not_exposed(client: TestClient) -> None:
+    response = client.get(
+        "/v1/admin/underwriter-reviews/uwr_unknown",
+        headers=ADMIN_HEADERS,
+    )
+
+    assert response.status_code == 404
+    assert response.json()["error"]["code"] == "UNDERWRITER_REVIEW_NOT_FOUND"

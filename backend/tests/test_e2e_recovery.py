@@ -61,8 +61,23 @@ def execute_complete_journey(client: TestClient) -> tuple[str, str, dict[str, di
     recovered["resolution"] = assert_ok(
         client.post(f"/v1/sessions/{session_id}/assessment/resolution")
     )
+    review_request = assert_ok(client.post(f"/v1/sessions/{session_id}/assessment/review-request"))
+    review_id = "uwr_" + review_request["reviewRequest"]["reviewRequestId"].removeprefix("arr_")
+    assert_ok(
+        client.post(
+            f"/v1/admin/underwriter-reviews/{review_id}/claim",
+            headers=ADMIN_HEADERS,
+        )
+    )
+    recovered["underwriterReview"] = assert_ok(
+        client.post(
+            f"/v1/admin/underwriter-reviews/{review_id}/complete",
+            headers=ADMIN_HEADERS,
+            json={"resultCode": "ASSESSMENT_CONFIRMED"},
+        )
+    )
     recovered["assessmentReviewRequest"] = assert_ok(
-        client.post(f"/v1/sessions/{session_id}/assessment/review-request")
+        client.get(f"/v1/sessions/{session_id}/assessment/review-request")
     )
     recovered["products"] = assert_ok(client.post(f"/v1/sessions/{session_id}/products/refresh"))
     recovered["productConditions"] = assert_ok(
@@ -102,6 +117,7 @@ def test_complete_journey_is_restored_after_application_restart(
     with TestClient(main_module.create_app()) as client:
         assert assert_ok(client.get("/ready"))["status"] == "ready"
         session_id, submission_id, expected = execute_complete_journey(client)
+        review_id = expected["underwriterReview"]["review"]["reviewId"]
 
     assert database_path.is_file()
 
@@ -151,6 +167,12 @@ def test_complete_journey_is_restored_after_application_restart(
                 restarted_client.get(
                     f"/v1/admin/sessions/{session_id}/audit-events",
                     params={"limit": 100},
+                    headers=ADMIN_HEADERS,
+                )
+            ),
+            "underwriterReview": assert_ok(
+                restarted_client.get(
+                    f"/v1/admin/underwriter-reviews/{review_id}",
                     headers=ADMIN_HEADERS,
                 )
             ),

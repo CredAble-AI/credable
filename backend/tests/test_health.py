@@ -99,6 +99,10 @@ def test_ready_returns_current_dependency_checks(client: TestClient) -> None:
                 "status": "ok",
             },
             {
+                "name": "underwriter_review_repository",
+                "status": "ok",
+            },
+            {
                 "name": "supplemental_assessment_repository",
                 "status": "ok",
             },

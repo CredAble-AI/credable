@@ -31,6 +31,7 @@ from app.repositories.policy_boundary_repository import SqlitePolicyBoundaryRepo
 from app.repositories.product_catalog_repository import SqliteProductCatalogRepository
 from app.repositories.product_condition_repository import SqliteProductConditionRepository
 from app.repositories.session_repository import SqliteCustomerSessionRepository
+from app.repositories.underwriter_review_repository import SqliteUnderwriterReviewRepository
 from app.schemas.assessment import AssessmentSnapshotType
 from app.schemas.consent import ConsentSourceType
 from app.services.assessment_data_lineage_service import (
@@ -450,15 +451,22 @@ def assessment_review_repository(tmp_path) -> SqliteAssessmentReviewRepository:
 
 
 @pytest.fixture
+def underwriter_review_repository(tmp_path) -> SqliteUnderwriterReviewRepository:
+    return SqliteUnderwriterReviewRepository(tmp_path / "test.db")
+
+
+@pytest.fixture
 def assessment_review_request_service(
     assessment_review_repository: SqliteAssessmentReviewRepository,
     assessment_repository: SqliteAssessmentRepository,
     session_service: CustomerSessionService,
+    underwriter_review_repository: SqliteUnderwriterReviewRepository,
 ) -> AssessmentReviewRequestService:
     return AssessmentReviewRequestService(
         repository=assessment_review_repository,
         assessment_repository=assessment_repository,
         session_service=session_service,
+        workflow_repository=underwriter_review_repository,
     )
 
 

@@ -114,6 +114,7 @@ def test_underwriter_review_queue_exposes_only_safe_review_context(
             "requestedAt": quality["checkedAt"],
             "dataVersion": quality["dataVersion"],
             "policyVersion": quality["qualityPolicyVersion"],
+            "status": "PENDING",
             "demoOnly": True,
         }
     ]
@@ -182,3 +183,36 @@ def test_underwriter_review_queue_allows_offset_past_last_item(
     assert response.json()["totalCount"] == 0
     assert response.json()["offset"] == 999
     assert response.json()["items"] == []
+
+
+def test_evidence_review_accepts_only_evidence_result_codes(
+    client: TestClient,
+    data_source_service: DataSourceService,
+    assessment_service: AssessmentService,
+) -> None:
+    _, quality = create_suspicious_quality(
+        client,
+        data_source_service,
+        assessment_service,
+    )
+    review_id = f"uwr_{quality['qualityCheckId'].removeprefix('evq_')}"
+    endpoint = f"/v1/admin/underwriter-reviews/{review_id}"
+
+    claimed = client.post(f"{endpoint}/claim", headers=ADMIN_HEADERS)
+    invalid = client.post(
+        f"{endpoint}/complete",
+        headers=ADMIN_HEADERS,
+        json={"resultCode": "ASSESSMENT_CONFIRMED"},
+    )
+    completed = client.post(
+        f"{endpoint}/complete",
+        headers=ADMIN_HEADERS,
+        json={"resultCode": "EVIDENCE_EXCLUDED"},
+    )
+
+    assert claimed.status_code == 200
+    assert invalid.status_code == 409
+    assert invalid.json()["error"]["code"] == "UNDERWRITER_REVIEW_RESULT_NOT_ALLOWED"
+    assert completed.status_code == 200
+    assert completed.json()["review"]["status"] == "COMPLETED"
+    assert completed.json()["review"]["resultCode"] == "EVIDENCE_EXCLUDED"
