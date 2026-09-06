@@ -56,6 +56,8 @@ export interface EvidenceSubmissionState {
   submissionSnapshotHash: string
   dataVersion: string
   uploadedFile: UploadedEvidenceFile | null
+  evidenceConsentId: string | null
+  consentScopeVersion: string | null
   demoOnly: true
 }
 

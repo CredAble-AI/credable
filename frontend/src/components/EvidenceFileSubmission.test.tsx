@@ -9,6 +9,7 @@ vi.mock('../hooks/useEvidenceSubmissionState', () => ({
   evidenceSubmissionProvider: { getOption: vi.fn(), getLatest: vi.fn(), upload: vi.fn() },
 }))
 vi.mock('./EvidenceConsentPanel', () => ({ default: () => <div>선택 증빙 이용 동의</div> }))
+vi.mock('./EvidenceQualityPanel', () => ({ default: () => <div>Evidence 품질검증</div> }))
 
 const option = (status: 'READY' | 'CONSENT_REQUIRED' = 'READY'): EvidenceSubmissionOption => ({
   sessionId: 'ses_demo', selectionId: 'evs_demo', evidenceType: 'RECENT_REVENUE', collectionMode: 'DEMO_FILE_UPLOAD', demoOnly: true,
@@ -19,7 +20,7 @@ const option = (status: 'READY' | 'CONSENT_REQUIRED' = 'READY'): EvidenceSubmiss
 
 const submitted: EvidenceSubmissionResponse = {
   sessionId: 'ses_demo',
-  submission: { submissionId: 'sub_demo', selectionId: 'evs_demo', evidenceType: 'RECENT_REVENUE', sourceType: 'CUSTOMER_SUBMITTED', submissionMode: 'DEMO_FILE_UPLOAD', status: 'RECEIVED', submittedAt: '2026-09-06T01:00:00+09:00', observedAt: '2026-09-01T01:00:00+09:00', submissionSnapshotHash: 'a'.repeat(64), dataVersion: 'demo-v1', uploadedFile: { demoFileId: 'file_demo', fileName: '최근_매출_입금_요약서_DEMO.pdf', contentType: 'application/pdf', sizeBytes: 4096, sha256: 'b'.repeat(64) }, demoOnly: true },
+  submission: { submissionId: 'sub_demo', selectionId: 'evs_demo', evidenceType: 'RECENT_REVENUE', sourceType: 'CUSTOMER_SUBMITTED', submissionMode: 'DEMO_FILE_UPLOAD', status: 'RECEIVED', submittedAt: '2026-09-06T01:00:00+09:00', observedAt: '2026-09-01T01:00:00+09:00', submissionSnapshotHash: 'a'.repeat(64), dataVersion: 'demo-v1', uploadedFile: { demoFileId: 'file_demo', fileName: '최근_매출_입금_요약서_DEMO.pdf', contentType: 'application/pdf', sizeBytes: 4096, sha256: 'b'.repeat(64) }, evidenceConsentId: 'evc_demo', consentScopeVersion: 'demo-scope-v1', demoOnly: true },
 }
 
 const renderComponent = () => render(<MemoryRouter><EvidenceFileSubmission sessionId="ses_demo" selectionId="evs_demo" evidenceType="RECENT_REVENUE" /></MemoryRouter>)
@@ -62,6 +63,7 @@ describe('EvidenceFileSubmission', () => {
     renderComponent()
 
     expect(await screen.findByText('파일 제출을 확인했습니다')).toBeInTheDocument()
+    expect(screen.getByText('Evidence 품질검증')).toBeInTheDocument()
     expect(screen.queryByLabelText('제출할 PDF 선택')).not.toBeInTheDocument()
   })
 

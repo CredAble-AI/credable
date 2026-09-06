@@ -4,6 +4,7 @@ import { evidenceSubmissionProvider } from '../hooks/useEvidenceSubmissionState'
 import type { ApiError } from '../types/api'
 import type { EvidenceSubmissionOption, EvidenceSubmissionState } from '../types/evidenceSubmission'
 import EvidenceConsentPanel from './EvidenceConsentPanel'
+import EvidenceQualityPanel from './EvidenceQualityPanel'
 
 interface EvidenceFileSubmissionProps {
   sessionId: string
@@ -127,6 +128,7 @@ function EvidenceFileSubmission({ sessionId, selectionId, evidenceType }: Eviden
     {option.collectionMode === 'UNAVAILABLE' && <div className="evidence-submission__notice evidence-submission__notice--blocked"><strong>현재 이용할 수 없는 제출 방식입니다</strong><p>{requirement.reasonCode ?? '백엔드에서 사용 가능한 수집 방식을 제공하지 않았습니다.'}</p></div>}
 
     {submission && <div className="evidence-submission__complete" role="status"><span aria-hidden="true">✓</span><div><strong>파일 제출을 확인했습니다</strong><p>백엔드가 제출 ID와 파일 메타데이터를 저장했습니다. 품질 검증 결과는 다음 단계에서 확인합니다.</p><small>{submission.uploadedFile?.fileName ?? submission.evidenceType} · {submission.status} · {submission.submissionId}</small></div></div>}
+    {submission && <EvidenceQualityPanel sessionId={sessionId} submission={submission} />}
   </section>
 }
 
