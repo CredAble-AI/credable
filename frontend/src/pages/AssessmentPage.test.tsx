@@ -122,7 +122,8 @@ describe('AssessmentPage', () => {
     vi.mocked(assessmentProvider.get).mockResolvedValue(notRun)
     renderPage()
 
-    expect(await screen.findByText('기준평가 전')).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { name: '기준평가 전' })).toBeInTheDocument()
+    expect(screen.getByText('평가 재현과 확인에 필요한 서버 추적 정보입니다.')).toBeInTheDocument()
     expect(assessmentProvider.get).toHaveBeenCalledTimes(1)
     expect(assessmentProvider.run).not.toHaveBeenCalled()
     expect(policyBoundaryProvider.get).not.toHaveBeenCalled()
