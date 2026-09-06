@@ -22,6 +22,7 @@ from app.core.admin_auth import AdminApiKeyAuthenticator
 from app.core.config import settings
 from app.core.errors import ApiDomainError
 from app.repositories.assessment_repository import SqliteAssessmentRepository
+from app.repositories.assessment_review_repository import SqliteAssessmentReviewRepository
 from app.repositories.bank_data_repository import SqliteBankDataRepository
 from app.repositories.consent_repository import SqliteConsentRepository
 from app.repositories.credit_exposure_repository import SqliteCreditExposureRepository
@@ -45,6 +46,7 @@ from app.services.assessment_data_lineage_service import (
     AssessmentDataLineageService,
     SnapshotSource,
 )
+from app.services.assessment_review_service import AssessmentReviewRequestService
 from app.services.assessment_service import (
     AssessmentComparisonService,
     AssessmentService,
@@ -399,6 +401,7 @@ def create_app(
     evidence_quality_service: EvidenceQualityService | None = None,
     supplemental_assessment_service: SupplementalAssessmentService | None = None,
     assessment_comparison_service: AssessmentComparisonService | None = None,
+    assessment_review_request_service: AssessmentReviewRequestService | None = None,
     evidence_resolution_service: EvidenceResolutionService | None = None,
     product_catalog_service: ProductCatalogService | None = None,
     product_condition_service: ProductConditionService | None = None,
@@ -560,8 +563,17 @@ def create_app(
         assessment_repository=resolved_assessment_service.repository,
         resolution_repository=resolved_policy_boundary_service.repository,
     )
+    resolved_assessment_review_request_service = (
+        assessment_review_request_service
+        or AssessmentReviewRequestService(
+            repository=SqliteAssessmentReviewRepository(settings.database_path),
+            assessment_repository=resolved_assessment_service.repository,
+            session_service=resolved_session_service,
+        )
+    )
     resolved_underwriter_review_queue_service = UnderwriterReviewQueueService(
         quality_repository=resolved_evidence_quality_service.repository,
+        assessment_review_repository=resolved_assessment_review_request_service.repository,
     )
 
     @asynccontextmanager
@@ -585,6 +597,7 @@ def create_app(
         resolved_evidence_resolution_service.initialize()
         resolved_product_catalog_service.initialize()
         resolved_product_condition_service.initialize()
+        resolved_assessment_review_request_service.initialize()
         yield
 
     application = FastAPI(
@@ -620,6 +633,7 @@ def create_app(
     application.state.admin_authenticator = resolved_admin_authenticator
     application.state.admin_audit_service = resolved_admin_audit_service
     application.state.admin_evidence_burden_service = resolved_admin_evidence_burden_service
+    application.state.assessment_review_request_service = resolved_assessment_review_request_service
     application.state.underwriter_review_queue_service = resolved_underwriter_review_queue_service
 
     @application.middleware("http")

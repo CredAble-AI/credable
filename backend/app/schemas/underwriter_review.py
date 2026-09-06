@@ -4,19 +4,23 @@ from typing import Literal
 
 from pydantic import Field, model_validator
 
+from app.schemas.assessment_review import AssessmentReviewTargetType
 from app.schemas.base import ApiModel
 
 
 class UnderwriterReviewTriggerType(StrEnum):
     EVIDENCE_QUALITY = "EVIDENCE_QUALITY"
+    CUSTOMER_ASSESSMENT_REVIEW = "CUSTOMER_ASSESSMENT_REVIEW"
 
 
 class UnderwriterReviewQueueItem(ApiModel):
     review_id: str = Field(min_length=1)
     session_id: str = Field(min_length=1)
-    trigger_type: Literal[UnderwriterReviewTriggerType.EVIDENCE_QUALITY]
+    trigger_type: UnderwriterReviewTriggerType
     trigger_id: str = Field(min_length=1)
-    evidence_type: str = Field(min_length=1)
+    evidence_type: str | None = Field(default=None, min_length=1)
+    target_type: AssessmentReviewTargetType | None = None
+    target_assessment_id: str | None = Field(default=None, min_length=1)
     reason_codes: list[str] = Field(min_length=1)
     requested_at: datetime
     data_version: str = Field(min_length=1)
@@ -29,6 +33,16 @@ class UnderwriterReviewQueueItem(ApiModel):
             raise ValueError("requestedAt must include a timezone")
         if len(self.reason_codes) != len(set(self.reason_codes)):
             raise ValueError("reasonCodes must be unique")
+        evidence_trigger = self.trigger_type == UnderwriterReviewTriggerType.EVIDENCE_QUALITY
+        if evidence_trigger != (self.evidence_type is not None):
+            raise ValueError("Evidence quality review requires evidenceType")
+        customer_trigger = (
+            self.trigger_type == UnderwriterReviewTriggerType.CUSTOMER_ASSESSMENT_REVIEW
+        )
+        if customer_trigger != (
+            self.target_type is not None and self.target_assessment_id is not None
+        ):
+            raise ValueError("customer review requires an assessment target")
         return self
 
 
