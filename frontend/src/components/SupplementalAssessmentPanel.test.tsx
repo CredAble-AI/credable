@@ -1,0 +1,60 @@
+import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { supplementalAssessmentProvider } from '../hooks/useSupplementalAssessmentState'
+import type { SupplementalAssessmentResponse, SupplementalAssessmentState } from '../types/supplementalAssessment'
+import SupplementalAssessmentPanel from './SupplementalAssessmentPanel'
+
+vi.mock('../hooks/useSupplementalAssessmentState', () => ({ supplementalAssessmentProvider: { get: vi.fn(), run: vi.fn() } }))
+
+const completed: SupplementalAssessmentState = {
+  supplementalAssessmentId: 'sam_demo', baselineAssessmentId: 'asm_demo', qualityCheckId: 'evq_demo', submissionId: 'sub_demo', status: 'COMPLETED',
+  calculatedAt: '2026-09-06T03:00:00+09:00', inputSnapshotId: 'sas_demo', modelVersion: 'demo-supplemental-v1', reasonCode: null, acceptedEvidenceCount: 1, demoOnly: true,
+  uncertainty: { pointEstimate: null, lowerBound: null, upperBound: null, gradeSet: ['DEMO_GRADE_B'], calibrationMode: 'RULE_TABLE', calibrationVersion: 'demo-calibration-v1', demoOnly: true },
+}
+const response = (supplementalAssessment: SupplementalAssessmentState | null): SupplementalAssessmentResponse => ({ sessionId: 'ses_demo', supplementalAssessment })
+const renderPanel = () => render(<SupplementalAssessmentPanel sessionId="ses_demo" submissionId="sub_demo" qualityCheckId="evq_demo" />)
+
+describe('SupplementalAssessmentPanel', () => {
+  beforeEach(() => {
+    vi.mocked(supplementalAssessmentProvider.get).mockReset().mockResolvedValue(response(null))
+    vi.mocked(supplementalAssessmentProvider.run).mockReset().mockResolvedValue(response(completed))
+  })
+
+  it('does not run automatically and shows the server result after confirmation', async () => {
+    renderPanel()
+
+    const button = await screen.findByRole('button', { name: '보완평가 실행' })
+    expect(supplementalAssessmentProvider.run).not.toHaveBeenCalled()
+    fireEvent.click(button)
+
+    await waitFor(() => expect(supplementalAssessmentProvider.run).toHaveBeenCalledWith('ses_demo', 'sub_demo', expect.any(AbortSignal)))
+    expect(await screen.findByRole('heading', { name: '보완평가를 완료했습니다' })).toBeInTheDocument()
+    expect(screen.getByText('DEMO_GRADE_B')).toBeInTheDocument()
+    expect(screen.getByText('1건')).toBeInTheDocument()
+    expect(screen.getByText('demo-supplemental-v1')).toBeInTheDocument()
+  })
+
+  it('ignores a previous iteration result and offers the current assessment run', async () => {
+    vi.mocked(supplementalAssessmentProvider.get).mockResolvedValue(response({ ...completed, submissionId: 'sub_previous', qualityCheckId: 'evq_previous' }))
+    renderPanel()
+
+    expect(await screen.findByRole('button', { name: '보완평가 실행' })).toBeInTheDocument()
+    expect(screen.queryByText('sam_demo')).not.toBeInTheDocument()
+  })
+
+  it('shows an incomplete server status without inventing uncertainty', async () => {
+    vi.mocked(supplementalAssessmentProvider.get).mockResolvedValue(response({ ...completed, status: 'INSUFFICIENT_DATA', modelVersion: null, reasonCode: 'EVIDENCE_AFTER_FEATURE_CUTOFF', uncertainty: null }))
+    renderPanel()
+
+    expect(await screen.findByText('서버 상태 코드 EVIDENCE_AFTER_FEATURE_CUTOFF')).toBeInTheDocument()
+    expect(screen.getByText('INSUFFICIENT_DATA')).toBeInTheDocument()
+    expect(screen.queryByText('가능한 Demo 평가 범위')).not.toBeInTheDocument()
+  })
+
+  it('rejects a result from another quality check', async () => {
+    vi.mocked(supplementalAssessmentProvider.get).mockResolvedValue(response({ ...completed, qualityCheckId: 'evq_other' }))
+    renderPanel()
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('현재 품질검증과 일치하는 보완평가 결과를 확인할 수 없습니다.')
+  })
+})

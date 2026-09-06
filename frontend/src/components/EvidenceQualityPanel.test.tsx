@@ -6,6 +6,7 @@ import type { EvidenceSubmissionState } from '../types/evidenceSubmission'
 import EvidenceQualityPanel from './EvidenceQualityPanel'
 
 vi.mock('../hooks/useEvidenceQualityState', () => ({ evidenceQualityProvider: { get: vi.fn(), check: vi.fn() } }))
+vi.mock('./SupplementalAssessmentPanel', () => ({ default: () => <div>보완평가 패널</div> }))
 
 const snapshotHash = 'a'.repeat(64)
 const submission: EvidenceSubmissionState = {
@@ -45,6 +46,7 @@ describe('EvidenceQualityPanel', () => {
     expect(await screen.findByRole('heading', { name: '품질검증을 통과했습니다' })).toBeInTheDocument()
     expect(screen.getAllByText('PASSED')).toHaveLength(6)
     expect(screen.getByText('RUN_REASSESSMENT')).toBeInTheDocument()
+    expect(screen.getByText('보완평가 패널')).toBeInTheDocument()
   })
 
   it('shows server suspicion and underwriter routing without recalculating them', async () => {
