@@ -28,4 +28,12 @@ describe('App routing', () => {
     expect(screen.getByRole('heading', { level: 1, name: '페이지를 찾을 수 없습니다' })).toBeInTheDocument()
     expect(screen.getByRole('link', { name: '새 평가 시작' })).toHaveAttribute('href', '/start')
   })
+
+  it('renders the separate administrator review route', () => {
+    renderRoute('/admin/reviews')
+
+    expect(screen.getByRole('heading', { level: 1, name: '심사역 검토 목록' })).toBeInTheDocument()
+    expect(screen.getByLabelText('관리자 Demo API Key')).toHaveAttribute('type', 'password')
+    expect(screen.queryByRole('link', { name: 'CredAble 홈' })).not.toBeInTheDocument()
+  })
 })
