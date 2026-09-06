@@ -26,16 +26,16 @@ const assertNotAborted = (signal: AbortSignal) => {
 }
 
 export const mockAdminReviewProvider: AdminReviewProvider = {
-  async list(_apiKey, query, signal) {
+  async list(query, signal) {
     assertNotAborted(signal)
     const filtered = query.status ? items.filter((item) => item.status === query.status) : items
     return { totalCount: filtered.length, limit: query.limit, offset: query.offset, items: filtered.slice(query.offset, query.offset + query.limit), demoOnly: true }
   },
-  async get(_apiKey, reviewId, signal) {
+  async get(reviewId, signal) {
     assertNotAborted(signal)
     return { review: items[findReviewIndex(reviewId)] }
   },
-  async claim(_apiKey, reviewId, signal) {
+  async claim(reviewId, signal) {
     assertNotAborted(signal)
     const index = findReviewIndex(reviewId)
     const review = items[index]
@@ -43,7 +43,7 @@ export const mockAdminReviewProvider: AdminReviewProvider = {
     if (review.status === 'PENDING') items[index] = { ...review, status: 'IN_REVIEW', startedAt: new Date().toISOString() }
     return { review: items[index] }
   },
-  async complete(_apiKey, reviewId, resultCode, signal) {
+  async complete(reviewId, resultCode, signal) {
     assertNotAborted(signal)
     const index = findReviewIndex(reviewId)
     const review = items[index]

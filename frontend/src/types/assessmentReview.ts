@@ -25,5 +25,6 @@ export interface AssessmentReviewProcessing {
 export interface AssessmentReviewRequestResponse {
   sessionId: string
   reviewRequest: AssessmentReviewRequestState | null
+  underwriterReviewId: string | null
   processing: AssessmentReviewProcessing | null
 }

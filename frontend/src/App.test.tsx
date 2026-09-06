@@ -33,7 +33,7 @@ describe('App routing', () => {
     renderRoute('/admin/reviews')
 
     expect(screen.getByRole('heading', { level: 1, name: '심사역 검토 목록' })).toBeInTheDocument()
-    expect(screen.getByLabelText('관리자 Demo API Key')).toHaveAttribute('type', 'password')
+    expect(screen.getByText(/합성 Demo 데이터 전용 화면/)).toBeInTheDocument()
     expect(screen.getByRole('link', { name: '본문 바로가기' })).toHaveAttribute('href', '#main-content')
     expect(screen.queryByRole('link', { name: 'CredAble 홈' })).not.toBeInTheDocument()
   })
@@ -42,7 +42,7 @@ describe('App routing', () => {
     renderRoute('/admin/reviews/uwr_demo')
 
     expect(screen.getByRole('heading', { level: 1, name: '심사역 검토 상세' })).toBeInTheDocument()
-    expect(screen.getByLabelText('관리자 Demo API Key')).toHaveAttribute('type', 'password')
+    expect(screen.getByText(/합성 Demo 데이터 전용 화면/)).toBeInTheDocument()
     expect(document.title).toBe('심사역 검토 상세 | CredAble')
   })
 
@@ -50,7 +50,7 @@ describe('App routing', () => {
     renderRoute('/admin/sessions/ses_demo/audit')
 
     expect(screen.getByRole('heading', { level: 1, name: '세션 처리 이력' })).toBeInTheDocument()
-    expect(screen.getByLabelText('관리자 Demo API Key')).toHaveAttribute('type', 'password')
+    expect(screen.getByText(/합성 Demo 데이터 전용 화면/)).toBeInTheDocument()
     expect(document.title).toBe('세션 처리 이력 | CredAble')
   })
 
@@ -58,7 +58,7 @@ describe('App routing', () => {
     renderRoute('/admin/sessions/ses_demo/evidence-burden')
 
     expect(screen.getByRole('heading', { level: 1, name: 'Evidence 요청 부담 지표' })).toBeInTheDocument()
-    expect(screen.getByLabelText('관리자 Demo API Key')).toHaveAttribute('type', 'password')
+    expect(screen.getByText(/합성 Demo 데이터 전용 화면/)).toBeInTheDocument()
     expect(document.title).toBe('Evidence 요청 부담 지표 | CredAble')
   })
 })

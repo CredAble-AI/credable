@@ -6,7 +6,7 @@ const results = new Map<string, AssessmentReviewRequestResponse>()
 export const mockAssessmentReviewProvider: AssessmentReviewProvider = {
   async get(sessionId, signal) {
     if (signal.aborted) throw new DOMException('Aborted', 'AbortError')
-    return results.get(sessionId) ?? { sessionId, reviewRequest: null, processing: null }
+    return results.get(sessionId) ?? { sessionId, reviewRequest: null, underwriterReviewId: null, processing: null }
   },
   async request(sessionId, signal) {
     if (signal.aborted) throw new DOMException('Aborted', 'AbortError')
@@ -26,6 +26,7 @@ export const mockAssessmentReviewProvider: AssessmentReviewProvider = {
         requestPolicyVersion: 'assessment-review-request-policy-v1',
         demoOnly: true,
       },
+      underwriterReviewId: `uwr_demo_${sessionId}`,
       processing: { status: 'PENDING', resultCode: null, startedAt: null, completedAt: null },
     }
     results.set(sessionId, response)

@@ -2,18 +2,16 @@ import type { ApiError } from '../types/api'
 import type { AdminReviewCompleteRequest, AdminReviewDetailResponse, AdminReviewListQuery, AdminReviewQueueResponse, AdminReviewResultCode } from '../types/adminReview'
 
 export interface AdminReviewProvider {
-  list(apiKey: string, query: AdminReviewListQuery, signal: AbortSignal): Promise<AdminReviewQueueResponse>
-  get(apiKey: string, reviewId: string, signal: AbortSignal): Promise<AdminReviewDetailResponse>
-  claim(apiKey: string, reviewId: string, signal: AbortSignal): Promise<AdminReviewDetailResponse>
-  complete(apiKey: string, reviewId: string, resultCode: AdminReviewResultCode, signal: AbortSignal): Promise<AdminReviewDetailResponse>
+  list(query: AdminReviewListQuery, signal: AbortSignal): Promise<AdminReviewQueueResponse>
+  get(reviewId: string, signal: AbortSignal): Promise<AdminReviewDetailResponse>
+  claim(reviewId: string, signal: AbortSignal): Promise<AdminReviewDetailResponse>
+  complete(reviewId: string, resultCode: AdminReviewResultCode, signal: AbortSignal): Promise<AdminReviewDetailResponse>
 }
 
 export const normalizeAdminReviewError = (error: unknown): ApiError => {
   if (typeof error === 'object' && error !== null && 'code' in error && 'message' in error && 'retryable' in error) return error as ApiError
   return { code: 'ADMIN_REVIEW_REQUEST_FAILED', message: '심사역 검토 요청을 처리하지 못했습니다.', retryable: true }
 }
-
-const headers = (apiKey: string) => ({ 'X-Admin-API-Key': apiKey })
 
 const parse = async <T>(response: Response): Promise<T> => {
   if (!response.ok) {
@@ -23,12 +21,11 @@ const parse = async <T>(response: Response): Promise<T> => {
   return response.json() as Promise<T>
 }
 
-const list = async (apiKey: string, query: AdminReviewListQuery, signal: AbortSignal): Promise<AdminReviewQueueResponse> => {
+const list = async (query: AdminReviewListQuery, signal: AbortSignal): Promise<AdminReviewQueueResponse> => {
   const params = new URLSearchParams({ limit: String(query.limit), offset: String(query.offset) })
   if (query.status) params.set('status', query.status)
   const response = await fetch(`/v1/admin/underwriter-reviews?${params.toString()}`, {
     method: 'GET',
-    headers: headers(apiKey),
     signal,
   })
   return parse<AdminReviewQueueResponse>(response)
@@ -36,15 +33,15 @@ const list = async (apiKey: string, query: AdminReviewListQuery, signal: AbortSi
 
 const reviewPath = (reviewId: string) => `/v1/admin/underwriter-reviews/${encodeURIComponent(reviewId)}`
 
-const get = async (apiKey: string, reviewId: string, signal: AbortSignal) => parse<AdminReviewDetailResponse>(await fetch(reviewPath(reviewId), { method: 'GET', headers: headers(apiKey), signal }))
+const get = async (reviewId: string, signal: AbortSignal) => parse<AdminReviewDetailResponse>(await fetch(reviewPath(reviewId), { method: 'GET', signal }))
 
-const claim = async (apiKey: string, reviewId: string, signal: AbortSignal) => parse<AdminReviewDetailResponse>(await fetch(`${reviewPath(reviewId)}/claim`, { method: 'POST', headers: headers(apiKey), signal }))
+const claim = async (reviewId: string, signal: AbortSignal) => parse<AdminReviewDetailResponse>(await fetch(`${reviewPath(reviewId)}/claim`, { method: 'POST', signal }))
 
-const complete = async (apiKey: string, reviewId: string, resultCode: AdminReviewResultCode, signal: AbortSignal) => {
+const complete = async (reviewId: string, resultCode: AdminReviewResultCode, signal: AbortSignal) => {
   const body: AdminReviewCompleteRequest = { resultCode }
   return parse<AdminReviewDetailResponse>(await fetch(`${reviewPath(reviewId)}/complete`, {
     method: 'POST',
-    headers: { ...headers(apiKey), 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body),
     signal,
   }))

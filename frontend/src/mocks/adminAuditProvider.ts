@@ -8,7 +8,7 @@ const events: SessionAuditEvent[] = [
 ]
 
 export const mockAdminAuditProvider: AdminAuditProvider = {
-  async list(_apiKey, sessionId, limit, cursor, signal) {
+  async list(sessionId, limit, cursor, signal) {
     if (signal.aborted) throw new DOMException('Aborted', 'AbortError')
     const matching = events.filter((event) => event.sessionId === sessionId)
     const offset = cursor ? Number(cursor) : 0
