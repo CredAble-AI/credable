@@ -6,6 +6,7 @@ import { normalizePolicyBoundaryError } from '../api/policyBoundaryClient'
 import AssessmentExplanationPanel from '../components/AssessmentExplanationPanel'
 import AssessmentReviewPanel from '../components/AssessmentReviewPanel'
 import CustomerTechnicalDetails from '../components/CustomerTechnicalDetails'
+import CustomerFlowSteps from '../components/CustomerFlowSteps'
 import Header from '../components/Header'
 import { assessmentProvider, policyBoundaryProvider } from '../hooks/useAssessmentState'
 import { useCustomerSession } from '../hooks/useCustomerSession'
@@ -320,7 +321,7 @@ function AssessmentPage() {
             : boundaryCopy[boundary.decision.status].description
 
   return <div className="workspace-shell customer-flow"><Header /><main id="main-content" tabIndex={-1} className="assessment-page"><div className="container assessment-page__inner">
-    <nav className="assessment-steps" aria-label="진행 단계"><span>시작</span><span>동의</span><span>데이터 연결</span><strong aria-current="step">기존 평가</strong><span>상품 비교</span></nav>
+    <CustomerFlowSteps current="assessment" className="assessment-steps" />
     <header className="assessment-heading"><div><h1 className="page-title-lines"><span>은행의 기존 평가를 확인하고</span><span>필요한 추가 자료를 안내합니다</span></h1><p>기존 CB·선택적 SCB·은행 내부 평가 결과를 기준점으로 불러옵니다. CredAble이 새로운 신용점수를 만드는 단계가 아닙니다.</p></div><aside><span>사업자 유형</span><strong>{session.demoProfile.displayName}</strong><small>평가 주체와 사용 데이터가 이 유형에 맞게 적용됩니다.</small></aside></header>
 
     <div className="assessment-live" role="status" aria-live="polite">{phase === 'loading' ? '기존 평가 상태를 확인하고 있습니다.' : phase === 'running' ? '기존 은행 평가 결과를 불러오고 있습니다.' : phase === 'checking' ? '정책 경계를 확인하고 있습니다.' : phase === 'selecting' ? '부족한 정보를 보완할 최소 증빙을 선택하고 있습니다.' : error ? '요청을 완료하지 못했습니다.' : '현재 평가 상태를 확인했습니다.'}</div>

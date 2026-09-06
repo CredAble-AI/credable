@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { normalizeDataConnectionError } from '../api/dataConnectionClient'
+import CustomerFlowSteps from '../components/CustomerFlowSteps'
 import Header from '../components/Header'
 import CustomerTechnicalDetails from '../components/CustomerTechnicalDetails'
 import { useCustomerSession } from '../hooks/useCustomerSession'
@@ -187,9 +188,7 @@ function DataConnectionPage() {
       <Header />
       <main id="main-content" tabIndex={-1} className="connection-page">
         <div className="container connection-page__inner">
-          <nav className="flow-steps" aria-label="진행 단계">
-            <span>시작</span><span>동의</span><strong aria-current="step">데이터 연결</strong><span>기존 평가</span><span>상품 비교</span>
-          </nav>
+          <CustomerFlowSteps current="data-connection" className="flow-steps" />
           <header className="connection-heading">
             <div>
               <h1 className="page-title-lines"><span>기존 평가 데이터의</span><span>연결 상태를 확인합니다</span></h1>

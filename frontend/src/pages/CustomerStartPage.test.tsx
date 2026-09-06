@@ -70,7 +70,7 @@ describe('CustomerStartPage', () => {
   it('presents legal business borrower types without exposing presentation-only scenarios', async () => {
     renderPage()
 
-    expect(screen.getByRole('navigation', { name: '진행 단계' })).toHaveTextContent('시작동의데이터 연결기존 평가상품 비교')
+    expect(screen.getByRole('navigation', { name: '진행 단계' })).toHaveTextContent('시작동의데이터 연결기존 평가추가 자료 (필요 시)다른 대출 경로 (필요 시)')
     expect(await screen.findByRole('radio', { name: /개인사업자/ })).toBeInTheDocument()
     expect(screen.getByRole('radio', { name: /법인사업자/ })).toBeInTheDocument()
     expect(screen.getByText(/사업소득과 상환 책임의 주체가 개인/)).toBeInTheDocument()

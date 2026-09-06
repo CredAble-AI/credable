@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { liveAssessmentProvider } from '../api/assessmentClient'
 import { liveProductProvider, normalizeProductError } from '../api/productClient'
+import CustomerFlowSteps from '../components/CustomerFlowSteps'
 import Header from '../components/Header'
 import CustomerTechnicalDetails from '../components/CustomerTechnicalDetails'
 import { selectProvider } from '../config/providerMode'
@@ -100,7 +101,7 @@ function ProductComparisonPage() {
   const changeField = (field: SortSelection) => { setSortField(field); setDirection(field === 'CATALOG_ORDER' ? 'NONE' : 'ASC') }
   if (sessionLoading || !session) return null
   return <div className="workspace-shell customer-flow"><Header /><main id="main-content" tabIndex={-1} className="products-page"><div className="container products-page__inner">
-    <nav className="product-steps" aria-label="진행 단계"><span>시작</span><span>동의</span><span>데이터 연결</span><span>기존 평가</span><strong aria-current="step">상품 비교</strong></nav>
+    <CustomerFlowSteps current="products" className="product-steps" />
     <header className="products-heading"><div><h1>자사 대출상품 조건을 비교합니다</h1><p>은행이 공개한 상품 조건과 각 상품의 확인 상태를 같은 기준으로 보여드립니다. 특정 상품을 권하거나 자동으로 선택하지 않고, 개인별 한도·금리와 승인 가능성도 산출하지 않습니다.</p></div><aside><span>사업자 유형</span><strong>{session.demoProfile.displayName}</strong><small>표시된 조건은 은행이 공개한 상품 정보이며 최종 조건은 은행 심사 후 확정됩니다.</small></aside></header>
     <div className="products-live" role="status" aria-live="polite">{loading && result ? '상품 조건을 다시 확인하고 있습니다.' : loading ? '자사 상품 조건을 확인하고 있습니다.' : error ? '상품 조건을 확인하지 못했습니다.' : result?.canViewProducts ? `${products.length}개 상품 조건을 확인했습니다.` : '상품 비교를 진행할 수 없는 상태입니다.'}</div>
     {error && <section className="products-error" role="alert"><div><strong>{error.message}</strong><small>오류 코드: {error.code}{error.requestId ? ` · Request ID: ${error.requestId}` : ''}</small></div>{error.retryable && <button type="button" onClick={() => void load()}>다시 확인</button>}</section>}

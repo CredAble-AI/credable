@@ -2,7 +2,9 @@ import { useCallback, useEffect, useId, useRef, useState } from 'react'
 import { normalizeEvidenceSubmissionError } from '../api/evidenceSubmissionClient'
 import { evidenceSubmissionProvider } from '../hooks/useEvidenceSubmissionState'
 import type { ApiError } from '../types/api'
+import type { EvidenceConsentScope } from '../types/evidenceConsent'
 import type { EvidenceSubmissionOption, EvidenceSubmissionState } from '../types/evidenceSubmission'
+import { evidenceDataCategoryLabel } from '../utils/evidenceDisplay'
 import EvidenceConsentPanel from './EvidenceConsentPanel'
 import CustomerTechnicalDetails from './CustomerTechnicalDetails'
 import EvidenceQualityPanel from './EvidenceQualityPanel'
@@ -11,6 +13,9 @@ interface EvidenceFileSubmissionProps {
   sessionId: string
   selectionId: string
   evidenceType: string
+  /** Both come from the server's selection; the screen never restates the rule. */
+  displayName: string
+  consentScope: EvidenceConsentScope | null
 }
 
 type Phase = 'loading' | 'uploading' | 'connecting' | 'idle'
@@ -35,7 +40,7 @@ const expectedStatusLabel = {
   REVIEW_REQUIRED: '심사역 확인 시나리오',
 } as const
 
-function EvidenceFileSubmission({ sessionId, selectionId, evidenceType }: EvidenceFileSubmissionProps) {
+function EvidenceFileSubmission({ sessionId, selectionId, evidenceType, displayName, consentScope }: EvidenceFileSubmissionProps) {
   const inputId = useId()
   const [option, setOption] = useState<EvidenceSubmissionOption | null>(null)
   const [submission, setSubmission] = useState<EvidenceSubmissionState | null>(null)
@@ -151,7 +156,9 @@ function EvidenceFileSubmission({ sessionId, selectionId, evidenceType }: Eviden
 
       <div className="evidence-demo-step"><span>2</span><div><strong>요청 자료 준비</strong><p>요청된 자료의 범위와 기준 기간을 확인한 뒤 보유한 문서를 준비해주세요.</p></div></div>
       <div className="evidence-requested-file" aria-label="요청된 자료 기준">
-        <div><span>제출 기준</span><strong>최근 6개월 매출·입금 요약</strong><p>사업자 식별 정보, 월별 매출·입금 내역, 확인 기간 합계가 포함된 자료를 준비해주세요.</p><small>PDF · 최대 {formatBytes(option.uploadPolicy.maxSizeBytes)}</small></div>
+        <div><span>제출 기준</span><strong>{displayName}</strong>{consentScope
+          ? <><p>확인 기간 {consentScope.periodStart} ~ {consentScope.periodEnd}</p><p>확인할 정보: {consentScope.dataCategories.map(evidenceDataCategoryLabel).join(' · ')}</p></>
+          : <p>서버가 확정한 확인 기간과 정보 항목은 위 이용 범위에서 확인할 수 있습니다.</p>}<small>PDF · 최대 {formatBytes(option.uploadPolicy.maxSizeBytes)}</small></div>
       </div>
 
       {scenarioFiles.length > 0 && <section className="evidence-demo-library" aria-labelledby="demo-library-title">

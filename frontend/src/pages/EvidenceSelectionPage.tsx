@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { normalizeEvidenceSelectionError } from '../api/evidenceSelectionClient'
 import { normalizePolicyBoundaryError } from '../api/policyBoundaryClient'
+import CustomerFlowSteps from '../components/CustomerFlowSteps'
 import Header from '../components/Header'
 import CustomerTechnicalDetails from '../components/CustomerTechnicalDetails'
 import EvidenceFileSubmission from '../components/EvidenceFileSubmission'
@@ -112,7 +113,7 @@ function EvidenceSelectionPage() {
   const availability = selectedEvidence ? availabilityCopy[selectedEvidence.availability] : null
 
   return <div className="workspace-shell customer-flow"><Header /><main id="main-content" tabIndex={-1} className="assessment-page evidence-page"><div className="container assessment-page__inner">
-    <nav className="assessment-steps" aria-label="진행 단계"><span>시작</span><span>동의</span><span>데이터 연결</span><span>기존 평가</span><strong aria-current="step">추가 자료</strong><span>결과 확인</span></nav>
+    <CustomerFlowSteps current="evidence" className="assessment-steps" />
     <header className="assessment-heading"><div><h1 className="page-title-lines"><span>평가 경계의 이유를 확인하고</span><span>필요한 자료 한 건을 안내합니다</span></h1><p>불필요한 자료를 여러 개 요구하지 않고, 현재 평가의 부족한 정보를 보완할 자료 한 건만 안내합니다.</p></div><aside><span>사업자 유형</span><strong>{session.demoProfile.displayName}</strong><small>평가 주체와 사용 데이터가 이 유형에 맞게 적용됩니다.</small></aside></header>
 
     <div className="assessment-live" role="status" aria-live="polite">{phase === 'loading' ? '필요한 자료를 확인하고 있습니다.' : phase === 'selecting' ? '다음으로 확인할 자료 한 건을 찾고 있습니다.' : error ? '필요한 자료를 확인하지 못했습니다.' : selection ? '필요한 자료를 확인했습니다.' : '아직 선택된 자료가 없습니다.'}</div>
@@ -124,7 +125,7 @@ function EvidenceSelectionPage() {
     {selection && copy && <>
       <section className={`assessment-result evidence-status evidence-status--${selection.status.toLowerCase()}`}><div className="assessment-result__icon" aria-hidden="true">{selection.status === 'SELECTED' ? '✓' : 'i'}</div><div><span>추가 자료 확인 결과</span><h2>{copy.label}</h2><p>{copy.description}</p>{selection.stopReason && stopReasonCopy[selection.stopReason] && <p className="evidence-status__reason">{stopReasonCopy[selection.stopReason]}</p>}<p className="evidence-status__budget">요청 한도 {selection.maxEvidenceRequests}건 중 {Math.min(selection.iteration, selection.maxEvidenceRequests)}건째 확인입니다. 한도 안에서도 결과가 하나로 좁혀지지 않으면 자동으로 승인하거나 부결하지 않고 담당자 확인으로 넘어갑니다.</p></div></section>
       {selectedEvidence && availability && <section className="evidence-card" aria-labelledby="selected-evidence-title"><div className="evidence-card__top"><div><span>{sourceLabels[selectedEvidence.sourceType]}</span><h2 id="selected-evidence-title">{selectedEvidence.displayName}</h2></div><span className={`evidence-availability evidence-availability--${selectedEvidence.availability.toLowerCase()}`}>{availability.label}</span></div><p>{selectedEvidence.description}</p><p className="evidence-availability-note">{availability.description}</p><section><h3>이 자료가 필요한 이유</h3><ul>{selectedEvidence.rationaleCodes.map((code) => <li key={code}><span>{rationaleCopy[code] ?? '현재 결과 범위를 더 명확히 하는 데 필요한 자료입니다.'}</span></li>)}</ul></section></section>}
-      {selectedEvidence && <EvidenceFileSubmission sessionId={session.sessionId} selectionId={selection.selectionId} evidenceType={selectedEvidence.evidenceType} />}
+      {selectedEvidence && <EvidenceFileSubmission sessionId={session.sessionId} selectionId={selection.selectionId} evidenceType={selectedEvidence.evidenceType} displayName={selectedEvidence.displayName} consentScope={selectedEvidence.consentScope} />}
       <CustomerTechnicalDetails><dl><div><dt>처리 상태</dt><dd><code>{selection.status}</code></dd></div>{selection.stopReason && <div><dt>중단 사유</dt><dd><code>{selection.stopReason}</code></dd></div>}<div><dt>현재 확인 차수</dt><dd>{selection.iteration} / 요청 한도 {selection.maxEvidenceRequests}</dd></div><div><dt>검토 후보 수</dt><dd>{selection.evaluatedCandidateCount}건</dd></div><div><dt>담당자 확인</dt><dd>{selection.underwriterRequired ? '필요' : '필요 없음'}</dd></div><div><dt>선택 시점</dt><dd>{formatDate(selection.selectedAt)}</dd></div><div><dt>선택 ID</dt><dd><code>{selection.selectionId}</code></dd></div><div><dt>정책 경계 ID</dt><dd><code>{selection.boundaryCheckId}</code></dd></div>{selection.rejectedQualityCheckId && <div><dt>제외된 품질검증 ID</dt><dd><code>{selection.rejectedQualityCheckId}</code></dd></div>}<div><dt>보정 버전</dt><dd><code>{selection.calibrationVersion}</code></dd></div><div><dt>경계 정책 버전</dt><dd><code>{selection.boundaryPolicyVersion}</code></dd></div><div><dt>선택 정책 버전</dt><dd><code>{selection.selectionPolicyVersion}</code></dd></div>{selectedEvidence?.rationaleCodes.map((code) => <div key={code}><dt>선택 근거 코드</dt><dd><code>{code}</code></dd></div>)}</dl></CustomerTechnicalDetails>
     </>}
 

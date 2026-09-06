@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { normalizeConsentError } from '../api/consentClient'
+import CustomerFlowSteps from '../components/CustomerFlowSteps'
 import Header from '../components/Header'
 import { consentProvider } from '../hooks/useConsentState'
 import { useCustomerSession } from '../hooks/useCustomerSession'
@@ -112,7 +113,7 @@ function ConsentPage() {
       <Header />
       <main id="main-content" tabIndex={-1} className="consent-page">
         <div className="container consent-page__inner">
-          <nav className="customer-progress" aria-label="진행 단계"><span>시작</span><strong aria-current="step">동의</strong><span>데이터 연결</span><span>기존 평가</span><span>상품 비교</span></nav>
+          <CustomerFlowSteps current="consent" className="customer-progress" />
           <header className="consent-heading">
             <div><h1 className="page-title-lines"><span>연결할 데이터의</span><span>이용 범위를 확인해주세요</span></h1><p>평가에 사용할 정보와 필수·선택 여부를 확인합니다. 동의해도 실제 데이터 연결을 보장하지는 않습니다.</p></div>
             <div className="session-summary"><span>현재 선택</span><strong>{session.demoProfile.displayName}</strong><small>{scopeVersion ? '동의 범위 확인 완료' : '동의 범위 확인 중'}</small></div>

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { normalizeSessionError } from '../api/sessionClient'
+import CustomerFlowSteps from '../components/CustomerFlowSteps'
 import Header from '../components/Header'
 import { sessionProvider } from '../hooks/useCustomerSession'
 import type { ApiError } from '../types/api'
@@ -77,7 +78,7 @@ function CustomerStartPage() {
       <Header />
       <main id="main-content" tabIndex={-1} className="customer-page">
         <div className="container customer-page__inner">
-          <nav className="customer-progress customer-progress--dark" aria-label="진행 단계"><strong aria-current="step">시작</strong><span>동의</span><span>데이터 연결</span><span>기존 평가</span><span>상품 비교</span></nav>
+          <CustomerFlowSteps current="start" className="customer-progress customer-progress--dark" />
           <div className="flow-heading">
             <h1 className="page-title-lines"><span>대출 계약의</span><span>주체를 선택해주세요</span></h1>
             <p>CredAble은 사업자금 대출을 탐색하는 등록 사업자를 위한 서비스입니다. 개인사업자와 법인사업자는 실제 서비스 대상 분기이며, 유형에 따라 평가 주체와 사용하는 데이터를 구분합니다.</p>
