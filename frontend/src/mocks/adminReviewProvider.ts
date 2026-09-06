@@ -25,6 +25,12 @@ const assertNotAborted = (signal: AbortSignal) => {
   if (signal.aborted) throw new DOMException('Aborted', 'AbortError')
 }
 
+export const registerMockAdminReview = (review: AdminReviewQueueItem) => {
+  if (!items.some((item) => item.reviewId === review.reviewId)) items.unshift(review)
+}
+
+export const findMockAdminReview = (reviewId: string) => items.find((item) => item.reviewId === reviewId) ?? null
+
 export const mockAdminReviewProvider: AdminReviewProvider = {
   async list(query, signal) {
     assertNotAborted(signal)
