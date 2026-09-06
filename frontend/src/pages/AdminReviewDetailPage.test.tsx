@@ -39,6 +39,7 @@ describe('AdminReviewDetailPage', () => {
     await waitFor(() => expect(adminReviewProvider.get).toHaveBeenCalledWith('demo-secret', 'uwr_assessment', expect.any(AbortSignal)))
     expect(await screen.findByText('접수 대기 상태입니다.')).toBeInTheDocument()
     expect(screen.getByRole('link', { name: '세션 처리 이력 보기' })).toHaveAttribute('href', '/admin/sessions/ses_sole/audit')
+    expect(screen.getByRole('link', { name: 'Evidence 부담 지표 보기' })).toHaveAttribute('href', '/admin/sessions/ses_sole/evidence-burden')
     fireEvent.click(screen.getByRole('button', { name: '검토 접수' }))
 
     await waitFor(() => expect(adminReviewProvider.claim).toHaveBeenCalledWith('demo-secret', 'uwr_assessment', expect.any(AbortSignal)))

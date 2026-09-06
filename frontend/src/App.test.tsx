@@ -52,4 +52,12 @@ describe('App routing', () => {
     expect(screen.getByLabelText('관리자 Demo API Key')).toHaveAttribute('type', 'password')
     expect(document.title).toBe('세션 처리 이력 | CredAble')
   })
+
+  it('renders a directly-addressable evidence burden route', () => {
+    renderRoute('/admin/sessions/ses_demo/evidence-burden')
+
+    expect(screen.getByRole('heading', { level: 1, name: 'Evidence 요청 부담 지표' })).toBeInTheDocument()
+    expect(screen.getByLabelText('관리자 Demo API Key')).toHaveAttribute('type', 'password')
+    expect(document.title).toBe('Evidence 요청 부담 지표 | CredAble')
+  })
 })
