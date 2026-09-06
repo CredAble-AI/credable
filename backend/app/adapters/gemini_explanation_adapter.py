@@ -1,6 +1,7 @@
 import json
 from collections.abc import Mapping
 from typing import Any, Protocol
+from urllib.parse import quote
 from urllib.request import Request, urlopen
 
 from pydantic import SecretStr
@@ -13,29 +14,37 @@ from app.schemas.explanation import (
 )
 
 
-class GeminiInteractionTransport(Protocol):
+class GeminiGenerateContentTransport(Protocol):
     def create(
         self,
         *,
         api_key: SecretStr,
+        model: str,
         payload: Mapping[str, Any],
         timeout_seconds: float,
     ) -> Mapping[str, Any]: ...
 
 
-class UrlLibGeminiInteractionTransport:
-    ENDPOINT = "https://generativelanguage.googleapis.com/v1beta/interactions"
+class UrlLibGeminiGenerateContentTransport:
+    """Calls the Generative Language API's generateContent endpoint."""
+
+    BASE_URL = "https://generativelanguage.googleapis.com/v1beta"
     MAX_RESPONSE_BYTES = 64 * 1024
+
+    @classmethod
+    def endpoint(cls, model: str) -> str:
+        return f"{cls.BASE_URL}/models/{quote(model, safe='')}:generateContent"
 
     def create(
         self,
         *,
         api_key: SecretStr,
+        model: str,
         payload: Mapping[str, Any],
         timeout_seconds: float,
     ) -> Mapping[str, Any]:
         request = Request(
-            self.ENDPOINT,
+            self.endpoint(model),
             data=json.dumps(payload, separators=(",", ":")).encode("utf-8"),
             headers={
                 "Content-Type": "application/json",
@@ -54,9 +63,9 @@ class UrlLibGeminiInteractionTransport:
 
 
 class GeminiExplanationProvider(ExplanationProvider):
-    provider_version = "gemini-interactions-explanation-provider-v1"
+    provider_version = "gemini-generate-content-explanation-provider-v1"
     rendering_mode = ExplanationRenderingMode.GENERATIVE_AI
-    prompt_version = "explanation-message-plan-v2"
+    prompt_version = "explanation-message-plan-v3"
 
     def __init__(
         self,
@@ -64,7 +73,7 @@ class GeminiExplanationProvider(ExplanationProvider):
         api_key: SecretStr,
         model: str,
         timeout_seconds: float,
-        transport: GeminiInteractionTransport | None = None,
+        transport: GeminiGenerateContentTransport | None = None,
     ) -> None:
         if not api_key.get_secret_value().strip():
             raise ValueError("Gemini API key is required")
@@ -73,7 +82,7 @@ class GeminiExplanationProvider(ExplanationProvider):
         self.api_key = api_key
         self.model_version = model
         self.timeout_seconds = timeout_seconds
-        self.transport = transport or UrlLibGeminiInteractionTransport()
+        self.transport = transport or UrlLibGeminiGenerateContentTransport()
 
     def plan(
         self,
@@ -85,11 +94,11 @@ class GeminiExplanationProvider(ExplanationProvider):
         payload = self._build_payload(snapshot, allowed_message_codes)
         response = self.transport.create(
             api_key=self.api_key,
+            model=self.model_version,
             payload=payload,
             timeout_seconds=self.timeout_seconds,
         )
-        output_text = self._extract_output_text(response)
-        return ExplanationPlan.model_validate_json(output_text)
+        return ExplanationPlan.model_validate_json(self._extract_output_text(response))
 
     def _build_payload(
         self,
@@ -97,38 +106,38 @@ class GeminiExplanationProvider(ExplanationProvider):
         allowed_message_codes: tuple[str, ...],
     ) -> dict[str, Any]:
         current_state_code = allowed_message_codes[-1]
+        instruction = (
+            "You are a constrained presentation planner for a lending assessment explanation. "
+            "Select only from the allowed machine-readable message codes. Never create or infer "
+            "credit scores, grades, eligibility, evidence requests, risk, policy routes, approval "
+            "or rejection, interest rates, or loan amounts. The required current-state code must "
+            "be the headline and must be included in sectionCodes. Keep sectionCodes in the same "
+            "relative order as allowedMessageCodes and return no more than eight codes.\n"
+            + json.dumps(
+                {
+                    "targetType": snapshot.target_type.value,
+                    "allowedMessageCodes": list(allowed_message_codes),
+                    "requiredCurrentStateCode": current_state_code,
+                },
+                separators=(",", ":"),
+            )
+        )
         return {
-            "model": self.model_version,
-            "input": (
-                "You are a constrained presentation planner for a lending assessment explanation. "
-                "Select only from the allowed machine-readable message codes. Never create or infer "
-                "credit scores, grades, eligibility, evidence requests, risk, policy routes, approval "
-                "or rejection, interest rates, or loan amounts. The required current-state code must "
-                "be the headline and must be included in sectionCodes. Keep sectionCodes in the same "
-                "relative order as allowedMessageCodes and return no more than eight codes.\n"
-                + json.dumps(
-                    {
-                        "targetType": snapshot.target_type.value,
-                        "allowedMessageCodes": list(allowed_message_codes),
-                        "requiredCurrentStateCode": current_state_code,
-                    },
-                    separators=(",", ":"),
-                )
-            ),
-            "response_format": {
-                "type": "text",
-                "mime_type": "application/json",
-                "schema": {
-                    "type": "object",
+            "contents": [{"role": "user", "parts": [{"text": instruction}]}],
+            "generationConfig": {
+                "temperature": 0,
+                "responseMimeType": "application/json",
+                "responseSchema": {
+                    "type": "OBJECT",
                     "properties": {
                         "headlineCode": {
-                            "type": "string",
+                            "type": "STRING",
                             "enum": list(allowed_message_codes),
                         },
                         "sectionCodes": {
-                            "type": "array",
+                            "type": "ARRAY",
                             "items": {
-                                "type": "string",
+                                "type": "STRING",
                                 "enum": list(allowed_message_codes),
                             },
                             "minItems": 1,
@@ -136,29 +145,33 @@ class GeminiExplanationProvider(ExplanationProvider):
                         },
                     },
                     "required": ["headlineCode", "sectionCodes"],
+                    "propertyOrdering": ["headlineCode", "sectionCodes"],
                 },
             },
         }
 
     @staticmethod
     def _extract_output_text(response: Mapping[str, Any]) -> str:
-        if response.get("status") != "completed":
-            raise ValueError("Gemini interaction did not complete")
-        text_blocks: list[str] = []
-        steps = response.get("steps")
-        if not isinstance(steps, list):
-            raise ValueError("Gemini interaction steps are missing")
-        for step in steps:
-            if not isinstance(step, dict) or step.get("type") != "model_output":
-                continue
-            content = step.get("content")
-            if not isinstance(content, list):
-                continue
-            for block in content:
-                if isinstance(block, dict) and block.get("type") == "text":
-                    text = block.get("text")
-                    if isinstance(text, str) and text.strip():
-                        text_blocks.append(text)
-        if len(text_blocks) != 1:
-            raise ValueError("Gemini interaction must return exactly one text output")
-        return text_blocks[0]
+        candidates = response.get("candidates")
+        if not isinstance(candidates, list) or len(candidates) != 1:
+            raise ValueError("Gemini response must return exactly one candidate")
+        candidate = candidates[0]
+        if not isinstance(candidate, dict):
+            raise ValueError("Gemini candidate must be an object")
+        finish_reason = candidate.get("finishReason")
+        if finish_reason not in (None, "STOP"):
+            raise ValueError(f"Gemini generation did not complete: {finish_reason}")
+        content = candidate.get("content")
+        if not isinstance(content, dict):
+            raise ValueError("Gemini candidate content is missing")
+        parts = content.get("parts")
+        if not isinstance(parts, list):
+            raise ValueError("Gemini candidate parts are missing")
+        text_parts = [
+            part["text"]
+            for part in parts
+            if isinstance(part, dict) and isinstance(part.get("text"), str) and part["text"].strip()
+        ]
+        if len(text_parts) != 1:
+            raise ValueError("Gemini response must return exactly one text part")
+        return text_parts[0]

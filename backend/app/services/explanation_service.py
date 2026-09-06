@@ -1,5 +1,6 @@
 import hashlib
 import json
+import logging
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from uuid import uuid4
@@ -25,6 +26,8 @@ from app.schemas.explanation import (
 )
 from app.schemas.policy_boundary import BoundaryStatus, EvidenceResolutionStatus
 from app.services.session_service import CustomerSessionService
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass(frozen=True)
@@ -100,6 +103,11 @@ class AssessmentExplanationService:
             model_version = self.provider.model_version
             prompt_version = self.provider.prompt_version
         except ValueError:
+            # The provider answered, but not with something we can trust.
+            logger.warning(
+                "explanation provider returned an unusable plan; using the rule fallback",
+                exc_info=True,
+            )
             plan = self._fallback_plan(allowed_codes)
             fallback_reason_code = "EXPLANATION_PROVIDER_OUTPUT_INVALID"
             rendering_mode = ExplanationRenderingMode.RULE_FALLBACK
@@ -107,6 +115,12 @@ class AssessmentExplanationService:
             model_version = None
             prompt_version = self.FALLBACK_PROMPT_VERSION
         except Exception:
+            # A misconfigured endpoint or model fails here on every request, so
+            # log it: otherwise the demo silently runs on the rule fallback.
+            logger.warning(
+                "explanation provider call failed; using the rule fallback",
+                exc_info=True,
+            )
             plan = self._fallback_plan(allowed_codes)
             fallback_reason_code = "EXPLANATION_PROVIDER_ERROR"
             rendering_mode = ExplanationRenderingMode.RULE_FALLBACK

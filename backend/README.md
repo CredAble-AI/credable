@@ -32,13 +32,21 @@ cp .env.example .env
 ```env
 CREDABLE_EXPLANATION_PROVIDER=gemini
 GEMINI_API_KEY=<Google-AI-Studio에서-발급한-키>
-CREDABLE_GEMINI_MODEL=gemini-3.5-flash-lite
+CREDABLE_GEMINI_MODEL=gemini-2.5-flash-lite
 CREDABLE_GEMINI_TIMEOUT_SECONDS=10
 ```
 
 `CREDABLE_EXPLANATION_PROVIDER=gemini`인데 `GEMINI_API_KEY`가 없으면 서버 시작 단계에서 설정
 오류로 중단합니다. Gemini 호출 실패, 시간 초과 또는 구조화 출력 검증 실패는 평가 결과를
 바꾸지 않고 기존 `RULE_FALLBACK` 설명으로 전환됩니다.
+
+Gemini 호출은 Generative Language API의
+`POST /v1beta/models/{model}:generateContent`를 사용하고, 응답은
+`candidates[0].content.parts[].text`의 구조화 JSON에서 읽습니다. 모델 이름은
+`CREDABLE_GEMINI_MODEL`로 바꿀 수 있으며, 계정에서 사용할 수 있는 모델인지는 실제 키로 한 번
+확인해야 합니다. 전환이 일어나면 `renderingMode`가 `RULE_FALLBACK`이 되고
+`fallbackReasonCode`가 응답과 Audit에 남으며, 서버 로그에도 경고가 기록됩니다. 즉 잘못된
+Endpoint나 모델 이름 때문에 매 요청이 실패하면 조용히 넘어가지 않고 드러납니다.
 
 ## 개발 서버 실행
 

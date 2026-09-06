@@ -25,7 +25,7 @@ def load_explanation_provider_mode() -> ExplanationProviderMode:
 
 
 def load_gemini_model() -> str:
-    return os.getenv("CREDABLE_GEMINI_MODEL", "gemini-3.5-flash-lite").strip()
+    return os.getenv("CREDABLE_GEMINI_MODEL", "gemini-2.5-flash-lite").strip()
 
 
 def load_gemini_timeout_seconds() -> float:
