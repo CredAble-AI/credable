@@ -51,7 +51,7 @@ function SourceCard({ source, busy, error, onRetry }: {
       <div className="source-card__top">
         <span className="source-card__icon" aria-hidden="true">{statusIcon[source.retrievalStatus]}</span>
         <div>
-          <span className="source-card__scope">기준평가 입력</span>
+          <span className="source-card__scope">기존 평가 확인</span>
           <h3>{source.displayName}</h3>
         </div>
       </div>
@@ -171,16 +171,16 @@ function DataConnectionPage() {
   const statusMessage = isLoading
     ? isRefreshing
       ? '은행 내부 데이터와 신용정보를 조회하고 기준시점과 상태를 검증하고 있습니다.'
-      : '기준평가에 필요한 데이터 출처 상태를 확인하고 있습니다.'
+      : '기존 평가 확인에 필요한 데이터 출처 상태를 확인하고 있습니다.'
     : retrying
       ? `${result?.dataSources.find((item) => item.sourceType === retrying)?.displayName} 항목을 다시 확인하고 있습니다.`
       : error
         ? '데이터 출처 상태를 확인하지 못했습니다.'
         : baselineReady
-          ? '기준평가에 필요한 두 출처의 조회와 검증이 완료됐습니다.'
+          ? '기존 평가 확인에 필요한 두 출처의 조회와 검증이 완료됐습니다.'
           : refreshAttempted
             ? '조회 결과에서 확인이 필요한 항목이 있습니다.'
-            : '동의한 범위에서 기준평가 데이터를 불러올 준비가 됐습니다.'
+            : '동의한 범위에서 기존 평가 데이터를 불러올 준비가 됐습니다.'
 
   return (
     <div className="workspace-shell customer-flow">
@@ -188,12 +188,11 @@ function DataConnectionPage() {
       <main id="main-content" tabIndex={-1} className="connection-page">
         <div className="container connection-page__inner">
           <nav className="flow-steps" aria-label="진행 단계">
-            <span>시작</span><span>동의</span><strong aria-current="step">데이터 연결</strong><span>기준평가</span><span>상품 비교</span>
+            <span>시작</span><span>동의</span><strong aria-current="step">데이터 연결</strong><span>기존 평가</span><span>상품 비교</span>
           </nav>
           <header className="connection-heading">
             <div>
-              <p className="flow-kicker">DATA CONNECTION</p>
-              <h1>기준평가에 사용할 데이터 출처를 확인합니다</h1>
+              <h1 className="page-title-lines"><span>기존 평가 데이터의</span><span>연결 상태를 확인합니다</span></h1>
               <p>동의한 범위에서 평가에 필요한 정보가 준비됐는지 확인합니다. 정보가 없거나 추가 동의가 필요해도 신용상 불리한 결과를 뜻하지 않습니다.</p>
             </div>
             <aside>
@@ -220,8 +219,8 @@ function DataConnectionPage() {
           {result && baselineSources.length > 0 && (
             <section className="source-section" aria-labelledby="source-title">
               <div className="source-section__heading">
-                <div><span>01</span><h2 id="source-title">기준평가 필수 데이터</h2></div>
-                <p>CB·SCB와 은행 내부 평가로 구성된 기존 평가를 확인하는 단계입니다.</p>
+                <div><span>01</span><h2 id="source-title">기존 평가 필수 데이터</h2></div>
+                <p>CB와 은행 내부 정보, 해당 은행이 사용하는 경우 SCB가 포함된 기존 평가를 확인합니다.</p>
               </div>
               <div className="source-grid">
                 {baselineSources.map((source) => (
@@ -236,30 +235,30 @@ function DataConnectionPage() {
               </div>
               <section className={`connection-pipeline ${baselineReady ? 'connection-pipeline--ready' : ''}`} aria-labelledby="pipeline-title">
                 <div className="connection-pipeline__heading">
-                  <div><span>02</span><h2 id="pipeline-title">기준평가 입력 준비</h2></div>
+                  <div><span>02</span><h2 id="pipeline-title">기존 평가 확인 준비</h2></div>
                   <strong>{baselineReady ? '준비 완료' : isRefreshing ? '조회·검증 중' : '준비 전'}</strong>
                 </div>
                 <ol>
                   <li className="is-complete"><span>1</span><div><strong>동의 범위 확인</strong><p>고객이 확인한 필수 동의 범위를 적용합니다.</p></div><b>완료</b></li>
                   <li className={retrievedCount === baselineSourceTypes.length ? 'is-complete' : isRefreshing ? 'is-active' : ''}><span>2</span><div><strong>필수 출처 조회</strong><p>은행 내부 데이터와 신용정보를 서버에서 조회합니다.</p></div><b>{isRefreshing ? '진행 중' : `${retrievedCount}/2 완료`}</b></li>
                   <li className={verifiedCount === baselineSourceTypes.length ? 'is-complete' : retrievedCount > 0 || isRefreshing ? 'is-active' : ''}><span>3</span><div><strong>기준시점·상태 검증</strong><p>조회된 정보의 기준시점과 검증 상태를 확인합니다.</p></div><b>{verifiedCount}/2 완료</b></li>
-                  <li className={baselineReady ? 'is-complete' : ''}><span>4</span><div><strong>기준평가 입력 준비</strong><p>검증된 데이터는 다음 단계에서 은행의 기존 평가를 불러오는 입력으로 사용됩니다.</p></div><b>{baselineReady ? '준비 완료' : '대기'}</b></li>
+                  <li className={baselineReady ? 'is-complete' : ''}><span>4</span><div><strong>기존 평가 확인 준비</strong><p>검증된 데이터로 은행이 이미 보유한 평가 결과와 기준시점을 확인합니다.</p></div><b>{baselineReady ? '준비 완료' : '대기'}</b></li>
                 </ol>
-                <p className="connection-pipeline__notice">고객 제출 자료와 외부 기관 연결은 기준평가의 불확실성이 남아 추가 확인이 필요할 때만 요청합니다.</p>
+                <p className="connection-pipeline__notice">고객 제출 자료와 외부 기관 연결은 기존 평가의 불확실성이 남아 추가 확인이 필요할 때만 요청합니다.</p>
               </section>
             </section>
           )}
 
           <section className="connection-actions" aria-label="데이터 연결 다음 작업">
             <div>
-              <strong>{baselineReady ? '기준평가 입력이 준비됐습니다' : '기준평가에 필요한 데이터를 먼저 불러오세요'}</strong>
+              <strong>{baselineReady ? '기존 평가 확인 준비가 됐습니다' : '기존 평가 확인에 필요한 데이터를 먼저 불러오세요'}</strong>
               <p>{baselineReady ? '다음 단계에서 은행이 보유한 기존 평가 결과와 정책 경계를 확인합니다.' : '조회가 끝나면 출처별 기준시점과 검증 결과를 이 화면에서 확인할 수 있습니다.'}</p>
             </div>
             <div className="connection-actions__buttons">
               <Link className="connection-actions__consent" to="/consent">동의 내용 수정</Link>
               {result && (baselineReady
                 ? <button className="button button--primary" type="button" onClick={() => navigate('/assessment')} disabled={isLoading || Boolean(retrying)}>기존 평가 결과 확인</button>
-                : <button className="button button--primary" type="button" onClick={refreshBaselineSources} disabled={isLoading || Boolean(retrying)}>{isRefreshing ? '데이터 조회·검증 중…' : refreshAttempted ? '데이터 다시 불러오기' : '기준평가 데이터 불러오기'}</button>)}
+                : <button className="button button--primary" type="button" onClick={refreshBaselineSources} disabled={isLoading || Boolean(retrying)}>{isRefreshing ? '데이터 조회·검증 중…' : refreshAttempted ? '데이터 다시 불러오기' : '기존 평가 데이터 불러오기'}</button>)}
             </div>
           </section>
         </div>

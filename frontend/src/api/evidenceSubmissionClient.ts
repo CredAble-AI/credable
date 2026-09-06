@@ -5,6 +5,7 @@ export interface EvidenceSubmissionProvider {
   getOption(sessionId: string, selectionId: string, evidenceType: string, signal: AbortSignal): Promise<EvidenceSubmissionOption>
   getLatest(sessionId: string, signal: AbortSignal): Promise<EvidenceSubmissionResponse>
   upload(sessionId: string, selectionId: string, file: File, signal: AbortSignal): Promise<EvidenceSubmissionResponse>
+  submitConnected(sessionId: string, selectionId: string, signal: AbortSignal): Promise<EvidenceSubmissionResponse>
 }
 
 export const normalizeEvidenceSubmissionError = (error: unknown): ApiError => {
@@ -40,5 +41,12 @@ export const liveEvidenceSubmissionProvider: EvidenceSubmissionProvider = {
     body.append('selectionId', selectionId)
     body.append('file', file)
     return request(evidenceUrl(sessionId, '/submissions/upload'), signal, { method: 'POST', body })
+  },
+  submitConnected(sessionId, selectionId, signal) {
+    return request(evidenceUrl(sessionId, '/submissions'), signal, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ selectionId, submissionMode: 'DEMO_FIXTURE_REFERENCE' }),
+    })
   },
 }

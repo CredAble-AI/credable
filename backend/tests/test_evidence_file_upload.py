@@ -496,6 +496,9 @@ def test_changed_pdf_routes_to_underwriter_without_storing_binary_or_reassessmen
     ]
     assert quality["nextAction"] == "UNDERWRITER_REVIEW"
     assert quality["underwriterRequired"] is True
+    assert quality_response.json()["underwriterReviewId"] == (
+        f"uwr_{quality['qualityCheckId'].removeprefix('evq_')}"
+    )
     failed_dimensions = {
         item["dimension"] for item in quality["checks"] if item["status"] == "FAILED"
     }

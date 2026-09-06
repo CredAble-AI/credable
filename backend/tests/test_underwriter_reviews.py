@@ -145,9 +145,7 @@ def test_underwriter_review_queue_exposes_only_safe_review_context(
     assert "sha256" not in response.text.lower()
     assert "changed review queue evidence" not in response.text
 
-    detail_response = client.get(
-        f"/v1/admin/underwriter-reviews/{payload['items'][0]['reviewId']}"
-    )
+    detail_response = client.get(f"/v1/admin/underwriter-reviews/{payload['items'][0]['reviewId']}")
     assert detail_response.status_code == 200
     context = detail_response.json()["context"]
     assert context["assessment"] is not None

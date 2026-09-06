@@ -78,7 +78,7 @@ class ConsentService:
         self._require_session(session_id)
         stored = {item.source_type: item for item in self.repository.list_consents(session_id)}
         consents = [
-            stored.get(definition.source_type, self._pending_state(definition))
+            self._current_or_pending(stored.get(definition.source_type), definition)
             for definition in self.catalog.scopes
         ]
         return ConsentListResponse(
@@ -86,6 +86,15 @@ class ConsentService:
             consents=consents,
             scope_version=self.catalog.data_version,
         )
+
+    def _current_or_pending(
+        self,
+        stored: ConsentState | None,
+        definition: ConsentScopeDefinition,
+    ) -> ConsentState:
+        if stored is not None and stored.scope_version == self.catalog.data_version:
+            return stored
+        return self._pending_state(definition)
 
     def grant_consent(
         self,

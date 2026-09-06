@@ -87,9 +87,9 @@ class EvidenceQualityService:
         submission_id: str,
     ) -> EvidenceQualityResponse:
         submission = self._submission(session_id, submission_id)
-        return EvidenceQualityResponse(
-            session_id=session_id,
-            quality=self.repository.get_for_submission(session_id, submission.submission_id),
+        return self._response(
+            session_id,
+            self.repository.get_for_submission(session_id, submission.submission_id),
         )
 
     def check(
@@ -101,7 +101,7 @@ class EvidenceQualityService:
         submission = self._submission(session_id, submission_id)
         existing = self.repository.get_for_submission(session_id, submission_id)
         if existing is not None:
-            return EvidenceQualityResponse(session_id=session_id, quality=existing)
+            return self._response(session_id, existing)
 
         if submission.submission_mode == EvidenceSubmissionMode.DEMO_FILE_UPLOAD:
             self._require_active_submission_consent(session_id, submission)
@@ -197,7 +197,21 @@ class EvidenceQualityService:
             state=state,
             audit_event=audit_event,
         )
-        return EvidenceQualityResponse(session_id=session_id, quality=saved)
+        return self._response(session_id, saved)
+
+    @staticmethod
+    def _response(
+        session_id: str,
+        quality: EvidenceQualityState | None,
+    ) -> EvidenceQualityResponse:
+        review_id = None
+        if quality is not None and quality.underwriter_required:
+            review_id = f"uwr_{quality.quality_check_id.split('_', 1)[-1]}"
+        return EvidenceQualityResponse(
+            session_id=session_id,
+            quality=quality,
+            underwriter_review_id=review_id,
+        )
 
     def _require_active_submission_consent(
         self,

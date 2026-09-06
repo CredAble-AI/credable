@@ -29,8 +29,8 @@ describe('RouteAnnouncement', () => {
 
     fireEvent.click(screen.getByRole('link', { name: '기준평가로 이동' }))
 
-    expect(document.title).toBe('기준평가 | CredAble')
-    expect(screen.getByRole('status')).toHaveTextContent('기준평가 화면으로 이동했습니다.')
+    expect(document.title).toBe('기존 평가 | CredAble')
+    expect(screen.getByRole('status')).toHaveTextContent('기존 평가 화면으로 이동했습니다.')
     expect(main).toHaveFocus()
   })
 

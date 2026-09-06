@@ -11,12 +11,12 @@ type Phase = 'loading' | 'generating' | 'idle'
 type RequestKind = 'load' | 'generate'
 
 const renderingLabels: Record<ExplanationRenderingMode, string> = {
-  DEMO_TEMPLATE: '시연용 안내',
+  DEMO_TEMPLATE: '구조화 결과 안내',
   GENERATIVE_AI: 'AI 기반 안내',
   RULE_FALLBACK: '기본 안내',
 }
 const targetLabels: Record<ExplanationTargetType, string> = {
-  BASELINE_ASSESSMENT: '기준평가',
+  BASELINE_ASSESSMENT: '기존 평가',
   SUPPLEMENTAL_ASSESSMENT: '보완평가',
 }
 const formatDate = (value: string) => new Intl.DateTimeFormat('ko-KR', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(value))
@@ -45,9 +45,14 @@ function AssessmentExplanationPanel({ sessionId }: AssessmentExplanationPanelPro
     const sequence = ++sequenceRef.current
     setPhase(kind === 'generate' ? 'generating' : 'loading'); setError(null); setFailedRequest(null)
     try {
-      const response = kind === 'generate'
+      let response = kind === 'generate'
         ? await assessmentExplanationProvider.generate(sessionId, controller.signal)
         : await assessmentExplanationProvider.get(sessionId, controller.signal)
+      if (kind === 'load' && !acceptResponse(response, false)) {
+        if (sequence === sequenceRef.current) setPhase('generating')
+        response = await assessmentExplanationProvider.generate(sessionId, controller.signal)
+        kind = 'generate'
+      }
       const accepted = acceptResponse(response, kind === 'generate')
       if (sequence === sequenceRef.current) setExplanation(accepted)
     } catch (caught) {
@@ -64,13 +69,13 @@ function AssessmentExplanationPanel({ sessionId }: AssessmentExplanationPanelPro
     return () => { sequenceRef.current += 1; controllerRef.current?.abort() }
   }, [send])
 
-  if (phase === 'loading' && !explanation) return <section className="assessment-explanation assessment-explanation--loading" aria-label="평가 결과 설명 상태 확인"><span /><span /></section>
+  if (phase !== 'idle' && !explanation) return <section className="assessment-explanation assessment-explanation--loading" aria-label="평가 결과 안내 준비 중"><span /><span /><p>확정된 결과와 다음 단계를 알기 쉽게 정리하고 있습니다.</p></section>
 
   if (!explanation) return <section className="assessment-explanation" aria-labelledby="assessment-explanation-title">
-    <div className="assessment-explanation__heading"><div><span>평가 결과 안내</span><h3 id="assessment-explanation-title">평가 결과를 이해하기 쉽게 정리합니다</h3></div><strong>안내 전</strong></div>
-    <p>확정된 평가 결과만 알기 쉬운 문장으로 설명합니다. 설명 기능은 평가 결과나 대출 조건을 만들거나 바꾸지 않습니다.</p>
+    <div className="assessment-explanation__heading"><div><span>평가 결과 안내</span><h3 id="assessment-explanation-title">결과 안내를 준비하지 못했습니다</h3></div><strong>재시도 필요</strong></div>
+    <p>평가 결과는 변경되지 않았습니다. 결과와 다음 단계 설명만 다시 준비합니다.</p>
     {error && <div className="assessment-explanation__error" role="alert"><p>{error.message}</p><CustomerTechnicalDetails title="오류 기술 정보 보기"><dl><div><dt>오류 코드</dt><dd><code>{error.code}</code></dd></div>{error.requestId && <div><dt>요청 ID</dt><dd><code>{error.requestId}</code></dd></div>}</dl></CustomerTechnicalDetails></div>}
-    <button className={`button ${failedRequest === 'load' ? 'button--secondary' : 'button--primary'}`} type="button" disabled={phase !== 'idle'} onClick={() => void send(failedRequest === 'load' ? 'load' : 'generate')}>{failedRequest === 'load' ? '설명 상태 다시 확인' : phase === 'generating' ? '설명을 준비하는 중…' : '평가 결과 설명 보기'}</button>
+    <button className="button button--secondary" type="button" disabled={phase !== 'idle'} onClick={() => void send(failedRequest === 'load' ? 'load' : 'generate')}>{phase === 'generating' ? '안내를 준비하는 중…' : '결과 안내 다시 준비'}</button>
   </section>
 
   return <section className={`assessment-explanation assessment-explanation--${explanation.renderingMode.toLowerCase()}`} aria-labelledby="assessment-explanation-title">

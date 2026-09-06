@@ -38,4 +38,20 @@ describe('liveEvidenceSubmissionProvider', () => {
     expect((init.body as FormData).get('selectionId')).toBe('evs_demo')
     expect((init.body as FormData).get('file')).toBe(file)
   })
+
+  it('submits a connected-data snapshot through the server endpoint', async () => {
+    const response = { sessionId: 'ses_demo', submission: null } satisfies EvidenceSubmissionResponse
+    const fetchMock = vi.fn().mockResolvedValue({ ok: true, json: async () => response })
+    vi.stubGlobal('fetch', fetchMock)
+    const signal = new AbortController().signal
+
+    await liveEvidenceSubmissionProvider.submitConnected('ses_demo', 'evs_demo', signal)
+
+    expect(fetchMock).toHaveBeenCalledWith('/v1/sessions/ses_demo/evidence/submissions', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ selectionId: 'evs_demo', submissionMode: 'DEMO_FIXTURE_REFERENCE' }),
+      signal,
+    })
+  })
 })

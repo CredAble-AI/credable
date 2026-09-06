@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { render, screen, waitFor } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { evidenceQualityProvider } from '../hooks/useEvidenceQualityState'
@@ -28,7 +28,7 @@ const quality = (status: EvidenceQualityState['status'] = 'ACCEPTED'): EvidenceQ
     trustVerification: { status: 'VERIFIED', channel: 'SERVER_SIGNED_MANIFEST', verifiedScopes: ['DOCUMENT_INTEGRITY', 'MANIFEST_BINDING', 'DEMO_ISSUER_IDENTITY'], algorithm: 'RS256', keyId: 'demo-key-v1', rationaleCode: 'DEMO_SIGNED_MANIFEST_VERIFIED' },
   }
 }
-const response = (result: EvidenceQualityState | null): EvidenceQualityResponse => ({ sessionId: 'ses_demo', quality: result })
+const response = (result: EvidenceQualityState | null, underwriterReviewId: string | null = null): EvidenceQualityResponse => ({ sessionId: 'ses_demo', quality: result, underwriterReviewId })
 const renderPanel = () => render(<MemoryRouter><EvidenceQualityPanel sessionId="ses_demo" submission={submission} /></MemoryRouter>)
 
 describe('EvidenceQualityPanel', () => {
@@ -37,30 +37,35 @@ describe('EvidenceQualityPanel', () => {
     vi.mocked(evidenceQualityProvider.check).mockReset().mockResolvedValue(response(quality()))
   })
 
-  it('runs no check automatically and displays every server check after confirmation', async () => {
+  it('automatically checks a new submission and explains every server check', async () => {
     renderPanel()
-
-    const button = await screen.findByRole('button', { name: '자료 품질 확인' })
-    expect(evidenceQualityProvider.check).not.toHaveBeenCalled()
-    fireEvent.click(button)
 
     await waitFor(() => expect(evidenceQualityProvider.check).toHaveBeenCalledWith('ses_demo', 'sub_demo', expect.any(AbortSignal)))
     expect(await screen.findByRole('heading', { name: '자료 확인을 완료했습니다' })).toBeInTheDocument()
     expect(screen.getAllByText('확인 완료')).toHaveLength(6)
-    expect(screen.getByText('서버가 서명한 Demo 검증정보를 확인했습니다')).toBeInTheDocument()
-    expect(screen.getByText('Demo 발급 서버')).toBeInTheDocument()
+    expect(screen.getByText('서버가 서명한 검증정보를 확인했습니다')).toBeInTheDocument()
+    expect(screen.getByText('발급 서버 식별 정보')).toBeInTheDocument()
+    expect(screen.getByText(/월별 내역과 기간 합계/)).toBeInTheDocument()
     expect(screen.getByText('업로드 후 변경 여부')).toBeInTheDocument()
     expect(screen.getByText('문서와 검증정보 연결')).toBeInTheDocument()
     expect(screen.getByText('보완평가 패널')).toBeInTheDocument()
   })
 
   it('shows server suspicion and underwriter routing without recalculating them', async () => {
-    vi.mocked(evidenceQualityProvider.get).mockResolvedValue(response(quality('REVIEW_REQUIRED')))
+    vi.mocked(evidenceQualityProvider.get).mockResolvedValue(response(quality('REVIEW_REQUIRED'), 'uwr_demo'))
     renderPanel()
 
     expect(await screen.findByRole('heading', { name: '담당자 확인이 필요합니다' })).toBeInTheDocument()
     expect(screen.getByText('이상 징후가 있어 자동 평가를 진행하지 않습니다.')).toBeInTheDocument()
     expect(screen.getByText('확인 필요')).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: '이 건을 심사역 화면에서 확인' })).toHaveAttribute('href', '/admin/reviews/uwr_demo')
+  })
+
+  it('still exposes the underwriter queue when an older response has no linked review id', async () => {
+    vi.mocked(evidenceQualityProvider.get).mockResolvedValue(response(quality('REVIEW_REQUIRED')))
+    renderPanel()
+
+    expect(await screen.findByRole('link', { name: '심사역 검토 목록 보기' })).toHaveAttribute('href', '/admin/reviews')
   })
 
   it('offers the server-driven next selection path for rejected Evidence', async () => {

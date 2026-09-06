@@ -1,5 +1,5 @@
 {
-  "dataVersion": "demo-assessments-v2",
+  "dataVersion": "demo-assessments-v3",
   "requiredVerifiedSources": [
     "BANK_INTERNAL",
     "CREDIT_INFORMATION"
@@ -27,8 +27,20 @@
     {
       "sourceCreditAssessmentId": "bca_demo_002",
       "result": {
-        "status": "INSUFFICIENT_DATA",
-        "reasonCode": "DEMO_VERIFIED_DATA_INSUFFICIENT"
+        "status": "COMPLETED",
+        "modelVersion": "demo-corporate-assessment-v1",
+        "uncertainty": {
+          "pointEstimate": null,
+          "lowerBound": null,
+          "upperBound": null,
+          "gradeSet": [
+            "DEMO_GRADE_B",
+            "DEMO_GRADE_C"
+          ],
+          "calibrationMode": "RULE_TABLE",
+          "calibrationVersion": "demo-uncertainty-rule-table-v1",
+          "demoOnly": true
+        }
       }
     }
   ]

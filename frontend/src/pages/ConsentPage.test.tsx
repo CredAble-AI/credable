@@ -45,7 +45,7 @@ const consent = (overrides: Partial<ConsentState> = {}): ConsentState => ({
   grantedAt: null,
   withdrawnAt: null,
   updatedAt: null,
-  scopeVersion: 'demo-consent-scopes-v1',
+  scopeVersion: 'demo-consent-scopes-v2',
   demoOnly: true,
   ...overrides,
 })
@@ -53,7 +53,7 @@ const consent = (overrides: Partial<ConsentState> = {}): ConsentState => ({
 const response = (consents: ConsentState[]): ConsentListResponse => ({
   sessionId: session.sessionId,
   consents,
-  scopeVersion: 'demo-consent-scopes-v1',
+  scopeVersion: 'demo-consent-scopes-v2',
   demoOnly: true,
 })
 
@@ -74,20 +74,22 @@ describe('ConsentPage', () => {
     vi.mocked(consentProvider.withdraw).mockReset()
   })
 
-  it('renders server consent metadata without treating null requirements as mandatory', async () => {
+  it('shows only the sources needed for the existing assessment', async () => {
     vi.mocked(consentProvider.list).mockResolvedValue(response([
-      consent(),
-      consent({ sourceType: 'CUSTOMER_SUBMITTED', displayName: '고객 제출 데이터', description: '고객이 직접 제출하는 소득·사업·재무 관련 데이터' }),
+      consent({ required: true }),
+      consent({ sourceType: 'CUSTOMER_SUBMITTED', displayName: '고객 제출 데이터', description: '고객이 직접 제출하는 소득·사업·재무 관련 데이터', required: false }),
     ]))
     renderPage()
 
+    expect(screen.getByRole('navigation', { name: '진행 단계' })).toHaveTextContent('시작동의데이터 연결기존 평가상품 비교')
     expect(await screen.findByRole('checkbox', { name: /은행 내부 데이터/ })).toBeInTheDocument()
     expect(screen.getByText('도입 은행이 보유한 고객·계좌·대출 관련 데이터')).toBeInTheDocument()
     expect(screen.getByText('동의 범위 확인 완료')).toBeInTheDocument()
-    expect(screen.getAllByText('필수 여부 확인 중 · 시연 데이터')).toHaveLength(2)
+    expect(screen.getByText('필수')).toBeInTheDocument()
+    expect(screen.queryByRole('checkbox', { name: /고객 제출 데이터/ })).not.toBeInTheDocument()
     expect(screen.getAllByText('미동의')[0]?.closest('.consent-item__status')).toHaveClass('consent-item__status--pending')
-    expect(screen.getByText(/필수 동의 항목이 없습니다/)).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: '데이터 연결로 이동' })).toBeEnabled()
+    expect(screen.getByText(/계속하려면 필수 항목에 동의해주세요/)).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: '데이터 연결로 이동' })).toBeDisabled()
   })
 
   it('updates the checkbox only after the grant response succeeds', async () => {

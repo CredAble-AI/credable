@@ -308,7 +308,9 @@ class UnderwriterReviewQueueService:
             resolution=resolution,
         )
 
-    def _quality_for_id(self, session_id: str, quality_check_id: str) -> EvidenceQualityState | None:
+    def _quality_for_id(
+        self, session_id: str, quality_check_id: str
+    ) -> EvidenceQualityState | None:
         record = self.quality_repository.get_by_quality_check_id(quality_check_id)
         if record is None or record[0] != session_id:
             return None

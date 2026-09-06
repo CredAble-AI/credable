@@ -13,6 +13,10 @@ export interface SelectedEvidenceCandidate {
   collectionMode: EvidenceCollectionMode | null
   availability: EvidenceAvailability
   rationaleCodes: string[]
+  matchedInformationGapCodes?: string[]
+  informationContentCodes?: string[]
+  novelInformationCodes?: string[]
+  overlappingInformationCodes?: string[]
   consentScope: EvidenceConsentScope | null
   demoOnly: true
 }

@@ -28,4 +28,7 @@ export const mockEvidenceSubmissionProvider: EvidenceSubmissionProvider = {
   async upload() {
     throw { code: 'DEMO_FILE_BACKEND_REQUIRED', message: '파일 제출은 API 연결 Demo 환경에서 확인할 수 있습니다.', retryable: false }
   },
+  async submitConnected() {
+    throw { code: 'DEMO_CONNECTION_BACKEND_REQUIRED', message: '외부 연결 자료 확인은 API 연결 환경에서 진행할 수 있습니다.', retryable: false }
+  },
 }

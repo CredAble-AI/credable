@@ -13,7 +13,7 @@ interface EvidenceFileSubmissionProps {
   evidenceType: string
 }
 
-type Phase = 'loading' | 'uploading' | 'idle'
+type Phase = 'loading' | 'uploading' | 'connecting' | 'idle'
 
 const formatBytes = (value: number) => value < 1024 * 1024
   ? `${Math.ceil(value / 1024)}KB`
@@ -109,6 +109,25 @@ function EvidenceFileSubmission({ sessionId, selectionId, evidenceType }: Eviden
     }
   }
 
+  const submitConnected = async () => {
+    if (!option || option.submissionRequirement.status !== 'READY' || phase !== 'idle') return
+    controllerRef.current?.abort()
+    const controller = new AbortController(); controllerRef.current = controller
+    const sequence = ++sequenceRef.current
+    setPhase('connecting'); setError(null)
+    try {
+      const response = await evidenceSubmissionProvider.submitConnected(sessionId, selectionId, controller.signal)
+      if (response.sessionId !== sessionId || response.submission?.selectionId !== selectionId || response.submission.evidenceType !== evidenceType) {
+        throw { code: 'EVIDENCE_SUBMISSION_CONTEXT_MISMATCH', message: '현재 Evidence 선택과 일치하는 연결 자료를 확인할 수 없습니다.', retryable: true } satisfies ApiError
+      }
+      if (sequence === sequenceRef.current) setSubmission(response.submission)
+    } catch (caught) {
+      if (!controller.signal.aborted && sequence === sequenceRef.current) setError(normalizeEvidenceSubmissionError(caught))
+    } finally {
+      if (sequence === sequenceRef.current) setPhase('idle')
+    }
+  }
+
   if (phase === 'loading' && !option) return <section className="evidence-submission evidence-submission--loading" aria-label="추가 자료 제출 준비"><span /><span /></section>
 
   if (!option) return <section className="evidence-submission" aria-labelledby="evidence-submit-title"><h2 id="evidence-submit-title">추가 자료 제출</h2>{error && <div className="evidence-submission__error" role="alert"><strong>{error.message}</strong>{error.retryable && <button type="button" onClick={() => void load()}>다시 확인</button>}</div>}</section>
@@ -116,10 +135,13 @@ function EvidenceFileSubmission({ sessionId, selectionId, evidenceType }: Eviden
   const scenarioFiles = option.demoFiles?.length ? option.demoFiles : option.demoFile ? [option.demoFile] : []
   const primaryFile = option.demoFile
   const requirement = option.submissionRequirement
+  const isConnectedEvidence = option.collectionMode === 'DEMO_CONNECTION'
 
   return <section className="evidence-submission" aria-labelledby="evidence-submit-title">
-    <div className="evidence-submission__heading"><div><span>자료 제출</span><h2 id="evidence-submit-title">요청된 추가 자료를 제출해주세요</h2></div></div>
-    <p>서버가 선택한 최소 증빙 한 건만 확인합니다. 제출한 파일은 형식·출처·기준시점·내용 일관성을 검증한 뒤 보완평가에 반영합니다.</p>
+    <div className="evidence-submission__heading"><div><span>{isConnectedEvidence ? '연결 자료 확인' : '자료 제출'}</span><h2 id="evidence-submit-title">{isConnectedEvidence ? '요청된 연결 자료를 확인해주세요' : '요청된 추가 자료를 제출해주세요'}</h2></div></div>
+    <p>{isConnectedEvidence
+      ? '서버가 선택한 최소 증빙 한 건만 확인합니다. 동의한 범위의 연결 자료를 기준시점·출처·내용 일관성에 따라 검증한 뒤 보완평가에 반영합니다.'
+      : '서버가 선택한 최소 증빙 한 건만 확인합니다. 제출한 파일은 형식·출처·기준시점·내용 일관성을 검증한 뒤 보완평가에 반영합니다.'}</p>
 
     {error && <div className="evidence-submission__error" role="alert"><strong>{error.message}</strong></div>}
 
@@ -128,8 +150,8 @@ function EvidenceFileSubmission({ sessionId, selectionId, evidenceType }: Eviden
       <EvidenceConsentPanel sessionId={sessionId} selectionId={selectionId} evidenceType={evidenceType} onConsentChanged={load} />
 
       <div className="evidence-demo-step"><span>2</span><div><strong>요청 자료 준비</strong><p>요청된 자료의 범위와 기준 기간을 확인한 뒤 보유한 문서를 준비해주세요.</p></div></div>
-      <div className="evidence-requested-file" aria-label="요청된 정상 자료">
-        <div><span>요청된 최소 증빙</span><strong>{primaryFile.displayName}</strong><p>{primaryFile.description}</p><small>PDF · 최대 {formatBytes(option.uploadPolicy.maxSizeBytes)}</small></div>
+      <div className="evidence-requested-file" aria-label="요청된 자료 기준">
+        <div><span>제출 기준</span><strong>최근 6개월 매출·입금 요약</strong><p>사업자 식별 정보, 월별 매출·입금 내역, 확인 기간 합계가 포함된 자료를 준비해주세요.</p><small>PDF · 최대 {formatBytes(option.uploadPolicy.maxSizeBytes)}</small></div>
       </div>
 
       {scenarioFiles.length > 0 && <section className="evidence-demo-library" aria-labelledby="demo-library-title">
@@ -150,10 +172,16 @@ function EvidenceFileSubmission({ sessionId, selectionId, evidenceType }: Eviden
       {requirement.status === 'READY' && !submission && <div className="evidence-upload-control"><label htmlFor={inputId}>제출할 PDF 선택</label><input id={inputId} type="file" accept={option.uploadPolicy.allowedContentTypes.join(',')} onChange={(event) => selectFile(event.target.files?.[0] ?? null)} disabled={phase === 'uploading'} /><small>PDF · 최대 {formatBytes(option.uploadPolicy.maxSizeBytes)}</small>{file && <p>선택 파일: <strong>{file.name}</strong> · {formatBytes(file.size)}</p>}{fileError && <p className="evidence-upload-control__error" role="alert">{fileError}</p>}<button className="button button--primary" type="button" onClick={() => void upload()} disabled={!file || phase === 'uploading'}>{phase === 'uploading' ? '파일을 확인하는 중…' : '선택한 파일 제출'}</button></div>}
     </>}
 
-    {option.collectionMode === 'DEMO_CONNECTION' && <div className="evidence-submission__notice"><strong>연결된 정보로 확인합니다</strong><p>별도의 파일을 제출하지 않아도 됩니다.</p></div>}
+    {option.collectionMode === 'DEMO_CONNECTION' && <>
+      <div className="evidence-demo-step"><span>1</span><div><strong>연결 정보 이용 범위 확인</strong><p>외부 정산·입금 정보를 보완평가에 사용할 범위를 확인합니다.</p></div></div>
+      <EvidenceConsentPanel sessionId={sessionId} selectionId={selectionId} evidenceType={evidenceType} onConsentChanged={load} />
+      <div className="evidence-demo-step"><span>2</span><div><strong>연결 자료 확인</strong><p>동의한 범위의 최신 자료를 불러와 기준시점·출처·내용 일관성을 확인할 스냅샷을 만듭니다.</p></div></div>
+      {requirement.status === 'CONSENT_REQUIRED' && <div className="evidence-submission__notice"><strong>이용 범위 동의가 필요합니다</strong><p>동의를 반영한 뒤 연결 자료 확인을 시작할 수 있습니다.</p></div>}
+      {requirement.status === 'READY' && !submission && <div className="evidence-connection-action"><div><strong>연결된 원천 자료를 직접 확인하므로 PDF가 필요하지 않습니다</strong><p>동의한 범위의 정산·입금 정보를 연결 서비스에서 불러와 기준시점·출처·내용 일관성을 검증합니다. 같은 내용을 PDF로 다시 제출하지 않아도 됩니다.</p></div><button className="button button--primary" type="button" onClick={() => void submitConnected()} disabled={phase === 'connecting'}>{phase === 'connecting' ? '연결 자료를 확인하는 중…' : '연결 자료 확인 시작'}</button></div>}
+    </>}
     {option.collectionMode === 'UNAVAILABLE' && <div className="evidence-submission__notice evidence-submission__notice--blocked"><strong>현재 이용할 수 없는 제출 방식입니다</strong><p>다른 확인 방법이 제공되는지 확인해주세요.</p></div>}
 
-    {submission && <><div className="evidence-submission__complete" role="status"><span aria-hidden="true">✓</span><div><strong>파일 제출을 완료했습니다</strong><p>제출한 파일의 품질을 다음 단계에서 확인할 수 있습니다.</p><small>{submission.uploadedFile?.fileName ?? '제출 자료'}</small></div></div><CustomerTechnicalDetails><dl><div><dt>제출 상태</dt><dd><code>{submission.status}</code></dd></div><div><dt>제출 ID</dt><dd><code>{submission.submissionId}</code></dd></div><div><dt>파일 해시</dt><dd><code>{submission.submissionSnapshotHash}</code></dd></div><div><dt>수집 방식</dt><dd><code>{submission.submissionMode}</code></dd></div></dl></CustomerTechnicalDetails></>}
+    {submission && <><div className="evidence-submission__complete" role="status"><span aria-hidden="true">✓</span><div><strong>{isConnectedEvidence ? '연결 자료를 확인했습니다' : '파일 제출을 완료했습니다'}</strong><p>이제 서버가 자료 품질을 확인하고 보완평가와 결과 비교를 순서대로 진행합니다.</p><small>{submission.uploadedFile?.fileName ?? '연결 자료 스냅샷'}</small></div></div><CustomerTechnicalDetails><dl><div><dt>제출 상태</dt><dd><code>{submission.status}</code></dd></div><div><dt>제출 ID</dt><dd><code>{submission.submissionId}</code></dd></div><div><dt>제출 스냅샷 해시</dt><dd><code>{submission.submissionSnapshotHash}</code></dd></div><div><dt>수집 방식</dt><dd><code>{submission.submissionMode}</code></dd></div></dl></CustomerTechnicalDetails></>}
     <CustomerTechnicalDetails><dl><div><dt>제출 가능 상태</dt><dd><code>{requirement.status}</code></dd></div><div><dt>수집 방식</dt><dd><code>{option.collectionMode}</code></dd></div>{requirement.reasonCode && <div><dt>상태 코드</dt><dd><code>{requirement.reasonCode}</code></dd></div>}{error && <><div><dt>오류 코드</dt><dd><code>{error.code}</code></dd></div>{error.requestId && <div><dt>요청 ID</dt><dd><code>{error.requestId}</code></dd></div>}</>}</dl></CustomerTechnicalDetails>
     {submission && <EvidenceQualityPanel sessionId={sessionId} submission={submission} />}
   </section>

@@ -126,7 +126,7 @@ def test_small_business_demo_flow_reaches_partial_comparison(
     assert all(event.output_summary["demoOnly"] is True for event in events)
 
 
-def test_startup_demo_flow_keeps_unavailable_values_empty(
+def test_corporate_demo_flow_routes_exhausted_evidence_to_review_without_invented_values(
     client: TestClient,
     data_source_service: DataSourceService,
     assessment_service: AssessmentService,
@@ -144,6 +144,8 @@ def test_startup_demo_flow_keeps_unavailable_values_empty(
 
     data_response = client.post(f"/v1/sessions/{session_id}/data-sources/refresh")
     assessment_response = client.post(f"/v1/sessions/{session_id}/assessment/run")
+    boundary_response = client.post(f"/v1/sessions/{session_id}/assessment/boundary-check")
+    selection_response = client.post(f"/v1/sessions/{session_id}/evidence/next")
     client.post(f"/v1/sessions/{session_id}/products/refresh")
     condition_response = client.post(f"/v1/sessions/{session_id}/product-conditions/query")
     comparison_response = client.get(f"/v1/sessions/{session_id}/comparison")
@@ -152,14 +154,53 @@ def test_startup_demo_flow_keeps_unavailable_values_empty(
     assert data_sources["CUSTOMER_SUBMITTED"]["verificationStatus"] == "STALE"
     assert data_sources["EXTERNAL_CONNECTED"]["retrievalStatus"] == "RETRIEVED"
     assert data_sources["EXTERNAL_CONNECTED"]["verificationStatus"] == "VERIFIED"
-    assert assessment_response.json()["assessment"]["status"] == "INSUFFICIENT_DATA"
-    assert (
-        assessment_response.json()["assessment"]["reasonCode"] == "DEMO_VERIFIED_DATA_INSUFFICIENT"
+    assessment = assessment_response.json()["assessment"]
+    assert assessment["status"] == "COMPLETED"
+    assert assessment["modelVersion"] == "demo-corporate-assessment-v1"
+    assert assessment["uncertainty"]["gradeSet"] == ["DEMO_GRADE_B", "DEMO_GRADE_C"]
+    assert boundary_response.json()["boundaryCheck"]["decision"]["status"] == "AMBIGUOUS"
+    selection = selection_response.json()["selection"]
+    assert selection["status"] == "SELECTED"
+    assert selection["selectedEvidence"]["evidenceType"] == (
+        "EXTERNAL_CONNECTED_SETTLEMENT_SUMMARY"
     )
+
+    submission_response = client.post(
+        f"/v1/sessions/{session_id}/evidence/submissions",
+        json={
+            "selectionId": selection["selectionId"],
+            "submissionMode": "DEMO_FIXTURE_REFERENCE",
+        },
+    )
+    assert submission_response.status_code == 200
+    submission = submission_response.json()["submission"]
+    quality_response = client.post(
+        f"/v1/sessions/{session_id}/evidence/submissions/{submission['submissionId']}/quality"
+    )
+    assert quality_response.status_code == 200
+    assert quality_response.json()["quality"]["status"] == "REJECTED"
+
+    fallback_response = client.post(f"/v1/sessions/{session_id}/evidence/next")
+    assert fallback_response.status_code == 200
+    fallback = fallback_response.json()["selection"]
+    assert fallback["status"] == "HUMAN_REVIEW"
+    assert (
+        fallback["rejectedQualityCheckId"] == quality_response.json()["quality"]["qualityCheckId"]
+    )
+    assert fallback["selectedEvidence"] is None
+    assert fallback["underwriterRequired"] is True
+    assert fallback["stopReason"] == "NO_USEFUL_EVIDENCE"
+
+    review_response = client.get("/v1/admin/underwriter-reviews")
+    assert review_response.status_code == 200
+    review = review_response.json()["items"][0]
+    assert review["sessionId"] == session_id
+    assert review["triggerType"] == "EVIDENCE_SELECTION"
+    assert review["triggerId"] == fallback["selectionId"]
 
     conditions = condition_response.json()["query"]
     assert conditions["status"] == "COMPLETED"
-    assert {item["status"] for item in conditions["conditions"]} == {"INSUFFICIENT_DATA"}
+    assert {item["status"] for item in conditions["conditions"]} == {"POLICY_NOT_CONFIGURED"}
     assert all(item["personalizedMaxAmount"] is None for item in conditions["conditions"])
 
     comparison = comparison_response.json()

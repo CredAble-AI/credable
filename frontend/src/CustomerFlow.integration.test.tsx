@@ -98,27 +98,22 @@ describe('customer journey integration', () => {
     fireEvent.click(await screen.findByRole('radio', { name: /개인사업자/ }))
     fireEvent.click(screen.getByRole('button', { name: '계속하기' }))
 
-    expect(await screen.findByRole('heading', { level: 1, name: '연결할 데이터의 이용 범위를 확인해주세요' })).toBeInTheDocument()
-    for (const sourceName of ['은행 내부 데이터', '신용정보', '고객 제출 데이터']) {
+    expect(await screen.findByRole('heading', { level: 1, name: /연결할 데이터의.*이용 범위를 확인해주세요/ })).toBeInTheDocument()
+    for (const sourceName of ['은행 내부 데이터', '신용정보']) {
       const checkbox = await screen.findByRole('checkbox', { name: new RegExp(sourceName) })
       fireEvent.click(checkbox)
       await waitFor(() => expect(checkbox).toBeChecked())
     }
     fireEvent.click(screen.getByRole('button', { name: '데이터 연결로 이동' }))
 
-    expect(await screen.findByRole('heading', { level: 1, name: '기준평가에 사용할 데이터 출처를 확인합니다' })).toBeInTheDocument()
-    const loadBaselineData = await screen.findByRole('button', { name: '기준평가 데이터 불러오기' })
+    expect(await screen.findByRole('heading', { level: 1, name: /기존 평가 데이터의.*연결 상태를 확인합니다/ })).toBeInTheDocument()
+    const loadBaselineData = await screen.findByRole('button', { name: '기존 평가 데이터 불러오기' })
     await waitFor(() => expect(loadBaselineData).toBeEnabled())
     fireEvent.click(loadBaselineData)
     fireEvent.click(await screen.findByRole('button', { name: '기존 평가 결과 확인' }, { timeout: 10_000 }))
 
     fireEvent.click(await screen.findByRole('button', { name: '기존 평가 결과 불러오기' }, { timeout: 3_000 }))
-    fireEvent.click(await screen.findByRole('button', { name: '다음 단계 확인' }))
-    fireEvent.click(await screen.findByRole('button', { name: '평가 결과 설명 보기' }))
-    expect(await screen.findByRole('heading', { level: 3, name: '다음으로 확인할 내용' })).toBeInTheDocument()
-    fireEvent.click(await screen.findByRole('link', { name: '필요한 자료 확인' }))
-
-    fireEvent.click(await screen.findByRole('button', { name: '필요한 자료 확인' }))
+    fireEvent.click(await screen.findByRole('link', { name: '요청 자료 제출하기' }, { timeout: 5_000 }))
     expect(await screen.findByRole('heading', { level: 2, name: '최근 매출·입금 요약' })).toBeInTheDocument()
     fireEvent.click(await screen.findByRole('button', { name: '이 범위에 동의' }))
 
@@ -131,20 +126,15 @@ describe('customer journey integration', () => {
     fireEvent.click(screen.getByRole('button', { name: '선택한 파일 제출' }))
     expect(await screen.findByText('파일 제출을 완료했습니다')).toBeInTheDocument()
 
-    fireEvent.click(await screen.findByRole('button', { name: '자료 품질 확인' }))
     expect(await screen.findByRole('heading', { level: 3, name: '자료 확인을 완료했습니다' })).toBeInTheDocument()
-    fireEvent.click(await screen.findByRole('button', { name: '보완평가 실행' }))
     expect(await screen.findByRole('heading', { level: 3, name: '보완평가를 완료했습니다' })).toBeInTheDocument()
 
-    fireEvent.click(await screen.findByRole('button', { name: '평가 결과 재확인 요청' }))
-    expect(await screen.findByRole('heading', { level: 3, name: '평가 결과 재확인 요청이 접수됐습니다' })).toBeInTheDocument()
-    fireEvent.click(await screen.findByRole('button', { name: '평가 전후 비교' }))
     expect(await screen.findByRole('heading', { level: 4, name: '가능한 결과 범위가 줄었습니다' })).toBeInTheDocument()
-    fireEvent.click(await screen.findByRole('button', { name: '다음 단계 확인' }))
 
     expect(await screen.findByRole('heading', { level: 5, name: '추가 자료 확인을 마쳤습니다' })).toBeInTheDocument()
-    fireEvent.click(await screen.findByRole('button', { name: '평가 결과 설명 보기' }))
     expect(await screen.findByRole('heading', { level: 3, name: '추가 증빙 수집이 종료됐습니다' })).toBeInTheDocument()
+    fireEvent.click(await screen.findByRole('button', { name: '평가 결과 재확인 요청' }))
+    expect(await screen.findByRole('heading', { level: 3, name: '평가 결과 재확인 요청이 접수됐습니다' })).toBeInTheDocument()
     fireEvent.click(screen.getByRole('link', { name: '자사 상품 조건 확인' }))
     expect(await screen.findByRole('heading', { level: 1, name: '자사 대출상품 조건을 비교합니다' })).toBeInTheDocument()
     const productLink = await screen.findByRole('link', { name: '사업 운영자금 플러스 상세 보기' }, { timeout: 3_000 })
@@ -155,6 +145,6 @@ describe('customer journey integration', () => {
     fireEvent.click(screen.getByRole('link', { name: '신청 연결 안내 확인' }))
     expect(await screen.findByRole('heading', { level: 1, name: '사업 운영자금 플러스' }, { timeout: 3_000 })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: '계속하기' })).toBeDisabled()
-    expect(screen.getByText('Demo 환경에서는 실제 은행 신청 연결을 제공하지 않습니다.')).toBeInTheDocument()
+    expect(screen.getByText('현재는 실제 은행 신청 연결을 제공하지 않습니다.')).toBeInTheDocument()
   }, 30_000)
 })

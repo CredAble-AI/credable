@@ -300,7 +300,7 @@ def test_demo_assessment_completes_small_business_fixture(
     }
 
 
-def test_demo_assessment_keeps_startup_as_insufficient_data(
+def test_demo_assessment_uses_the_corporate_model_for_the_corporate_branch(
     client: TestClient,
     assessment_service: AssessmentService,
     data_source_service: DataSourceService,
@@ -313,10 +313,10 @@ def test_demo_assessment_keeps_startup_as_insufficient_data(
     response = client.post(f"/v1/sessions/{session_id}/assessment/run")
 
     assessment = response.json()["assessment"]
-    assert assessment["status"] == "INSUFFICIENT_DATA"
-    assert assessment["reasonCode"] == "DEMO_VERIFIED_DATA_INSUFFICIENT"
-    assert assessment["modelVersion"] is None
-    assert assessment["uncertainty"] is None
+    assert assessment["status"] == "COMPLETED"
+    assert assessment["reasonCode"] is None
+    assert assessment["modelVersion"] == "demo-corporate-assessment-v1"
+    assert assessment["uncertainty"]["gradeSet"] == ["DEMO_GRADE_B", "DEMO_GRADE_C"]
     assert "score" not in response.text.lower()
     assert assessment["sourceAssessment"]["creditAssessmentId"] == "bca_demo_002"
     assert assessment["sourceAssessment"]["assessmentType"] == "PERIODIC"

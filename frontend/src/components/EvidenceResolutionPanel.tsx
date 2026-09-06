@@ -5,6 +5,7 @@ import { evidenceResolutionProvider } from '../hooks/useEvidenceResolutionState'
 import type { ApiError } from '../types/api'
 import type { EvidenceResolutionContext, EvidenceResolutionResponse, EvidenceResolutionState, EvidenceResolutionStatus } from '../types/evidenceResolution'
 import AssessmentExplanationPanel from './AssessmentExplanationPanel'
+import AssessmentReviewPanel from './AssessmentReviewPanel'
 import CustomerTechnicalDetails from './CustomerTechnicalDetails'
 
 interface EvidenceResolutionPanelProps extends EvidenceResolutionContext { sessionId: string }
@@ -45,9 +46,14 @@ function EvidenceResolutionPanel({ sessionId, comparisonId, supplementalAssessme
     const sequence = ++sequenceRef.current
     setPhase(resolve ? 'resolving' : 'loading'); setError(null)
     try {
-      const response = resolve
+      let response = resolve
         ? await evidenceResolutionProvider.resolve(sessionId, context, controller.signal)
         : await evidenceResolutionProvider.get(sessionId, controller.signal)
+      if (!resolve && !acceptResponse(response, false)) {
+        if (sequence === sequenceRef.current) setPhase('resolving')
+        response = await evidenceResolutionProvider.resolve(sessionId, context, controller.signal)
+        resolve = true
+      }
       const result = acceptResponse(response, resolve)
       if (sequence === sequenceRef.current) setResolution(result)
     } catch (caught) {
@@ -62,17 +68,17 @@ function EvidenceResolutionPanel({ sessionId, comparisonId, supplementalAssessme
     return () => { sequenceRef.current += 1; controllerRef.current?.abort() }
   }, [request])
 
-  if (phase === 'loading' && !resolution) return <section className="evidence-resolution evidence-resolution--loading" aria-label="Evidence 수집 판단 확인"><span /><span /></section>
+  if (phase !== 'idle' && !resolution) return <section className="evidence-resolution evidence-resolution--loading" aria-label="다음 단계 확인 중"><span /><span /><p>결과가 충분히 명확해졌는지 확인하고 있습니다.</p></section>
 
-  if (!resolution) return <section className="evidence-resolution" aria-labelledby="resolution-title"><div className="evidence-resolution__heading"><div><span>다음 단계</span><h5 id="resolution-title">추가 자료가 필요한지 확인합니다</h5></div><strong>확인 전</strong></div><p>보완평가 결과가 충분히 명확한지 확인하고, 종료·추가 자료·담당자 확인 중 다음 단계를 안내합니다.</p>{error && <div className="evidence-resolution__error" role="alert"><p>{error.message}</p></div>}<button className="button button--secondary" type="button" disabled={phase === 'resolving'} onClick={() => void request(true)}>{phase === 'resolving' ? '다음 단계를 확인하는 중…' : '다음 단계 확인'}</button></section>
+  if (!resolution) return <section className="evidence-resolution" aria-labelledby="resolution-title"><div className="evidence-resolution__heading"><div><span>다음 단계</span><h5 id="resolution-title">다음 단계를 확인하지 못했습니다</h5></div><strong>재시도 필요</strong></div><p>현재 결과는 그대로 보존되며 추가 자료 요청이나 담당자 확인은 아직 시작되지 않았습니다.</p>{error && <div className="evidence-resolution__error" role="alert"><p>{error.message}</p></div>}<button className="button button--secondary" type="button" disabled={phase === 'resolving'} onClick={() => void request(true)}>{phase === 'resolving' ? '다음 단계를 확인하는 중…' : '다음 단계 다시 확인'}</button></section>
 
   const copy = statusCopy[resolution.status]
   return <><section className={`evidence-resolution evidence-resolution--${resolution.status.toLowerCase()}`} aria-labelledby="resolution-title">
     <div className="evidence-resolution__heading"><div><span>다음 단계</span><h5 id="resolution-title">{copy.title}</h5></div></div>
     <p>{copy.description}</p>
-    <div className="evidence-resolution__action"><span>이어서 할 일</span>{resolution.nextAction === 'SHOW_UPDATED_RESULTS' && <Link className="button button--primary" to="/products">자사 상품 조건 확인</Link>}{resolution.nextAction === 'REQUEST_NEXT_EVIDENCE' && <Link className="button button--primary" to="/evidence?selectNext=1">다음 자료 한 건 확인</Link>}</div>
+    <div className="evidence-resolution__action"><span>이어서 할 일</span>{resolution.nextAction === 'SHOW_UPDATED_RESULTS' && <Link className="button button--primary" to="/products">자사 상품 조건 확인</Link>}{resolution.nextAction === 'REQUEST_NEXT_EVIDENCE' && <Link className="button button--primary" to="/evidence?selectNext=1">다음 자료 한 건 확인</Link>}{resolution.status === 'HUMAN_REVIEW' && <Link className="button button--primary" to="/admin/reviews">담당자 확인 현황 보기</Link>}</div>
     <CustomerTechnicalDetails><dl><div><dt>처리 상태</dt><dd><code>{resolution.status}</code></dd></div><div><dt>다음 처리</dt><dd><code>{resolution.nextAction}</code></dd></div><div><dt>자료 수집</dt><dd>{resolution.stopEvidenceCollection ? '종료' : '계속'}</dd></div><div><dt>담당자 확인</dt><dd>{resolution.underwriterRequired ? '필요' : '필요 없음'}</dd></div><div><dt>판단 사유</dt><dd><code>{resolution.reasonCode}</code></dd></div><div><dt>판단 시점</dt><dd>{formatDate(resolution.resolvedAt)}</dd></div><div><dt>판단 ID</dt><dd><code>{resolution.resolutionId}</code></dd></div><div><dt>보정 버전</dt><dd><code>{resolution.calibrationVersion ?? '제공되지 않음'}</code></dd></div><div><dt>경계 정책 버전</dt><dd><code>{resolution.boundaryPolicyVersion}</code></dd></div>{resolution.possibleRoutes.map((code) => <div key={code}><dt>가능 경로</dt><dd><code>{code}</code></dd></div>)}{resolution.crossedBoundaryCodes.map((code) => <div key={code}><dt>남은 정책 경계</dt><dd><code>{code}</code></dd></div>)}</dl></CustomerTechnicalDetails>
-  </section><AssessmentExplanationPanel key={resolution.resolutionId} sessionId={sessionId} /></>
+  </section><AssessmentExplanationPanel key={resolution.resolutionId} sessionId={sessionId} />{resolution.status === 'RESOLVED' && <AssessmentReviewPanel sessionId={sessionId} />}</>
 }
 
 export default EvidenceResolutionPanel

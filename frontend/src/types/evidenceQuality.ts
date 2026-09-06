@@ -42,4 +42,5 @@ export interface EvidenceQualityState {
 export interface EvidenceQualityResponse {
   sessionId: string
   quality: EvidenceQualityState | null
+  underwriterReviewId?: string | null
 }
