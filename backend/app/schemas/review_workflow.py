@@ -35,6 +35,7 @@ class UnderwriterReviewWorkflowState(ApiModel):
     trigger_id: str = Field(min_length=1)
     status: UnderwriterReviewStatus
     result_code: UnderwriterReviewResultCode | None = None
+    decision_note: str | None = Field(default=None, min_length=1, max_length=500)
     reviewer_principal: Literal["demo-underwriter"] | None = None
     started_at: datetime | None = None
     completed_at: datetime | None = None
@@ -56,6 +57,7 @@ class UnderwriterReviewWorkflowState(ApiModel):
                 value is not None
                 for value in (
                     self.result_code,
+                    self.decision_note,
                     self.reviewer_principal,
                     self.started_at,
                     self.completed_at,
@@ -67,6 +69,7 @@ class UnderwriterReviewWorkflowState(ApiModel):
                 self.reviewer_principal is None
                 or self.started_at is None
                 or self.result_code is not None
+                or self.decision_note is not None
                 or self.completed_at is not None
             ):
                 raise ValueError("IN_REVIEW requires only reviewer and start time")

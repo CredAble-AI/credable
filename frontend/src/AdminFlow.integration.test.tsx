@@ -23,6 +23,7 @@ describe('administrator journey integration', () => {
     fireEvent.click(screen.getByRole('button', { name: '검토 시작' }))
     const resultSelect = await screen.findByLabelText('최종 처리 결과')
     fireEvent.change(resultSelect, { target: { value: 'ASSESSMENT_CONFIRMED' } })
+    fireEvent.change(screen.getByLabelText('판단 사유'), { target: { value: '서버 기록과 일치해 기존 평가를 유지합니다.' } })
     fireEvent.click(screen.getByRole('button', { name: '선택한 결과로 확정' }))
 
     expect(await screen.findByText(/이 건은/)).toHaveTextContent('평가 확인')

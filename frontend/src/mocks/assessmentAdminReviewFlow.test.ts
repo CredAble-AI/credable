@@ -14,7 +14,7 @@ describe('mock assessment and underwriter review flow', () => {
     await mockAdminReviewProvider.claim(reviewId, signal)
     expect((await mockAssessmentReviewProvider.get(sessionId, signal)).processing?.status).toBe('IN_REVIEW')
 
-    await mockAdminReviewProvider.complete(reviewId, 'ASSESSMENT_CONFIRMED', signal)
+    await mockAdminReviewProvider.complete(reviewId, 'ASSESSMENT_CONFIRMED', '합성 시연 데이터로 확인했습니다.', signal)
     const completed = await mockAssessmentReviewProvider.get(sessionId, signal)
     expect(completed.processing?.status).toBe('COMPLETED')
     expect(completed.processing?.resultCode).toBe('ASSESSMENT_CONFIRMED')

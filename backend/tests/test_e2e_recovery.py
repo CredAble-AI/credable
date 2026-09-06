@@ -78,7 +78,10 @@ def execute_complete_journey(client: TestClient) -> tuple[str, str, dict[str, di
     recovered["underwriterReview"] = assert_ok(
         client.post(
             f"/v1/admin/underwriter-reviews/{review_id}/complete",
-            json={"resultCode": "ASSESSMENT_CONFIRMED"},
+            json={
+                "resultCode": "ASSESSMENT_CONFIRMED",
+                "decisionNote": "합성 시연 데이터로 판단 근거를 확인했습니다.",
+            },
         )
     )
     recovered["assessmentReviewRequest"] = assert_ok(

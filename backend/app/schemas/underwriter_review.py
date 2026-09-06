@@ -46,6 +46,8 @@ class UnderwriterReviewQueueItem(ApiModel):
     policy_version: str = Field(min_length=1)
     status: UnderwriterReviewStatus = UnderwriterReviewStatus.PENDING
     result_code: UnderwriterReviewResultCode | None = None
+    # Recorded only when a review is completed; older reviews read back as None.
+    decision_note: str | None = Field(default=None, min_length=1, max_length=500)
     started_at: datetime | None = None
     completed_at: datetime | None = None
     demo_only: bool
@@ -70,11 +72,20 @@ class UnderwriterReviewQueueItem(ApiModel):
         ):
             raise ValueError("customer review requires an assessment target")
         if self.status == UnderwriterReviewStatus.PENDING and any(
-            value is not None for value in (self.result_code, self.started_at, self.completed_at)
+            value is not None
+            for value in (
+                self.result_code,
+                self.decision_note,
+                self.started_at,
+                self.completed_at,
+            )
         ):
             raise ValueError("PENDING queue item cannot have processing metadata")
         if self.status == UnderwriterReviewStatus.IN_REVIEW and (
-            self.started_at is None or self.result_code is not None or self.completed_at is not None
+            self.started_at is None
+            or self.result_code is not None
+            or self.decision_note is not None
+            or self.completed_at is not None
         ):
             raise ValueError("IN_REVIEW queue item requires only startedAt")
         if self.status == UnderwriterReviewStatus.COMPLETED and (
@@ -108,6 +119,8 @@ class UnderwriterReviewQueueResponse(ApiModel):
 
 class UnderwriterReviewCompleteRequest(ApiModel):
     result_code: UnderwriterReviewResultCode
+    # The spec requires the decision reason to be recorded with the outcome.
+    decision_note: str = Field(min_length=1, max_length=500)
 
 
 class UnderwriterReviewCaseContext(ApiModel):

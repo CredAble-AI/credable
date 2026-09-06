@@ -290,10 +290,13 @@ curl -X POST \
 
 ## 고객 평가 결과 재확인 요청 API
 
-고객은 완료된 최신 평가 결과에 대해 재확인을 요청할 수 있습니다. 요청 본문에서 평가 ID나
-판단 사유를 받지 않고 서버가 최신 완료 결과를 선택하므로, 다른 세션의 평가를 지정하거나
-클라이언트가 검토 대상을 바꿀 수 없습니다. 보완평가가 완료됐다면 보완평가를, 그렇지 않으면
-기준평가를 대상으로 고정합니다.
+고객은 완료된 최신 평가 결과에 대해 재확인을 요청할 수 있습니다. 요청 본문은 무엇을 다시
+확인해야 하는지를 나타내는 `customerReasonCode`만 받습니다. 값은 `INCORRECT_INFORMATION`,
+`MISSING_RECENT_INFORMATION`, `EXCLUDED_EVIDENCE_DISPUTED` 중 하나이며 자유 입력은 받지
+않습니다. 평가 ID는 받지 않고 서버가 최신 완료 결과를 선택하므로, 다른 세션의 평가를
+지정하거나 클라이언트가 검토 대상을 바꿀 수 없습니다. 보완평가가 완료됐다면 보완평가를,
+그렇지 않으면 기준평가를 대상으로 고정합니다. 선택한 사유는 심사역 대기열의 `reasonCodes`에
+함께 전달합니다.
 
 ```bash
 curl http://127.0.0.1:8000/v1/sessions/<sessionId>/assessment/review-request
@@ -735,7 +738,7 @@ curl -X POST \
 
 curl -X POST \
   -H 'Content-Type: application/json' \
-  -d '{"resultCode":"ASSESSMENT_CONFIRMED"}' \
+  -d '{"resultCode":"ASSESSMENT_CONFIRMED","decisionNote":"확인한 자료와 판단 근거"}' \
   http://127.0.0.1:8000/v1/admin/underwriter-reviews/<reviewId>/complete
 ```
 
@@ -744,6 +747,10 @@ curl -X POST \
 고객 재확인 요청에는 해당 평가, Evidence 품질 검토에는 해당 제출 파일과 6개 품질검증 결과,
 보완평가 검토에는 해당 전·후 비교와 후속 처리 상태가 연결됩니다. 화면에서는 이 자료를 우선
 표시하고 ID·정책·데이터 버전은 접힌 감사·문의용 기술 정보로 분리합니다.
+
+완료 처리에는 `decisionNote`가 필수입니다(1~500자). 판단 사유는 검토 상태에 저장해 심사역
+화면에서 결과와 함께 보여주며, 감사 로그에는 원문 대신 길이만 남깁니다. 사유가 없던 기존
+검토 이력은 `null`로 읽습니다.
 
 상태는 `PENDING → IN_REVIEW → COMPLETED` 순서만 허용합니다. `EVIDENCE_QUALITY`에는
 `EVIDENCE_CONFIRMED`, `EVIDENCE_EXCLUDED`를 사용할 수 있고, 나머지 네 Trigger에는

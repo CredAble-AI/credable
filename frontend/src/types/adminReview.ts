@@ -31,6 +31,7 @@ export interface AdminReviewQueueItem {
   policyVersion: string
   status: AdminReviewStatus
   resultCode?: AdminReviewResultCode
+  decisionNote?: string
   startedAt?: string
   completedAt?: string
   demoOnly: boolean
@@ -62,6 +63,7 @@ export interface AdminReviewCaseContext {
 
 export interface AdminReviewCompleteRequest {
   resultCode: AdminReviewResultCode
+  decisionNote: string
 }
 
 export interface AdminReviewListQuery {

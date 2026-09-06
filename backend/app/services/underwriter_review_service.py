@@ -133,6 +133,7 @@ class UnderwriterReviewQueueService:
         self,
         review_id: str,
         result_code: UnderwriterReviewResultCode,
+        decision_note: str,
         request_id: str,
     ) -> UnderwriterReviewDetailResponse:
         source = self._source_item(review_id)
@@ -158,6 +159,7 @@ class UnderwriterReviewQueueService:
                 update={
                     "status": UnderwriterReviewStatus.COMPLETED,
                     "result_code": result_code,
+                    "decision_note": decision_note,
                     "completed_at": completed_at,
                 }
             ).model_dump()
@@ -411,6 +413,7 @@ class UnderwriterReviewQueueService:
                 update={
                     "status": state.status,
                     "result_code": state.result_code,
+                    "decision_note": state.decision_note,
                     "started_at": state.started_at,
                     "completed_at": state.completed_at,
                 }
@@ -565,6 +568,10 @@ class UnderwriterReviewQueueService:
         }
         if state.result_code is not None:
             output_summary["resultCode"] = state.result_code.value
+        if state.decision_note is not None:
+            # The note itself stays out of the audit summary; only its presence
+            # and length are recorded so the trail keeps no free text.
+            output_summary["decisionNoteLength"] = len(state.decision_note)
         return SessionAuditEvent(
             event_id=f"evt_{uuid4().hex}",
             session_id=source.session_id,

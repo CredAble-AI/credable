@@ -260,25 +260,40 @@ def test_underwriter_processes_customer_review_without_changing_assessment(
     pending = client.get(admin_endpoint)
     premature = client.post(
         f"{admin_endpoint}/complete",
-        json={"resultCode": "ASSESSMENT_CONFIRMED"},
+        json={
+            "resultCode": "ASSESSMENT_CONFIRMED",
+            "decisionNote": "합성 시연 데이터로 판단 근거를 확인했습니다.",
+        },
     )
     first_claim = client.post(f"{admin_endpoint}/claim")
     repeated_claim = client.post(f"{admin_endpoint}/claim")
     invalid_result = client.post(
         f"{admin_endpoint}/complete",
-        json={"resultCode": "EVIDENCE_CONFIRMED"},
+        json={
+            "resultCode": "EVIDENCE_CONFIRMED",
+            "decisionNote": "합성 시연 데이터로 판단 근거를 확인했습니다.",
+        },
     )
     completed = client.post(
         f"{admin_endpoint}/complete",
-        json={"resultCode": "ASSESSMENT_CONFIRMED"},
+        json={
+            "resultCode": "ASSESSMENT_CONFIRMED",
+            "decisionNote": "합성 시연 데이터로 판단 근거를 확인했습니다.",
+        },
     )
     repeated_completion = client.post(
         f"{admin_endpoint}/complete",
-        json={"resultCode": "ASSESSMENT_CONFIRMED"},
+        json={
+            "resultCode": "ASSESSMENT_CONFIRMED",
+            "decisionNote": "합성 시연 데이터로 판단 근거를 확인했습니다.",
+        },
     )
     conflicting_completion = client.post(
         f"{admin_endpoint}/complete",
-        json={"resultCode": "CORRECTION_REQUIRED"},
+        json={
+            "resultCode": "CORRECTION_REQUIRED",
+            "decisionNote": "합성 시연 데이터로 판단 근거를 확인했습니다.",
+        },
     )
     reclaim = client.post(f"{admin_endpoint}/claim")
 

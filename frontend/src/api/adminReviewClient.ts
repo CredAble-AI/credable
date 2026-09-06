@@ -5,7 +5,7 @@ export interface AdminReviewProvider {
   list(query: AdminReviewListQuery, signal: AbortSignal): Promise<AdminReviewQueueResponse>
   get(reviewId: string, signal: AbortSignal): Promise<AdminReviewDetailResponse>
   claim(reviewId: string, signal: AbortSignal): Promise<AdminReviewDetailResponse>
-  complete(reviewId: string, resultCode: AdminReviewResultCode, signal: AbortSignal): Promise<AdminReviewDetailResponse>
+  complete(reviewId: string, resultCode: AdminReviewResultCode, decisionNote: string, signal: AbortSignal): Promise<AdminReviewDetailResponse>
 }
 
 export const normalizeAdminReviewError = (error: unknown): ApiError => {
@@ -37,8 +37,8 @@ const get = async (reviewId: string, signal: AbortSignal) => parse<AdminReviewDe
 
 const claim = async (reviewId: string, signal: AbortSignal) => parse<AdminReviewDetailResponse>(await fetch(`${reviewPath(reviewId)}/claim`, { method: 'POST', signal }))
 
-const complete = async (reviewId: string, resultCode: AdminReviewResultCode, signal: AbortSignal) => {
-  const body: AdminReviewCompleteRequest = { resultCode }
+const complete = async (reviewId: string, resultCode: AdminReviewResultCode, decisionNote: string, signal: AbortSignal) => {
+  const body: AdminReviewCompleteRequest = { resultCode, decisionNote }
   return parse<AdminReviewDetailResponse>(await fetch(`${reviewPath(reviewId)}/complete`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
