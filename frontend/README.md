@@ -2,7 +2,9 @@
 
 This template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.
 
-Set `VITE_API_MODE=live` in `.env` (copy from `.env.example`) to switch API providers from the built-in mock fixtures to the live backend; any unset or unrecognized value keeps the default `mock` mode.
+Copy `.env.example` to `.env` and set `VITE_API_MODE=live` to switch API providers from the built-in mock fixtures to the backend. Any unset or unrecognized value keeps the default `mock` mode.
+
+During local development, Vite proxies `/v1` to `CREDABLE_BACKEND_ORIGIN`, which defaults to `http://127.0.0.1:8000`. Start the backend on that origin before starting the frontend. A deployed frontend still requires its web server or gateway to route the same-origin `/v1` path to the backend.
 
 Currently, two official plugins are available:
 
