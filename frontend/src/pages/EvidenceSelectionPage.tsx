@@ -5,7 +5,6 @@ import { normalizePolicyBoundaryError } from '../api/policyBoundaryClient'
 import Header from '../components/Header'
 import CustomerTechnicalDetails from '../components/CustomerTechnicalDetails'
 import EvidenceFileSubmission from '../components/EvidenceFileSubmission'
-import { isMockMode } from '../config/providerMode'
 import { policyBoundaryProvider } from '../hooks/useAssessmentState'
 import { useCustomerSession } from '../hooks/useCustomerSession'
 import { evidenceSelectionProvider } from '../hooks/useEvidenceSelectionState'
@@ -104,8 +103,8 @@ function EvidenceSelectionPage() {
   const availability = selectedEvidence ? availabilityCopy[selectedEvidence.availability] : null
 
   return <div className="workspace-shell customer-flow"><Header /><main id="main-content" tabIndex={-1} className="assessment-page evidence-page"><div className="container assessment-page__inner">
-    <nav className="assessment-steps" aria-label="진행 단계"><span>시작</span><span>동의</span><span>데이터 연결</span><span>기준평가</span><strong aria-current="step">추가 자료</strong><span>품질 확인</span></nav>
-    <header className="assessment-heading"><div>{isMockMode && <span className="assessment-badge">시연용 합성 데이터</span>}<p className="flow-kicker">최소 자료 확인</p><h1>결과를 더 명확히 하는 자료 한 건을 확인합니다</h1><p>불필요한 자료를 여러 개 요구하지 않고, 현재 평가에서 가장 필요한 자료 한 건만 안내합니다.</p></div><aside><span>현재 시연 사례</span><strong>{session.demoProfile.displayName}</strong><small>{session.demoProfile.description}</small></aside></header>
+    <nav className="assessment-steps" aria-label="진행 단계"><span>시작</span><span>동의</span><span>데이터 연결</span><span>기존 평가</span><strong aria-current="step">추가 자료</strong><span>결과 확인</span></nav>
+    <header className="assessment-heading"><div><h1 className="page-title-lines"><span>평가 경계의 이유를 확인하고</span><span>필요한 자료 한 건을 안내합니다</span></h1><p>불필요한 자료를 여러 개 요구하지 않고, 현재 평가의 부족한 정보를 보완할 자료 한 건만 안내합니다.</p></div><aside><span>사업자 유형</span><strong>{session.demoProfile.displayName}</strong><small>평가 주체와 사용 데이터가 이 유형에 맞게 적용됩니다.</small></aside></header>
 
     <div className="assessment-live" role="status" aria-live="polite">{phase === 'loading' ? '필요한 자료를 확인하고 있습니다.' : phase === 'selecting' ? '다음으로 확인할 자료 한 건을 찾고 있습니다.' : error ? '필요한 자료를 확인하지 못했습니다.' : selection ? '필요한 자료를 확인했습니다.' : '아직 선택된 자료가 없습니다.'}</div>
     {error && <section className="assessment-error" role="alert"><div><strong>{error.message}</strong><small>오류 코드: {error.code}{error.requestId ? ` · Request ID: ${error.requestId}` : ''}</small></div>{error.retryable && <button type="button" onClick={() => void requestSelection(selectNextRequested)}>다시 확인</button>}</section>}
@@ -120,7 +119,7 @@ function EvidenceSelectionPage() {
       <CustomerTechnicalDetails><dl><div><dt>처리 상태</dt><dd><code>{selection.status}</code></dd></div>{selection.stopReason && <div><dt>중단 사유</dt><dd><code>{selection.stopReason}</code></dd></div>}<div><dt>현재 확인 차수</dt><dd>{selection.iteration}</dd></div><div><dt>검토 후보 수</dt><dd>{selection.evaluatedCandidateCount}건</dd></div><div><dt>담당자 확인</dt><dd>{selection.underwriterRequired ? '필요' : '필요 없음'}</dd></div><div><dt>선택 시점</dt><dd>{formatDate(selection.selectedAt)}</dd></div><div><dt>선택 ID</dt><dd><code>{selection.selectionId}</code></dd></div><div><dt>정책 경계 ID</dt><dd><code>{selection.boundaryCheckId}</code></dd></div>{selection.rejectedQualityCheckId && <div><dt>제외된 품질검증 ID</dt><dd><code>{selection.rejectedQualityCheckId}</code></dd></div>}<div><dt>보정 버전</dt><dd><code>{selection.calibrationVersion}</code></dd></div><div><dt>경계 정책 버전</dt><dd><code>{selection.boundaryPolicyVersion}</code></dd></div><div><dt>선택 정책 버전</dt><dd><code>{selection.selectionPolicyVersion}</code></dd></div>{selectedEvidence?.rationaleCodes.map((code) => <div key={code}><dt>선택 근거 코드</dt><dd><code>{code}</code></dd></div>)}</dl></CustomerTechnicalDetails>
     </>}
 
-    <section className="assessment-actions"><div><strong>{selection?.status === 'SELECTED' ? '선택된 자료를 제출해주세요' : '추가 자료 확인 상태를 확인해주세요'}</strong><p>{selection?.status === 'SELECTED' ? '시연용 자료를 내려받아 제출하면 파일의 출처와 품질을 실제로 확인합니다.' : '자동 확인이 중단된 경우 임의의 자료를 요구하지 않습니다.'}</p></div><div><Link className="button button--secondary" to="/assessment">기준평가로 돌아가기</Link></div></section>
+    <section className="assessment-actions"><div><strong>{selection?.status === 'SELECTED' ? selectedEvidence?.collectionMode === 'DEMO_CONNECTION' ? '연결된 자료를 확인해주세요' : '요청된 자료를 제출해주세요' : '추가 자료 확인 상태를 확인해주세요'}</strong><p>{selection?.status === 'SELECTED' ? selectedEvidence?.collectionMode === 'DEMO_CONNECTION' ? '동의한 범위의 연결 자료를 확인하면 서버가 기준시점과 품질을 검증합니다.' : '요청 자료를 제출하면 서버가 파일의 출처와 품질을 확인합니다.' : '자동 확인이 중단된 경우 임의의 자료를 요구하지 않습니다.'}</p></div><div>{selection?.underwriterRequired && <Link className="button button--primary" to="/admin/reviews">심사역 검토 화면 보기</Link>}<Link className="button button--secondary" to="/assessment">기존 평가로 돌아가기</Link></div></section>
   </div></main></div>
 }
 

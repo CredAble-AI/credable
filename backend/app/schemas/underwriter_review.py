@@ -4,8 +4,20 @@ from typing import Literal
 
 from pydantic import Field, model_validator
 
+from app.schemas.assessment import (
+    AssessmentComparisonState,
+    AssessmentState,
+    SupplementalAssessmentState,
+)
 from app.schemas.assessment_review import AssessmentReviewTargetType
 from app.schemas.base import ApiModel
+from app.schemas.evidence_quality import EvidenceQualityState
+from app.schemas.evidence_selection import EvidenceSelectionState
+from app.schemas.evidence_submission import EvidenceSubmissionState
+from app.schemas.policy_boundary import (
+    EvidenceResolutionState,
+    PolicyBoundaryCheckState,
+)
 from app.schemas.review_workflow import (
     UnderwriterReviewResultCode,
     UnderwriterReviewStatus,
@@ -98,5 +110,19 @@ class UnderwriterReviewCompleteRequest(ApiModel):
     result_code: UnderwriterReviewResultCode
 
 
+class UnderwriterReviewCaseContext(ApiModel):
+    """Records reached by following the review trigger's persisted lineage only."""
+
+    assessment: AssessmentState | None = None
+    boundary_check: PolicyBoundaryCheckState | None = None
+    selection: EvidenceSelectionState | None = None
+    submission: EvidenceSubmissionState | None = None
+    quality: EvidenceQualityState | None = None
+    supplemental_assessment: SupplementalAssessmentState | None = None
+    comparison: AssessmentComparisonState | None = None
+    resolution: EvidenceResolutionState | None = None
+
+
 class UnderwriterReviewDetailResponse(ApiModel):
     review: UnderwriterReviewQueueItem
+    context: UnderwriterReviewCaseContext

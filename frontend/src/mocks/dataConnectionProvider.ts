@@ -43,11 +43,6 @@ const consentRequired = (sourceType: ConsentSourceType, displayName: string) => 
 
 const refreshed = (session: CustomerSession, sourceType: ConsentSourceType, displayName: string): DataSourceState => {
   const corporation = session.demoProfile.businessBorrowerType === 'CORPORATION'
-  if (corporation && sourceType === 'EXTERNAL_CONNECTED') return state(sourceType, displayName, {
-    retrievalStatus: 'FAILED',
-    retrievedAt: new Date().toISOString(),
-    reasonCode: 'DEMO_PARTNER_UNAVAILABLE',
-  })
   return state(sourceType, displayName, {
     retrievalStatus: 'RETRIEVED',
     verificationStatus: corporation && sourceType === 'CUSTOMER_SUBMITTED' ? 'STALE' : 'VERIFIED',

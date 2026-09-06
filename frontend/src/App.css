@@ -54,7 +54,7 @@
 .hero__grid { position: relative; z-index: 3; display: grid; grid-template-columns: 1.03fr .97fr; align-items: center; gap: 48px; }
 .hero__content { animation: copy-reveal .8s cubic-bezier(.2,.7,.2,1) both; }
 .eyebrow, .section-label { color: var(--color-sky); font-size: 13px; font-weight: 800; letter-spacing: .12em; }
-.hero h1 { margin-top: 20px; font-size: clamp(50px, 5vw, 74px); line-height: 1.12; letter-spacing: -.055em; }
+.hero h1 { font-size: clamp(44px, 4.5vw, 64px); line-height: 1.12; letter-spacing: -.05em; }
 .hero h1 span { color: var(--color-ice); text-shadow: 0 0 34px rgba(85,184,248,.18); }
 .hero__description { max-width: 590px; margin-top: 28px; color: var(--color-hero-text); font-size: 19px; line-height: 1.7; word-break: keep-all; }
 .hero__actions { display: flex; gap: 12px; margin-top: 38px; }

@@ -87,9 +87,9 @@ class EvidenceQualityService:
         submission_id: str,
     ) -> EvidenceQualityResponse:
         submission = self._submission(session_id, submission_id)
-        return EvidenceQualityResponse(
-            session_id=session_id,
-            quality=self.repository.get_for_submission(session_id, submission.submission_id),
+        return self._response(
+            session_id,
+            self.repository.get_for_submission(session_id, submission.submission_id),
         )
 
     def check(
@@ -101,7 +101,7 @@ class EvidenceQualityService:
         submission = self._submission(session_id, submission_id)
         existing = self.repository.get_for_submission(session_id, submission_id)
         if existing is not None:
-            return EvidenceQualityResponse(session_id=session_id, quality=existing)
+            return self._response(session_id, existing)
 
         if submission.submission_mode == EvidenceSubmissionMode.DEMO_FILE_UPLOAD:
             self._require_active_submission_consent(session_id, submission)
@@ -197,7 +197,21 @@ class EvidenceQualityService:
             state=state,
             audit_event=audit_event,
         )
-        return EvidenceQualityResponse(session_id=session_id, quality=saved)
+        return self._response(session_id, saved)
+
+    @staticmethod
+    def _response(
+        session_id: str,
+        quality: EvidenceQualityState | None,
+    ) -> EvidenceQualityResponse:
+        review_id = None
+        if quality is not None and quality.underwriter_required:
+            review_id = f"uwr_{quality.quality_check_id.split('_', 1)[-1]}"
+        return EvidenceQualityResponse(
+            session_id=session_id,
+            quality=quality,
+            underwriter_review_id=review_id,
+        )
 
     def _require_active_submission_consent(
         self,
@@ -291,11 +305,12 @@ class EvidenceQualityService:
             and manifest.generated_on <= definition.quality_reference_at.date()
         )
         consistency_valid = self._manifest_totals_are_consistent(definition)
+        # 브라우저와 운영체제가 중복 다운로드 접미사나 유니코드 정규화를
+        # 적용할 수 있으므로 클라이언트 파일명은 무결성 판단에 사용하지 않는다.
         manipulation_valid = (
             authenticity_valid
             and uploaded is not None
             and definition is not None
-            and uploaded.file_name == definition.file_name
             and uploaded.content_type == definition.content_type
             and uploaded.size_bytes == definition.size_bytes
         )

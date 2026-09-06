@@ -56,6 +56,14 @@ class AssessmentRepository(ABC):
         """Return the latest supplemental assessment for a session."""
 
     @abstractmethod
+    def get_supplemental_for_session(
+        self,
+        session_id: str,
+        supplemental_assessment_id: str,
+    ) -> SupplementalAssessmentState | None:
+        """Return a supplemental assessment only when it belongs to the session."""
+
+    @abstractmethod
     def get_supplemental_by_quality_check_id(
         self,
         quality_check_id: str,
@@ -321,6 +329,22 @@ class SqliteAssessmentRepository(AssessmentRepository):
                 LIMIT 1
                 """,
                 (session_id,),
+            ).fetchone()
+        return SupplementalAssessmentState.model_validate_json(row["state_json"]) if row else None
+
+    def get_supplemental_for_session(
+        self,
+        session_id: str,
+        supplemental_assessment_id: str,
+    ) -> SupplementalAssessmentState | None:
+        with self._connect() as connection:
+            row = connection.execute(
+                """
+                SELECT state_json
+                FROM supplemental_assessments
+                WHERE session_id = ? AND supplemental_assessment_id = ?
+                """,
+                (session_id, supplemental_assessment_id),
             ).fetchone()
         return SupplementalAssessmentState.model_validate_json(row["state_json"]) if row else None
 

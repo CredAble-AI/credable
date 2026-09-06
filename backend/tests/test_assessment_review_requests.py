@@ -215,6 +215,15 @@ def test_customer_review_request_appears_in_admin_queue_without_snapshot_hash(
     ]
     assert "requestSnapshotHash" not in queue_response.text
 
+    detail_response = client.get(f"/v1/admin/underwriter-reviews/{queue['items'][0]['reviewId']}")
+    assert detail_response.status_code == 200
+    context = detail_response.json()["context"]
+    assert context["assessment"]["assessmentId"] == assessment["assessmentId"]
+    assert context["assessment"]["uncertainty"]["gradeSet"] == assessment["uncertainty"]["gradeSet"]
+    assert "boundaryCheck" not in context
+    assert "submission" not in context
+    assert "quality" not in context
+
 
 def test_underwriter_processes_customer_review_without_changing_assessment(
     client: TestClient,

@@ -145,6 +145,18 @@ def test_underwriter_review_queue_exposes_only_safe_review_context(
     assert "sha256" not in response.text.lower()
     assert "changed review queue evidence" not in response.text
 
+    detail_response = client.get(f"/v1/admin/underwriter-reviews/{payload['items'][0]['reviewId']}")
+    assert detail_response.status_code == 200
+    context = detail_response.json()["context"]
+    assert context["assessment"] is not None
+    assert context["boundaryCheck"] is not None
+    assert context["submission"]["submissionId"] == quality["submissionId"]
+    assert context["submission"]["uploadedFile"]["fileName"] == "changed-demo.pdf"
+    assert context["quality"]["qualityCheckId"] == quality["qualityCheckId"]
+    assert len(context["quality"]["checks"]) == 6
+    assert "supplementalAssessment" not in context
+    assert "comparison" not in context
+
 
 def test_policy_blocked_boundary_is_exposed_in_underwriter_queue(
     client: TestClient,

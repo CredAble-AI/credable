@@ -9,9 +9,9 @@ import type { ConsentSourceType, ConsentState } from '../types/consent'
 import './ConsentPage.css'
 
 const requirementLabel = (required: boolean | null) => {
-  if (required === true) return '필수 · 시연 데이터'
-  if (required === false) return '선택 · 시연 데이터'
-  return '필수 여부 확인 중 · 시연 데이터'
+  if (required === true) return '필수'
+  if (required === false) return '선택'
+  return '필수 여부 확인 중'
 }
 
 const statusLabel = (status: ConsentState['status']) => {
@@ -19,6 +19,7 @@ const statusLabel = (status: ConsentState['status']) => {
   if (status === 'WITHDRAWN') return '동의 철회됨'
   return '미동의'
 }
+const initialConsentSources: ConsentSourceType[] = ['BANK_INTERNAL', 'CREDIT_INFORMATION']
 
 function ConsentPage() {
   const navigate = useNavigate()
@@ -69,9 +70,10 @@ function ConsentPage() {
 
   if (sessionLoading || !session) return null
 
-  const requiredConsents = consents.filter((consent) => consent.required === true)
+  const visibleConsents = consents.filter((consent) => initialConsentSources.includes(consent.sourceType))
+  const requiredConsents = visibleConsents.filter((consent) => consent.required === true)
   const requiredComplete = requiredConsents.every((consent) => consent.status === 'GRANTED')
-  const canContinue = !loading && consents.length > 0 && requiredComplete && !updatingSource
+  const canContinue = !loading && visibleConsents.length > 0 && requiredComplete && !updatingSource
 
   const toggleConsent = async (consent: ConsentState) => {
     if (updatingSource) return
@@ -110,9 +112,10 @@ function ConsentPage() {
       <Header />
       <main id="main-content" tabIndex={-1} className="consent-page">
         <div className="container consent-page__inner">
+          <nav className="customer-progress" aria-label="진행 단계"><span>시작</span><strong aria-current="step">동의</strong><span>데이터 연결</span><span>기존 평가</span><span>상품 비교</span></nav>
           <header className="consent-heading">
-            <div><p className="flow-kicker">데이터 이용 동의</p><h1>연결할 데이터의 이용 범위를 확인해주세요</h1><p>평가에 사용할 정보와 필수·선택 여부를 확인합니다. 동의해도 실제 데이터 연결을 보장하지는 않습니다.</p></div>
-            <div className="session-summary"><span>시연용 합성 데이터</span><strong>{session.demoProfile.displayName}</strong><small>{scopeVersion ? '동의 범위 확인 완료' : '동의 범위 확인 중'}</small></div>
+            <div><h1 className="page-title-lines"><span>연결할 데이터의</span><span>이용 범위를 확인해주세요</span></h1><p>평가에 사용할 정보와 필수·선택 여부를 확인합니다. 동의해도 실제 데이터 연결을 보장하지는 않습니다.</p></div>
+            <div className="session-summary"><span>현재 선택</span><strong>{session.demoProfile.displayName}</strong><small>{scopeVersion ? '동의 범위 확인 완료' : '동의 범위 확인 중'}</small></div>
           </header>
 
           {loading && <p className="consent-state" role="status" aria-live="polite">데이터 이용 동의 상태를 불러오고 있습니다.</p>}
@@ -123,12 +126,12 @@ function ConsentPage() {
               <button className="button button--secondary" type="button" onClick={() => void loadConsents(session.sessionId)}>다시 시도</button>
             </div>
           )}
-          {!loading && !error && consents.length === 0 && <p className="consent-state" role="status">현재 확인할 수 있는 데이터 이용 동의 항목이 없습니다.</p>}
+          {!loading && !error && visibleConsents.length === 0 && <p className="consent-state" role="status">현재 확인할 수 있는 데이터 이용 동의 항목이 없습니다.</p>}
 
-          {!loading && consents.length > 0 && (
+          {!loading && visibleConsents.length > 0 && (
             <fieldset className="consent-group">
               <legend><span>데이터 이용 동의</span><strong>평가에 필요한 범위와 현재 상태입니다</strong></legend>
-              {consents.map((consent) => {
+              {visibleConsents.map((consent) => {
                 const checked = consent.status === 'GRANTED'
                 const isUpdating = updatingSource === consent.sourceType
                 const visualStatus = isUpdating ? 'updating' : consent.status.toLowerCase()

@@ -42,8 +42,7 @@ describe('AssessmentReviewPanel', () => {
     await waitFor(() => expect(assessmentReviewProvider.request).toHaveBeenCalledWith('ses_demo', expect.any(AbortSignal)))
     expect(await screen.findByRole('heading', { name: '평가 결과 재확인 요청이 접수됐습니다' })).toBeInTheDocument()
     expect(screen.getByText('보완평가')).toBeInTheDocument()
-    expect(screen.getByText('sam_demo')).toBeInTheDocument()
-    expect(screen.getByText('PENDING')).toBeInTheDocument()
+    expect(screen.getByText('요청이 대기열에 등록됐습니다. 담당자가 확인하기 전까지 현재 평가 결과가 유지됩니다.')).toBeInTheDocument()
     expect(screen.getByRole('link', { name: '담당자 검토 화면 보기' })).toHaveAttribute('href', '/admin/reviews/uwr_demo')
     expect(screen.getByRole('complementary', { name: '시연 화면 전환' })).toBeInTheDocument()
     expect(screen.getByRole('link', { name: '담당자 검토로 전환' })).toHaveAttribute('href', '/admin/reviews/uwr_demo')
@@ -58,7 +57,7 @@ describe('AssessmentReviewPanel', () => {
     renderPanel()
 
     expect(await screen.findByRole('heading', { name: '재확인 처리가 완료됐습니다' })).toBeInTheDocument()
-    expect(screen.getByText('ADDITIONAL_INFORMATION_REQUIRED')).toBeInTheDocument()
+    expect(screen.getByText('담당자의 처리 결과가 기록됐습니다.')).toBeInTheDocument()
   })
 
   it('rejects a response from another session', async () => {

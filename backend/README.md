@@ -429,9 +429,12 @@ curl -X POST \
 계산합니다. 형식 오류는 원문을 저장하지 않고 즉시 거부합니다. 형식은 유효하지만 서버 발급
 PDF와 해시가 다른 파일은 메타데이터만 제출 이력으로 보존하고, 다음 품질 검증에서 자동평가가
 아닌 심사역 검토 경로로 분리합니다. 원본 binary와 PDF 본문은 DB·Audit·로그에 저장하지 않고
-서버가 확정한 파일명·크기·MIME·해시·문서 ID만 저장합니다. 같은 `selectionId`와 같은 해시는
+제출 시 기록된 파일명·크기·MIME·해시·문서 ID만 저장합니다. 같은 `selectionId`와 같은 해시는
 기존 제출을 반환하며, 이미 제출된 뒤 다른 파일을 다시 올리면 `EVIDENCE_ALREADY_SUBMITTED`로
 차단합니다. 기존 `DEMO_FIXTURE_REFERENCE` JSON API는 호환성을 위해 유지합니다.
+브라우저와 운영체제가 중복 다운로드에 `(1)` 같은 접미사를 붙이거나 한글 표현을
+정규화할 수 있으므로 클라이언트 파일명은 조작 판단 근거로 사용하지 않습니다. 파일명은
+제출 이력에만 보존하고 조작 위험은 서명된 manifest, binary 해시, MIME과 크기로 확인합니다.
 
 ## Demo Evidence 품질 검증 API
 
@@ -729,6 +732,12 @@ curl -X POST \
   -d '{"resultCode":"ASSESSMENT_CONFIRMED"}' \
   http://127.0.0.1:8000/v1/admin/underwriter-reviews/<reviewId>/complete
 ```
+
+상세 조회 응답의 `context`는 세션에서 가장 최근에 발생한 상태를 임의로 조합하지 않고,
+현재 검토 요청의 Trigger ID에서 시작해 저장된 계보를 역추적한 결과만 제공합니다. 따라서
+고객 재확인 요청에는 해당 평가, Evidence 품질 검토에는 해당 제출 파일과 6개 품질검증 결과,
+보완평가 검토에는 해당 전·후 비교와 후속 처리 상태가 연결됩니다. 화면에서는 이 자료를 우선
+표시하고 ID·정책·데이터 버전은 접힌 감사·문의용 기술 정보로 분리합니다.
 
 상태는 `PENDING → IN_REVIEW → COMPLETED` 순서만 허용합니다. `EVIDENCE_QUALITY`에는
 `EVIDENCE_CONFIRMED`, `EVIDENCE_EXCLUDED`를 사용할 수 있고, 나머지 네 Trigger에는

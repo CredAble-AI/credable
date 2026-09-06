@@ -7,6 +7,11 @@ import type { ApiError } from '../types/api'
 import type { BusinessBorrowerType, DemoProfile } from '../types/customerSession'
 import './CustomerStartPage.css'
 
+const borrowerDescriptions: Record<BusinessBorrowerType, string> = {
+  SOLE_PROPRIETOR: '사업소득과 상환 책임의 주체가 개인인 등록 사업자입니다.',
+  CORPORATION: '법인 명의로 사업자금 대출 계약과 평가가 진행되는 등록 법인입니다.',
+}
+
 function CustomerStartPage() {
   const navigate = useNavigate()
   const [profiles, setProfiles] = useState<DemoProfile[]>([])
@@ -61,11 +66,10 @@ function CustomerStartPage() {
       <Header />
       <main id="main-content" tabIndex={-1} className="customer-page">
         <div className="container customer-page__inner">
+          <nav className="customer-progress customer-progress--dark" aria-label="진행 단계"><strong aria-current="step">시작</strong><span>동의</span><span>데이터 연결</span><span>기존 평가</span><span>상품 비교</span></nav>
           <div className="flow-heading">
-            <p className="flow-kicker">평가 시작</p>
-            <span className="demo-badge"><i aria-hidden="true" />시연용 합성 데이터</span>
-            <h1>대출 계약의 주체를 선택해주세요</h1>
-            <p>CredAble은 사업자금 대출을 탐색하는 등록 사업자를 위한 서비스입니다. 선택한 사업자 유형에 맞는 합성 사례로 평가 흐름을 확인합니다.</p>
+            <h1 className="page-title-lines"><span>대출 계약의</span><span>주체를 선택해주세요</span></h1>
+            <p>CredAble은 사업자금 대출을 탐색하는 등록 사업자를 위한 서비스입니다. 개인사업자와 법인사업자는 실제 서비스 대상 분기이며, 유형에 따라 평가 주체와 사용하는 데이터를 구분합니다.</p>
           </div>
 
           {profilesLoading && <p role="status" aria-live="polite">사업자 유형을 불러오고 있습니다.</p>}
@@ -92,10 +96,10 @@ function CustomerStartPage() {
                       onChange={() => { setSelected(profile.businessBorrowerType); setError('') }}
                     />
                     <span className="borrower-card__marker" aria-hidden="true">{isSelected ? '✓' : ''}</span>
-                    <span className="borrower-card__tag">시연용 사례</span>
+                    <span className="borrower-card__tag">서비스 대상</span>
                     <h2>{profile.displayName}</h2>
-                    <p>{profile.description}</p>
-                    <small>등록 사업자 대상 · 실제 고객 정보를 사용하지 않습니다.</small>
+                    <p>{borrowerDescriptions[profile.businessBorrowerType]}</p>
+                    <small>선택한 유형에 맞춰 평가 주체와 사용 데이터를 구분합니다.</small>
                   </label>
                 )
               })}

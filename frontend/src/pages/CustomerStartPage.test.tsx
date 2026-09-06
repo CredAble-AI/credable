@@ -55,13 +55,16 @@ describe('CustomerStartPage', () => {
     vi.mocked(sessionProvider.create).mockReset().mockResolvedValue(corporationSession)
   })
 
-  it('presents legal business borrower types and keeps demo labels in their descriptions', async () => {
+  it('presents legal business borrower types without exposing presentation-only scenarios', async () => {
     renderPage()
 
+    expect(screen.getByRole('navigation', { name: '진행 단계' })).toHaveTextContent('시작동의데이터 연결기존 평가상품 비교')
     expect(await screen.findByRole('radio', { name: /개인사업자/ })).toBeInTheDocument()
     expect(screen.getByRole('radio', { name: /법인사업자/ })).toBeInTheDocument()
-    expect(screen.getByText(/개업 초기 소상공인/)).toBeInTheDocument()
-    expect(screen.getByText(/설립 초기 스타트업/)).toBeInTheDocument()
+    expect(screen.getByText(/사업소득과 상환 책임의 주체가 개인/)).toBeInTheDocument()
+    expect(screen.getByText(/법인 명의로 사업자금 대출 계약과 평가/)).toBeInTheDocument()
+    expect(screen.queryByText(/소상공인/)).not.toBeInTheDocument()
+    expect(screen.queryByText(/스타트업/)).not.toBeInTheDocument()
     expect(screen.getByText(/개인 생활자금 대출과 사업자등록 전 예비창업자는 현재 지원하지 않습니다/)).toBeInTheDocument()
   })
 

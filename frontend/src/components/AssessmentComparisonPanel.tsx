@@ -4,6 +4,7 @@ import { assessmentComparisonProvider } from '../hooks/useAssessmentComparisonSt
 import type { ApiError } from '../types/api'
 import type { AssessmentUncertainty } from '../types/assessment'
 import type { AssessmentComparisonContext, AssessmentComparisonResponse, AssessmentComparisonState, AssessmentUncertaintyChange } from '../types/assessmentComparison'
+import { assessmentGradeSetLabel } from '../utils/assessmentDisplay'
 import EvidenceResolutionPanel from './EvidenceResolutionPanel'
 import CustomerTechnicalDetails from './CustomerTechnicalDetails'
 
@@ -21,7 +22,7 @@ const basisLabels = { GRADE_SET: '등급 집합', NUMERIC_INTERVAL: '수치 구�
 const formatDate = (value: string) => new Intl.DateTimeFormat('ko-KR', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(value))
 
 function UncertaintyCard({ label, uncertainty }: { label: string; uncertainty: AssessmentUncertainty | null }) {
-  const result = uncertainty?.gradeSet.length ? uncertainty.gradeSet.join(' · ') : uncertainty?.lowerBound !== null && uncertainty?.lowerBound !== undefined && uncertainty.upperBound !== null ? `${uncertainty.lowerBound} ~ ${uncertainty.upperBound}` : '비교 가능한 범위 없음'
+  const result = uncertainty?.gradeSet.length ? assessmentGradeSetLabel(uncertainty.gradeSet) : uncertainty?.lowerBound !== null && uncertainty?.lowerBound !== undefined && uncertainty.upperBound !== null ? `${uncertainty.lowerBound} ~ ${uncertainty.upperBound}` : '비교 가능한 범위 없음'
   return <article className="assessment-comparison__card"><span>{label}</span><strong>{result}</strong></article>
 }
 
@@ -54,9 +55,14 @@ function AssessmentComparisonPanel({ sessionId, baselineAssessmentId, supplement
     const sequence = ++sequenceRef.current
     setPhase(compare ? 'comparing' : 'loading'); setError(null)
     try {
-      const response = compare
+      let response = compare
         ? await assessmentComparisonProvider.compare(sessionId, context, controller.signal)
         : await assessmentComparisonProvider.get(sessionId, controller.signal)
+      if (!compare && !acceptResponse(response, false)) {
+        if (sequence === sequenceRef.current) setPhase('comparing')
+        response = await assessmentComparisonProvider.compare(sessionId, context, controller.signal)
+        compare = true
+      }
       const result = acceptResponse(response, compare)
       if (sequence === sequenceRef.current) setComparison(result)
     } catch (caught) {
@@ -71,16 +77,16 @@ function AssessmentComparisonPanel({ sessionId, baselineAssessmentId, supplement
     return () => { sequenceRef.current += 1; controllerRef.current?.abort() }
   }, [request])
 
-  if (phase === 'loading' && !comparison) return <section className="assessment-comparison assessment-comparison--loading" aria-label="평가 전후 비교 상태 확인"><span /><span /></section>
+  if (phase !== 'idle' && !comparison) return <section className="assessment-comparison assessment-comparison--loading" aria-label="평가 전후 비교 중"><span /><span /><p>추가 자료 반영 전·후의 결과 범위를 비교하고 있습니다.</p></section>
 
-  if (!comparison) return <section className="assessment-comparison" aria-labelledby="comparison-title"><div className="assessment-comparison__heading"><div><span>평가 전후 비교</span><h4 id="comparison-title">추가 자료 반영 전후를 비교합니다</h4></div><strong>비교 전</strong></div><p>기준평가와 보완평가를 같은 기준에서 비교해 결과 범위가 어떻게 달라졌는지 보여드립니다.</p>{error && <div className="assessment-comparison__error" role="alert"><p>{error.message}</p></div>}<button className="button button--secondary" type="button" disabled={phase === 'comparing'} onClick={() => void request(true)}>{phase === 'comparing' ? '비교하는 중…' : '평가 전후 비교'}</button></section>
+  if (!comparison) return <section className="assessment-comparison" aria-labelledby="comparison-title"><div className="assessment-comparison__heading"><div><span>평가 전후 비교</span><h4 id="comparison-title">결과 변화를 확인하지 못했습니다</h4></div><strong>재시도 필요</strong></div><p>기존 평가와 보완평가 결과는 그대로 보존됩니다.</p>{error && <div className="assessment-comparison__error" role="alert"><p>{error.message}</p></div>}<button className="button button--secondary" type="button" disabled={phase === 'comparing'} onClick={() => void request(true)}>{phase === 'comparing' ? '비교하는 중…' : '결과 비교 다시 시도'}</button></section>
 
   const copy = changeCopy[comparison.uncertaintyChange]
   return <section className={`assessment-comparison assessment-comparison--${comparison.uncertaintyChange.toLowerCase()}`} aria-labelledby="comparison-title">
     <div className="assessment-comparison__heading"><div><span>평가 전후 비교</span><h4 id="comparison-title">{copy.title}</h4></div></div>
     <p>{copy.description}</p>
     <div className="assessment-comparison__notice">이는 신용도 개선, 승인 가능성 상승 또는 대출 조건 확정을 의미하지 않습니다.</div>
-    <div className="assessment-comparison__cards"><UncertaintyCard label="기준평가" uncertainty={comparison.beforeUncertainty} /><UncertaintyCard label="보완평가" uncertainty={comparison.afterUncertainty} /></div>
+    <div className="assessment-comparison__cards"><UncertaintyCard label="기존 평가" uncertainty={comparison.beforeUncertainty} /><UncertaintyCard label="보완평가" uncertainty={comparison.afterUncertainty} /></div>
     <CustomerTechnicalDetails><dl><div><dt>변화 상태</dt><dd><code>{comparison.uncertaintyChange}</code></dd></div><div><dt>비교 기준</dt><dd>{basisLabels[comparison.basis]}</dd></div><div><dt>비교 시점</dt><dd>{formatDate(comparison.comparedAt)}</dd></div><div><dt>비교 ID</dt><dd><code>{comparison.comparisonId}</code></dd></div><div><dt>기준평가 모델</dt><dd><code>{comparison.baselineModelVersion ?? '제공되지 않음'}</code></dd></div><div><dt>보완평가 모델</dt><dd><code>{comparison.supplementalModelVersion ?? '제공되지 않음'}</code></dd></div>{comparison.beforeUncertainty && <><div><dt>이전 보정 방식</dt><dd><code>{comparison.beforeUncertainty.calibrationMode}</code></dd></div><div><dt>이전 보정 버전</dt><dd><code>{comparison.beforeUncertainty.calibrationVersion}</code></dd></div></>}{comparison.afterUncertainty && <><div><dt>이후 보정 방식</dt><dd><code>{comparison.afterUncertainty.calibrationMode}</code></dd></div><div><dt>이후 보정 버전</dt><dd><code>{comparison.afterUncertainty.calibrationVersion}</code></dd></div></>}{comparison.rationaleCodes.map((code) => <div key={code}><dt>비교 근거 코드</dt><dd><code>{code}</code></dd></div>)}</dl></CustomerTechnicalDetails>
     <EvidenceResolutionPanel sessionId={sessionId} comparisonId={comparison.comparisonId} supplementalAssessmentId={comparison.supplementalAssessmentId} />
   </section>

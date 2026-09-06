@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { render, screen, waitFor } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { assessmentExplanationProvider } from '../hooks/useAssessmentExplanationState'
 import type { AssessmentExplanationResponse, AssessmentExplanationState } from '../types/assessmentExplanation'
@@ -20,21 +20,20 @@ describe('AssessmentExplanationPanel', () => {
     vi.mocked(assessmentExplanationProvider.generate).mockReset().mockResolvedValue(response(explanation))
   })
 
-  it('recovers with GET and waits for explicit generation', async () => {
+  it('recovers with GET and automatically prepares a missing explanation', async () => {
     render(<AssessmentExplanationPanel sessionId="ses_demo" />)
 
-    expect(await screen.findByRole('button', { name: '평가 결과 설명 보기' })).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { level: 3, name: explanation.headline })).toBeInTheDocument()
     expect(assessmentExplanationProvider.get).toHaveBeenCalledWith('ses_demo', expect.any(AbortSignal))
-    expect(assessmentExplanationProvider.generate).not.toHaveBeenCalled()
+    expect(assessmentExplanationProvider.generate).toHaveBeenCalledWith('ses_demo', expect.any(AbortSignal))
   })
 
-  it('renders only the server response after explicit generation', async () => {
+  it('renders only the server response after automatic generation', async () => {
     render(<AssessmentExplanationPanel sessionId="ses_demo" />)
-    fireEvent.click(await screen.findByRole('button', { name: '평가 결과 설명 보기' }))
 
     await waitFor(() => expect(assessmentExplanationProvider.generate).toHaveBeenCalledWith('ses_demo', expect.any(AbortSignal)))
     expect(await screen.findByRole('heading', { level: 3, name: explanation.headline })).toBeInTheDocument()
-    expect(screen.getByText('시연용 안내')).toBeInTheDocument()
+    expect(screen.getByText('구조화 결과 안내')).toBeInTheDocument()
     expect(screen.getByText(explanation.sections[0].text)).toBeInTheDocument()
     expect(screen.getByText(explanation.cautionText)).toBeInTheDocument()
   })
@@ -52,6 +51,6 @@ describe('AssessmentExplanationPanel', () => {
     render(<AssessmentExplanationPanel sessionId="ses_demo" />)
 
     expect(await screen.findByRole('alert')).toHaveTextContent('현재 세션의 평가 결과 설명을 확인할 수 없습니다.')
-    expect(screen.getByRole('button', { name: '설명 상태 다시 확인' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: '결과 안내 다시 준비' })).toBeInTheDocument()
   })
 })

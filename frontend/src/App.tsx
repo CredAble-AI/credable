@@ -27,7 +27,7 @@ const principles = [
 
 const steps = [
   ['01', '사업자 유형 선택', '개인사업자 또는 법인사업자를 선택해 세션을 시작합니다.'],
-  ['02', '기존 평가 확인', '은행이 보유하거나 고객 동의를 받아 확인한 데이터로 기준평가를 불러옵니다.'],
+  ['02', '기존 평가 확인', '은행이 보유하거나 고객 동의를 받아 확인한 데이터로 은행의 기존 평가를 불러옵니다.'],
   ['03', '정책 경계 확인', 'Backend가 확정한 안정·불확실·정책상 중단 상태와 이유를 보여줍니다.'],
   ['04', '최소 증빙 재확인', '필요한 경우에만 증빙 한 건의 품질을 검증하고 반영 전후 결과를 설명합니다.'],
 ]
@@ -103,13 +103,13 @@ function LandingPage() {
       <Header />
       <main id="main-content" tabIndex={-1}>
         <section className="hero" id="intro"><div className="container hero__grid">
-          <div className="hero__content"><p className="eyebrow">Uncertainty-based second look</p><h1>더 묻지 않고<br /><span>최소 증빙만 확인합니다</span></h1><p className="hero__description">CredAble은 사업자금 대출을 탐색하는 등록 개인사업자와 법인사업자를 대상으로, 기존 평가의 불확실성이 남은 경우에만 최소 증빙을 요청하고 검증된 정보로 재확인을 돕습니다.</p><div className="hero__actions"><Link className="button button--primary" to="/start">Demo 평가 시작</Link><a className="button button--secondary" href="#principles">서비스 원칙 보기</a></div><p className="demo-note"><span aria-hidden="true">ⓘ</span> Demo Only · 조회 결과는 실제 승인·부결이나 최종 대출 조건을 의미하지 않습니다.</p></div>
+          <div className="hero__content"><h1 className="page-title-lines"><span>더 묻지 않고</span><span>최소 증빙만 확인합니다</span></h1><p className="hero__description">CredAble은 사업자금 대출을 탐색하는 등록 개인사업자와 법인사업자를 대상으로, 기존 평가의 불확실성이 남은 경우에만 최소 증빙을 요청하고 검증된 정보로 재확인을 돕습니다.</p><div className="hero__actions"><Link className="button button--primary" to="/start">평가 시작</Link><a className="button button--secondary" href="#principles">서비스 원칙 보기</a></div><p className="demo-note"><span aria-hidden="true">ⓘ</span> 조회 결과는 실제 승인·부결이나 최종 대출 조건을 의미하지 않습니다.</p></div>
           <BrandScene />
         </div></section>
         <section className="principles" id="principles" aria-labelledby="principles-title"><div className="container"><p className="section-label">OUR PRINCIPLES</p><h2 id="principles-title">기존 평가를 존중하고,<br />필요한 정보만 확인합니다</h2><div className="principle-grid">{principles.map((item) => <article className="principle-card" key={item.number}><span>{item.number}</span><h3>{item.title}</h3><p>{item.body}</p></article>)}</div></div></section>
-        <section className="process" id="process" aria-labelledby="process-title"><div className="container process__heading"><p className="section-label">HOW IT WORKS</p><h2 id="process-title">기준평가에서 정책 경계를 확인하고<br /><span>최소 증빙으로 다시 살펴봅니다</span></h2><p>경로가 안정되면 추가 수집을 멈추고, 불확실성이나 이상 징후가 남으면 심사역 검토가 필요함을 안내합니다.</p></div><div className="container step-grid">{steps.map(([number, title, body]) => <article className="step-card" key={number}><span className="step-number">{number}</span><h3>{title}</h3><p>{body}</p></article>)}</div></section>
+        <section className="process" id="process" aria-labelledby="process-title"><div className="container process__heading"><p className="section-label">HOW IT WORKS</p><h2 id="process-title">기존 평가에서 정책 경계를 확인하고<br /><span>최소 증빙으로 다시 살펴봅니다</span></h2><p>경로가 안정되면 추가 수집을 멈추고, 불확실성이나 이상 징후가 남으면 심사역 검토가 필요함을 안내합니다.</p></div><div className="container step-grid">{steps.map(([number, title, body]) => <article className="step-card" key={number}><span className="step-number">{number}</span><h3>{title}</h3><p>{body}</p></article>)}</div></section>
       </main>
-      <footer><div className="container footer__inner"><strong>CredAble</strong><span>Demo Only · Bank-powered complementary assessment</span></div></footer>
+      <footer><div className="container footer__inner"><strong>CredAble</strong><span>기존 평가 기반 보완평가 안내</span></div></footer>
     </div>
   )
 }

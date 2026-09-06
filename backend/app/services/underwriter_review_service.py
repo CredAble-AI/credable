@@ -7,14 +7,17 @@ from typing import NoReturn
 from uuid import uuid4
 
 from app.core.errors import ResourceConflictError, ResourceNotFoundError
+from app.repositories.assessment_repository import AssessmentRepository
 from app.repositories.assessment_review_repository import AssessmentReviewRepository
 from app.repositories.evidence_quality_repository import EvidenceQualityRepository
 from app.repositories.evidence_selection_repository import EvidenceSelectionRepository
+from app.repositories.evidence_submission_repository import EvidenceSubmissionRepository
 from app.repositories.policy_boundary_repository import PolicyBoundaryRepository
 from app.repositories.underwriter_review_repository import UnderwriterReviewRepository
 from app.schemas.audit import AuditActor, AuditStage, SessionAuditEvent
 from app.schemas.evidence_quality import EvidenceQualityState, EvidenceQualityStatus
 from app.schemas.evidence_selection import EvidenceSelectionState, EvidenceSelectionStatus
+from app.schemas.evidence_submission import EvidenceSubmissionState
 from app.schemas.policy_boundary import (
     BoundaryStatus,
     EvidenceResolutionState,
@@ -27,6 +30,7 @@ from app.schemas.review_workflow import (
     UnderwriterReviewWorkflowState,
 )
 from app.schemas.underwriter_review import (
+    UnderwriterReviewCaseContext,
     UnderwriterReviewDetailResponse,
     UnderwriterReviewQueueItem,
     UnderwriterReviewQueueResponse,
@@ -52,14 +56,18 @@ class UnderwriterReviewQueueService:
         self,
         *,
         quality_repository: EvidenceQualityRepository,
+        assessment_repository: AssessmentRepository,
         assessment_review_repository: AssessmentReviewRepository,
         evidence_selection_repository: EvidenceSelectionRepository,
+        submission_repository: EvidenceSubmissionRepository,
         boundary_repository: PolicyBoundaryRepository,
         workflow_repository: UnderwriterReviewRepository,
     ) -> None:
         self.quality_repository = quality_repository
+        self.assessment_repository = assessment_repository
         self.assessment_review_repository = assessment_review_repository
         self.evidence_selection_repository = evidence_selection_repository
+        self.submission_repository = submission_repository
         self.boundary_repository = boundary_repository
         self.workflow_repository = workflow_repository
 
@@ -85,9 +93,7 @@ class UnderwriterReviewQueueService:
         )
 
     def get(self, review_id: str) -> UnderwriterReviewDetailResponse:
-        return UnderwriterReviewDetailResponse(
-            review=self._apply_workflow(self._source_item(review_id))
-        )
+        return self._detail(self._source_item(review_id))
 
     def claim(self, review_id: str, request_id: str) -> UnderwriterReviewDetailResponse:
         source = self._source_item(review_id)
@@ -99,7 +105,7 @@ class UnderwriterReviewQueueService:
                     code="UNDERWRITER_REVIEW_ALREADY_COMPLETED",
                     message="이미 완료된 심사역 검토는 다시 접수할 수 없습니다.",
                 )
-            return UnderwriterReviewDetailResponse(review=self._apply_workflow(source))
+            return self._detail(source)
 
         started_at = datetime.now(UTC)
         state = UnderwriterReviewWorkflowState(
@@ -121,7 +127,7 @@ class UnderwriterReviewQueueService:
             ),
         )
         self._require_matching_lineage(source, saved)
-        return UnderwriterReviewDetailResponse(review=self._apply_workflow(source))
+        return self._detail(source)
 
     def complete(
         self,
@@ -140,7 +146,7 @@ class UnderwriterReviewQueueService:
         self._require_matching_lineage(source, existing)
         if existing.status == UnderwriterReviewStatus.COMPLETED:
             if existing.result_code == result_code:
-                return UnderwriterReviewDetailResponse(review=self._apply_workflow(source))
+                return self._detail(source)
             raise ResourceConflictError(
                 code="UNDERWRITER_REVIEW_RESULT_CONFLICT",
                 message="완료된 심사역 검토 결과는 변경할 수 없습니다.",
@@ -170,10 +176,164 @@ class UnderwriterReviewQueueService:
                 code="UNDERWRITER_REVIEW_RESULT_CONFLICT",
                 message="완료된 심사역 검토 결과는 변경할 수 없습니다.",
             )
-        return UnderwriterReviewDetailResponse(review=self._apply_workflow(source))
+        return self._detail(source)
 
     def readiness(self) -> dict[str, bool]:
         return {"underwriter_review_repository": self.workflow_repository.is_ready()}
+
+    def _detail(self, source: UnderwriterReviewQueueItem) -> UnderwriterReviewDetailResponse:
+        return UnderwriterReviewDetailResponse(
+            review=self._apply_workflow(source),
+            context=self._case_context(source),
+        )
+
+    def _case_context(self, source: UnderwriterReviewQueueItem) -> UnderwriterReviewCaseContext:
+        assessment = None
+        boundary = None
+        selection = None
+        submission = None
+        quality = None
+        supplemental = None
+        comparison = None
+        resolution = None
+
+        if source.trigger_type == UnderwriterReviewTriggerType.CUSTOMER_ASSESSMENT_REVIEW:
+            if source.target_type is None or source.target_assessment_id is None:
+                raise ValueError("customer review target lineage is missing")
+            if source.target_type.value == "BASELINE_ASSESSMENT":
+                assessment = self.assessment_repository.get_for_session(
+                    source.session_id,
+                    source.target_assessment_id,
+                )
+            else:
+                supplemental = self.assessment_repository.get_supplemental_for_session(
+                    source.session_id,
+                    source.target_assessment_id,
+                )
+                if supplemental is not None:
+                    comparison = self.assessment_repository.get_comparison_by_supplemental_id(
+                        supplemental.supplemental_assessment_id
+                    )
+                    quality = self._quality_for_id(source.session_id, supplemental.quality_check_id)
+                    submission = self._submission_for_quality(source.session_id, quality)
+                    assessment = self.assessment_repository.get_for_session(
+                        source.session_id,
+                        supplemental.baseline_assessment_id,
+                    )
+                    if submission is not None:
+                        selection = self.evidence_selection_repository.get_for_session(
+                            source.session_id,
+                            submission.selection_id,
+                        )
+                    if selection is not None:
+                        boundary = self._boundary_for_id(
+                            source.session_id,
+                            selection.boundary_check_id,
+                        )
+
+        elif source.trigger_type == UnderwriterReviewTriggerType.EVIDENCE_QUALITY:
+            quality = self._quality_for_id(source.session_id, source.trigger_id)
+            submission = self._submission_for_quality(source.session_id, quality)
+            if submission is not None:
+                selection = self.evidence_selection_repository.get_for_session(
+                    source.session_id,
+                    submission.selection_id,
+                )
+            if selection is not None:
+                boundary = self._boundary_for_id(source.session_id, selection.boundary_check_id)
+            if boundary is not None:
+                assessment = self.assessment_repository.get_for_session(
+                    source.session_id,
+                    boundary.assessment_id,
+                )
+
+        elif source.trigger_type == UnderwriterReviewTriggerType.POLICY_BOUNDARY:
+            boundary = self._boundary_for_id(source.session_id, source.trigger_id)
+            if boundary is not None:
+                assessment = self.assessment_repository.get_for_session(
+                    source.session_id,
+                    boundary.assessment_id,
+                )
+
+        elif source.trigger_type == UnderwriterReviewTriggerType.EVIDENCE_SELECTION:
+            selection_record = self.evidence_selection_repository.get_by_selection_id(
+                source.trigger_id
+            )
+            if selection_record is not None and selection_record[0] == source.session_id:
+                selection = selection_record[1]
+                boundary = self._boundary_for_id(source.session_id, selection.boundary_check_id)
+            if boundary is not None:
+                assessment = self.assessment_repository.get_for_session(
+                    source.session_id,
+                    boundary.assessment_id,
+                )
+
+        elif source.trigger_type == UnderwriterReviewTriggerType.EVIDENCE_RESOLUTION:
+            resolution_record = self.boundary_repository.get_resolution_by_id(source.trigger_id)
+            if resolution_record is not None and resolution_record[0] == source.session_id:
+                resolution = resolution_record[1]
+                supplemental = self.assessment_repository.get_supplemental_for_session(
+                    source.session_id,
+                    resolution.supplemental_assessment_id,
+                )
+                comparison = self.assessment_repository.get_comparison_by_supplemental_id(
+                    resolution.supplemental_assessment_id
+                )
+            if supplemental is not None:
+                quality = self._quality_for_id(source.session_id, supplemental.quality_check_id)
+                submission = self._submission_for_quality(source.session_id, quality)
+                assessment = self.assessment_repository.get_for_session(
+                    source.session_id,
+                    supplemental.baseline_assessment_id,
+                )
+                if submission is not None:
+                    selection = self.evidence_selection_repository.get_for_session(
+                        source.session_id,
+                        submission.selection_id,
+                    )
+                if selection is not None:
+                    boundary = self._boundary_for_id(
+                        source.session_id,
+                        selection.boundary_check_id,
+                    )
+
+        return UnderwriterReviewCaseContext(
+            assessment=assessment,
+            boundary_check=boundary,
+            selection=selection,
+            submission=submission,
+            quality=quality,
+            supplemental_assessment=supplemental,
+            comparison=comparison,
+            resolution=resolution,
+        )
+
+    def _quality_for_id(
+        self, session_id: str, quality_check_id: str
+    ) -> EvidenceQualityState | None:
+        record = self.quality_repository.get_by_quality_check_id(quality_check_id)
+        if record is None or record[0] != session_id:
+            return None
+        return record[1]
+
+    def _submission_for_quality(
+        self,
+        session_id: str,
+        quality: EvidenceQualityState | None,
+    ) -> EvidenceSubmissionState | None:
+        if quality is None:
+            return None
+        return self.submission_repository.get_for_session(session_id, quality.submission_id)
+
+    def _boundary_for_id(
+        self,
+        session_id: str,
+        boundary_check_id: str,
+    ) -> PolicyBoundaryCheckState | None:
+        record = self.boundary_repository.get_check_by_id(boundary_check_id)
+        if record is None or record[0] != session_id:
+            return None
+        return record[1]
 
     def _all_source_items(self) -> list[UnderwriterReviewQueueItem]:
         quality_count = self.quality_repository.count_review_required()

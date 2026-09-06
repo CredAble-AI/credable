@@ -130,6 +130,7 @@ class EvidenceQualityState(ApiModel):
 class EvidenceQualityResponse(ApiModel):
     session_id: str = Field(min_length=1)
     quality: EvidenceQualityState | None
+    underwriter_review_id: str | None = Field(default=None, min_length=1)
 
 
 class DemoEvidenceQualityDefinition(ApiModel):

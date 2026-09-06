@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { render, screen, waitFor } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { assessmentComparisonProvider } from '../hooks/useAssessmentComparisonState'
 import type { AssessmentComparisonResponse, AssessmentComparisonState } from '../types/assessmentComparison'
@@ -22,27 +22,23 @@ describe('AssessmentComparisonPanel', () => {
     vi.mocked(assessmentComparisonProvider.compare).mockReset().mockResolvedValue(response(comparison))
   })
 
-  it('does not compare automatically and displays the server comparison after confirmation', async () => {
+  it('automatically compares when the current result does not exist', async () => {
     renderPanel()
-
-    const button = await screen.findByRole('button', { name: '평가 전후 비교' })
-    expect(assessmentComparisonProvider.compare).not.toHaveBeenCalled()
-    fireEvent.click(button)
 
     await waitFor(() => expect(assessmentComparisonProvider.compare).toHaveBeenCalledWith('ses_demo', { baselineAssessmentId: 'asm_demo', supplementalAssessmentId: 'sam_demo', qualityCheckId: 'evq_demo' }, expect.any(AbortSignal)))
     expect(await screen.findByRole('heading', { name: '가능한 결과 범위가 줄었습니다' })).toBeInTheDocument()
-    expect(screen.getByText('DEMO_GRADE_B · DEMO_GRADE_C')).toBeInTheDocument()
-    expect(screen.getByText('GRADE_SET_PROPER_SUBSET')).toBeInTheDocument()
+    expect(screen.getByText('평가 구간 B · 평가 구간 C')).toBeInTheDocument()
+    expect(screen.getByText('평가 구간 B')).toBeInTheDocument()
     expect(screen.getByText(/승인 가능성 상승/)).toBeInTheDocument()
     expect(screen.getByText('Evidence 수집 판단 패널')).toBeInTheDocument()
   })
 
-  it('ignores a comparison from a previous supplemental assessment', async () => {
+  it('ignores a previous comparison and creates the current comparison', async () => {
     vi.mocked(assessmentComparisonProvider.get).mockResolvedValue(response({ ...comparison, supplementalAssessmentId: 'sam_previous' }))
     renderPanel()
 
-    expect(await screen.findByRole('button', { name: '평가 전후 비교' })).toBeInTheDocument()
-    expect(screen.queryByText('acp_demo')).not.toBeInTheDocument()
+    await waitFor(() => expect(assessmentComparisonProvider.compare).toHaveBeenCalled())
+    expect(await screen.findByRole('heading', { name: '가능한 결과 범위가 줄었습니다' })).toBeInTheDocument()
   })
 
   it('shows a non-comparable server result without inventing before and after values', async () => {
@@ -51,14 +47,13 @@ describe('AssessmentComparisonPanel', () => {
 
     expect(await screen.findByRole('heading', { name: '같은 기준으로 비교할 수 없습니다' })).toBeInTheDocument()
     expect(screen.getAllByText('비교 가능한 범위 없음')).toHaveLength(2)
-    expect(screen.getByText('CALIBRATION_VERSION_MISMATCH')).toBeInTheDocument()
+    expect(screen.getByText('두 평가의 기준 또는 결과 형태가 달라 직접 비교하지 않습니다.')).toBeInTheDocument()
   })
 
   it('rejects a newly created comparison returned for another assessment lineage', async () => {
     vi.mocked(assessmentComparisonProvider.compare).mockResolvedValue(response({ ...comparison, qualityCheckId: 'evq_other' }))
     renderPanel()
 
-    fireEvent.click(await screen.findByRole('button', { name: '평가 전후 비교' }))
     expect(await screen.findByRole('alert')).toHaveTextContent('현재 평가 이력과 일치하는 비교 결과를 확인할 수 없습니다.')
   })
 })

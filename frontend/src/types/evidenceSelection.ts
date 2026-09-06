@@ -13,6 +13,10 @@ export interface SelectedEvidenceCandidate {
   collectionMode: EvidenceCollectionMode | null
   availability: EvidenceAvailability
   rationaleCodes: string[]
+  matchedInformationGapCodes?: string[]
+  informationContentCodes?: string[]
+  novelInformationCodes?: string[]
+  overlappingInformationCodes?: string[]
   consentScope: EvidenceConsentScope | null
   demoOnly: true
 }
@@ -32,6 +36,10 @@ export interface EvidenceSelectionState {
   calibrationVersion: string
   boundaryPolicyVersion: string
   selectionPolicyVersion: string
+  sourceCreditAssessmentId?: string | null
+  informationGapCodes?: string[]
+  baselineFeatureSnapshotId?: string | null
+  baselineInformationCoverageCodes?: string[]
   demoOnly: true
 }
 

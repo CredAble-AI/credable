@@ -61,8 +61,6 @@ describe('EvidenceSelectionPage', () => {
 
     expect(await screen.findByRole('heading', { name: '최근 매출·입금 요약' })).toBeInTheDocument()
     expect(screen.getByText('동의 확인 필요')).toBeInTheDocument()
-    expect(screen.getByText('2건')).toBeInTheDocument()
-    expect(screen.getByText('DEMO_MINIMUM_SINGLE_REQUEST')).toBeInTheDocument()
     expect(screen.getByText('불필요한 추가 요청을 막기 위해 한 건만 선택했습니다.')).toBeInTheDocument()
     expect(screen.queryByText(/최적 Evidence|utility/i)).not.toBeInTheDocument()
     expect(evidenceSelectionProvider.selectNext).toHaveBeenCalledWith('ses_demo', expect.any(AbortSignal))
@@ -83,8 +81,27 @@ describe('EvidenceSelectionPage', () => {
 
     renderPage('/evidence?selectNext=1')
 
-    expect(await screen.findByText('evs_second')).toBeInTheDocument()
-    expect(screen.getByText('2')).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { name: '최근 매출·입금 요약' })).toBeInTheDocument()
+    expect(screen.getByText('현재 결과 범위를 더 명확히 하는 데 가장 필요한 자료입니다.')).toBeInTheDocument()
     expect(evidenceSelectionProvider.selectNext).toHaveBeenCalledWith('ses_demo', expect.any(AbortSignal))
+  })
+
+  it('links to the underwriter queue when automatic evidence selection stops for review', async () => {
+    const humanReview: EvidenceSelectionResponse = {
+      ...selected,
+      selection: selected.selection && {
+        ...selected.selection,
+        selectedEvidence: null,
+        status: 'HUMAN_REVIEW',
+        underwriterRequired: true,
+        stopReason: 'NO_USEFUL_EVIDENCE',
+      },
+    }
+    vi.mocked(evidenceSelectionProvider.get).mockResolvedValue(humanReview)
+
+    renderPage()
+
+    expect(await screen.findByRole('heading', { name: '담당자 확인이 필요합니다' })).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: '심사역 검토 화면 보기' })).toHaveAttribute('href', '/admin/reviews')
   })
 })

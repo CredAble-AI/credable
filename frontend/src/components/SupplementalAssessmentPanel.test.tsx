@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { render, screen, waitFor } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { supplementalAssessmentProvider } from '../hooks/useSupplementalAssessmentState'
 import type { SupplementalAssessmentResponse, SupplementalAssessmentState } from '../types/supplementalAssessment'
@@ -6,7 +6,6 @@ import SupplementalAssessmentPanel from './SupplementalAssessmentPanel'
 
 vi.mock('../hooks/useSupplementalAssessmentState', () => ({ supplementalAssessmentProvider: { get: vi.fn(), run: vi.fn() } }))
 vi.mock('./AssessmentComparisonPanel', () => ({ default: () => <div>평가 전후 비교 패널</div> }))
-vi.mock('./AssessmentReviewPanel', () => ({ default: () => <div>심사역 재확인 패널</div> }))
 
 const completed: SupplementalAssessmentState = {
   supplementalAssessmentId: 'sam_demo', baselineAssessmentId: 'asm_demo', qualityCheckId: 'evq_demo', submissionId: 'sub_demo', status: 'COMPLETED',
@@ -22,28 +21,24 @@ describe('SupplementalAssessmentPanel', () => {
     vi.mocked(supplementalAssessmentProvider.run).mockReset().mockResolvedValue(response(completed))
   })
 
-  it('does not run automatically and shows the server result after confirmation', async () => {
+  it('automatically runs when the current submission has no result', async () => {
     renderPanel()
-
-    const button = await screen.findByRole('button', { name: '보완평가 실행' })
-    expect(supplementalAssessmentProvider.run).not.toHaveBeenCalled()
-    fireEvent.click(button)
 
     await waitFor(() => expect(supplementalAssessmentProvider.run).toHaveBeenCalledWith('ses_demo', 'sub_demo', expect.any(AbortSignal)))
     expect(await screen.findByRole('heading', { name: '보완평가를 완료했습니다' })).toBeInTheDocument()
-    expect(screen.getByText('DEMO_GRADE_B')).toBeInTheDocument()
-    expect(screen.getByText('1건')).toBeInTheDocument()
-    expect(screen.getByText('demo-supplemental-v1')).toBeInTheDocument()
+    expect(screen.getByText('평가 구간 B')).toBeInTheDocument()
+    expect(screen.queryByText('모델 추정값')).not.toBeInTheDocument()
+    expect(screen.getByText('품질을 확인한 자료를 반영한 결과입니다. 기존 평가와 나란히 비교할 수 있습니다.')).toBeInTheDocument()
     expect(screen.getByText('평가 전후 비교 패널')).toBeInTheDocument()
-    expect(screen.getByText('심사역 재확인 패널')).toBeInTheDocument()
+    expect(screen.queryByText('심사역 재확인 패널')).not.toBeInTheDocument()
   })
 
-  it('ignores a previous iteration result and offers the current assessment run', async () => {
+  it('ignores a previous iteration result and automatically runs the current assessment', async () => {
     vi.mocked(supplementalAssessmentProvider.get).mockResolvedValue(response({ ...completed, submissionId: 'sub_previous', qualityCheckId: 'evq_previous' }))
     renderPanel()
 
-    expect(await screen.findByRole('button', { name: '보완평가 실행' })).toBeInTheDocument()
-    expect(screen.queryByText('sam_demo')).not.toBeInTheDocument()
+    await waitFor(() => expect(supplementalAssessmentProvider.run).toHaveBeenCalledWith('ses_demo', 'sub_demo', expect.any(AbortSignal)))
+    expect(await screen.findByRole('heading', { name: '보완평가를 완료했습니다' })).toBeInTheDocument()
   })
 
   it('shows an incomplete server status without inventing uncertainty', async () => {
@@ -51,7 +46,7 @@ describe('SupplementalAssessmentPanel', () => {
     renderPanel()
 
     expect(await screen.findByText('현재 보완평가를 완료하지 못했습니다.')).toBeInTheDocument()
-    expect(screen.getByText('INSUFFICIENT_DATA')).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: '보완평가 결과를 확인해주세요' })).toBeInTheDocument()
     expect(screen.queryByText('현재 확인 가능한 평가 범위')).not.toBeInTheDocument()
   })
 

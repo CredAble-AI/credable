@@ -30,7 +30,9 @@ describe('EvidenceConsentPanel', () => {
     renderPanel(onConsentChanged)
 
     expect(await screen.findByText('기존 평가의 불확실성을 확인하기 위한 보완평가에 사용')).toBeInTheDocument()
-    expect(screen.getByText('MONTHLY_SALES · MONTHLY_DEPOSITS')).toBeInTheDocument()
+    expect(screen.getByText('월별 매출')).toBeInTheDocument()
+    expect(screen.getByText('월별 입금')).toBeInTheDocument()
+    expect(screen.queryByText('MONTHLY_SALES · MONTHLY_DEPOSITS')).not.toBeInTheDocument()
     expect(screen.getByText('2026-03-01 ~ 2026-08-31')).toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: '이 범위에 동의' }))
 
@@ -49,6 +51,23 @@ describe('EvidenceConsentPanel', () => {
     await waitFor(() => expect(evidenceConsentProvider.withdraw).toHaveBeenCalledWith('ses_demo', 'evs_demo', expect.any(AbortSignal)))
     expect(await screen.findByText('동의 철회됨')).toBeInTheDocument()
     expect(onConsentChanged).toHaveBeenCalledOnce()
+  })
+
+  it('shows connected settlement fields in customer-facing Korean', async () => {
+    vi.mocked(evidenceConsentProvider.get).mockResolvedValue({
+      ...response('PENDING'),
+      consent: {
+        ...consent('PENDING'),
+        dataCategories: ['SETTLEMENT_PROVIDER_IDENTITY', 'MONTHLY_SETTLEMENTS', 'SETTLEMENT_DEPOSITS'],
+      },
+    })
+
+    renderPanel()
+
+    expect(await screen.findByText('정산기관 식별 정보')).toBeInTheDocument()
+    expect(screen.getByText('월별 정산액')).toBeInTheDocument()
+    expect(screen.getByText('정산대금 입금 내역')).toBeInTheDocument()
+    expect(screen.queryByText('SETTLEMENT_PROVIDER_IDENTITY')).not.toBeInTheDocument()
   })
 
   it('rejects a response for a different Evidence context', async () => {

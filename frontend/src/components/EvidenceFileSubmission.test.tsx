@@ -6,7 +6,7 @@ import type { EvidenceSubmissionOption, EvidenceSubmissionResponse } from '../ty
 import EvidenceFileSubmission from './EvidenceFileSubmission'
 
 vi.mock('../hooks/useEvidenceSubmissionState', () => ({
-  evidenceSubmissionProvider: { getOption: vi.fn(), getLatest: vi.fn(), upload: vi.fn() },
+  evidenceSubmissionProvider: { getOption: vi.fn(), getLatest: vi.fn(), upload: vi.fn(), submitConnected: vi.fn() },
 }))
 vi.mock('./EvidenceConsentPanel', () => ({ default: () => <div>선택 증빙 이용 동의</div> }))
 vi.mock('./EvidenceQualityPanel', () => ({ default: () => <div>Evidence 품질검증</div> }))
@@ -23,6 +23,18 @@ const submitted: EvidenceSubmissionResponse = {
   submission: { submissionId: 'sub_demo', selectionId: 'evs_demo', evidenceType: 'RECENT_REVENUE', sourceType: 'CUSTOMER_SUBMITTED', submissionMode: 'DEMO_FILE_UPLOAD', status: 'RECEIVED', submittedAt: '2026-09-06T01:00:00+09:00', observedAt: '2026-09-01T01:00:00+09:00', submissionSnapshotHash: 'a'.repeat(64), dataVersion: 'demo-v1', uploadedFile: { demoFileId: 'file_demo', fileName: '최근_매출_입금_요약서_DEMO.pdf', contentType: 'application/pdf', sizeBytes: 4096, sha256: 'b'.repeat(64) }, evidenceConsentId: 'evc_demo', consentScopeVersion: 'demo-scope-v1', demoOnly: true },
 }
 
+const connectedOption = (): EvidenceSubmissionOption => ({
+  sessionId: 'ses_demo', selectionId: 'evs_demo', evidenceType: 'RECENT_REVENUE', collectionMode: 'DEMO_CONNECTION', demoOnly: true,
+  submissionRequirement: { status: 'READY', reasonCode: null, consentSourceType: 'EXTERNAL_CONNECTED' },
+  demoFile: null,
+  uploadPolicy: null,
+})
+
+const connectedSubmission: EvidenceSubmissionResponse = {
+  sessionId: 'ses_demo',
+  submission: { ...submitted.submission!, sourceType: 'EXTERNAL_CONNECTED', submissionMode: 'DEMO_FIXTURE_REFERENCE', uploadedFile: null, evidenceConsentId: null, consentScopeVersion: null },
+}
+
 const renderComponent = () => render(<MemoryRouter><EvidenceFileSubmission sessionId="ses_demo" selectionId="evs_demo" evidenceType="RECENT_REVENUE" /></MemoryRouter>)
 
 describe('EvidenceFileSubmission', () => {
@@ -30,12 +42,13 @@ describe('EvidenceFileSubmission', () => {
     vi.mocked(evidenceSubmissionProvider.getOption).mockReset().mockResolvedValue(option())
     vi.mocked(evidenceSubmissionProvider.getLatest).mockReset().mockResolvedValue({ sessionId: 'ses_demo', submission: null })
     vi.mocked(evidenceSubmissionProvider.upload).mockReset().mockResolvedValue(submitted)
+    vi.mocked(evidenceSubmissionProvider.submitConnected).mockReset().mockResolvedValue(connectedSubmission)
   })
 
   it('downloads the server file and uploads the selected PDF', async () => {
     renderComponent()
 
-    const download = await screen.findByRole('link', { name: '시연용 PDF 내려받기' })
+    const download = await screen.findByRole('link', { name: '최근 매출·입금 요약서 다운로드' })
     expect(download).toHaveAttribute('href', '/v1/sessions/ses_demo/evidence/selections/evs_demo/demo-file/download')
     expect(download).toHaveAttribute('download', '최근_매출_입금_요약서_DEMO.pdf')
 
@@ -58,11 +71,11 @@ describe('EvidenceFileSubmission', () => {
 
     renderComponent()
 
-    expect(await screen.findByText('품질 통과 시나리오')).toBeInTheDocument()
+    expect(await screen.findByRole('link', { name: '최근 매출·입금 요약서 다운로드' })).toHaveAttribute('href', '/v1/sessions/ses_demo/evidence/selections/evs_demo/demo-file/download')
+    expect(screen.getByText('다양한 검증 분기를 직접 확인해보세요')).toBeInTheDocument()
     expect(screen.getByText('자동평가 제외 시나리오')).toBeInTheDocument()
     expect(screen.getByText('심사역 확인 시나리오')).toBeInTheDocument()
-    expect(screen.getByRole('link', { name: '정상 자료 내려받기' })).toHaveAttribute('href', '/v1/sessions/ses_demo/evidence/selections/evs_demo/demo-file/download')
-    expect(screen.getAllByRole('link', { name: '테스트 자료 내려받기' })).toHaveLength(2)
+    expect(screen.getAllByRole('link', { name: /다운로드/ })).toHaveLength(3)
   })
 
   it('keeps upload blocked until the server reports the required consent', async () => {
@@ -71,7 +84,7 @@ describe('EvidenceFileSubmission', () => {
 
     expect(await screen.findByText('선택 증빙 이용 동의')).toBeInTheDocument()
     expect(screen.getByText('동의 후 다운로드')).toHaveAttribute('aria-disabled', 'true')
-    expect(screen.queryByRole('link', { name: '시연용 PDF 내려받기' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('link', { name: /다운로드/ })).not.toBeInTheDocument()
     expect(screen.queryByLabelText('제출할 PDF 선택')).not.toBeInTheDocument()
     expect(evidenceSubmissionProvider.upload).not.toHaveBeenCalled()
   })
@@ -85,9 +98,23 @@ describe('EvidenceFileSubmission', () => {
     expect(screen.queryByLabelText('제출할 PDF 선택')).not.toBeInTheDocument()
   })
 
+  it('starts connected-data collection and exposes the resulting quality check', async () => {
+    vi.mocked(evidenceSubmissionProvider.getOption).mockResolvedValue(connectedOption())
+    renderComponent()
+
+    expect(await screen.findByText('연결된 원천 자료를 직접 확인하므로 PDF가 필요하지 않습니다')).toBeInTheDocument()
+    expect(screen.getByText(/같은 내용을 PDF로 다시 제출하지 않아도 됩니다/)).toBeInTheDocument()
+    fireEvent.click(await screen.findByRole('button', { name: '연결 자료 확인 시작' }))
+
+    await waitFor(() => expect(evidenceSubmissionProvider.submitConnected).toHaveBeenCalledWith('ses_demo', 'evs_demo', expect.any(AbortSignal)))
+    expect(await screen.findByText('연결 자료를 확인했습니다')).toBeInTheDocument()
+    expect(screen.getByText('Evidence 품질검증')).toBeInTheDocument()
+    expect(screen.queryByLabelText('제출할 PDF 선택')).not.toBeInTheDocument()
+  })
+
   it('rejects a non-PDF file before calling the backend', async () => {
     renderComponent()
-    await screen.findByRole('link', { name: '시연용 PDF 내려받기' })
+    await screen.findByRole('link', { name: '최근 매출·입금 요약서 다운로드' })
 
     fireEvent.change(screen.getByLabelText('제출할 PDF 선택'), { target: { files: [new File(['text'], 'evidence.txt', { type: 'text/plain' })] } })
 

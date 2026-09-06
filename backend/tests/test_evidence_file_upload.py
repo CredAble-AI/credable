@@ -454,6 +454,41 @@ def test_uploaded_binary_quality_comes_from_hash_and_manifest_validation(
     }
 
 
+def test_browser_renamed_valid_pdf_remains_eligible_for_reassessment(
+    client: TestClient,
+    data_source_service: DataSourceService,
+    assessment_service: AssessmentService,
+) -> None:
+    session_id = create_session(client)
+    selection = prepare_selection(client, session_id, data_source_service, assessment_service)
+    grant_evidence_consent(client, session_id, selection["selectionId"])
+    submission = upload(
+        client,
+        session_id,
+        selection["selectionId"],
+        demo_pdf_path().read_bytes(),
+        file_name="최근_매출_입금_요약서_DEMO (3).pdf",
+    ).json()["submission"]
+
+    response = client.post(
+        f"/v1/sessions/{session_id}/evidence/submissions/{submission['submissionId']}/quality"
+    )
+
+    assert response.status_code == 200
+    quality = response.json()["quality"]
+    assert quality["status"] == "ACCEPTED"
+    assert quality["eligibleForReassessment"] is True
+    assert quality["suspicionCodes"] == []
+    manipulation = next(
+        item for item in quality["checks"] if item["dimension"] == "MANIPULATION_RISK"
+    )
+    assert manipulation == {
+        "dimension": "MANIPULATION_RISK",
+        "status": "PASSED",
+        "rationaleCode": "DEMO_FILE_METADATA_AND_HASH_UNCHANGED",
+    }
+
+
 def test_changed_pdf_routes_to_underwriter_without_storing_binary_or_reassessment(
     client: TestClient,
     data_source_service: DataSourceService,
@@ -496,6 +531,9 @@ def test_changed_pdf_routes_to_underwriter_without_storing_binary_or_reassessmen
     ]
     assert quality["nextAction"] == "UNDERWRITER_REVIEW"
     assert quality["underwriterRequired"] is True
+    assert quality_response.json()["underwriterReviewId"] == (
+        f"uwr_{quality['qualityCheckId'].removeprefix('evq_')}"
+    )
     failed_dimensions = {
         item["dimension"] for item in quality["checks"] if item["status"] == "FAILED"
     }

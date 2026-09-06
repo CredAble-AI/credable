@@ -20,14 +20,14 @@ describe('administrator journey integration', () => {
     fireEvent.click(within(pendingReviewCard).getByRole('link', { name: '상세 확인' }))
 
     expect(await screen.findByText('접수 대기 상태입니다.')).toBeInTheDocument()
-    fireEvent.click(screen.getByRole('button', { name: '검토 접수' }))
-    const resultSelect = await screen.findByLabelText('처리 결과')
+    fireEvent.click(screen.getByRole('button', { name: '검토 시작' }))
+    const resultSelect = await screen.findByLabelText('최종 처리 결과')
     fireEvent.change(resultSelect, { target: { value: 'ASSESSMENT_CONFIRMED' } })
-    fireEvent.click(screen.getByRole('button', { name: '선택한 결과로 검토 완료' }))
+    fireEvent.click(screen.getByRole('button', { name: '선택한 결과로 확정' }))
 
-    expect(await screen.findByText(/이 검토 요청은/)).toHaveTextContent('평가 확인')
-    expect(screen.queryByRole('button', { name: '선택한 결과로 검토 완료' })).not.toBeInTheDocument()
-    fireEvent.click(screen.getByRole('link', { name: '세션 처리 이력 보기' }))
+    expect(await screen.findByText(/이 건은/)).toHaveTextContent('평가 확인')
+    expect(screen.queryByRole('button', { name: '선택한 결과로 확정' })).not.toBeInTheDocument()
+    fireEvent.click(screen.getByRole('link', { name: '전체 처리 이력' }))
 
     expect(await screen.findByRole('heading', { level: 1, name: '세션 처리 이력' })).toBeInTheDocument()
     expect(await screen.findByRole('heading', { level: 2, name: '심사역 검토 시작' })).toBeInTheDocument()

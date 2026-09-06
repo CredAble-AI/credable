@@ -30,18 +30,22 @@ const createExplanation = (sessionId: string, parts: ReturnType<typeof currentPa
   }]
   const sections: ExplanationSection[] = [{
     messageCode: baseline.status === 'COMPLETED' ? 'BASELINE_RESULT_AVAILABLE' : 'BASELINE_RESULT_INCOMPLETE',
-    title: baseline.status === 'COMPLETED' ? '기준평가 결과가 확인됐습니다' : '기준평가가 완료되지 않았습니다',
-    text: baseline.status === 'COMPLETED' ? '서버에 저장된 기준평가 상태와 결과 범위를 기준으로 설명합니다.' : '서버가 제공한 상태와 사유 코드를 확인하며 결과를 임의로 보완하지 않습니다.',
+    title: baseline.status === 'COMPLETED' ? '현재 확인된 평가 범위' : '기준평가가 완료되지 않았습니다',
+    text: baseline.status === 'COMPLETED' ? '기존 CB·SCB와 은행 내부 평가 결과에서 확인된 범위를 기준으로 안내합니다. CredAble이 새로운 신용점수를 만든 결과가 아닙니다.' : '서버가 제공한 상태와 사유 코드를 확인하며 결과를 임의로 보완하지 않습니다.',
     sourceReferenceIds: [baseline.assessmentId],
   }]
+
+  if (baseline.uncertainty && baseline.uncertainty.gradeSet.length > 1) {
+    sections.push({ messageCode: 'BASELINE_UNCERTAINTY_PRESENT', title: '한 가지 결과로 확정되지 않은 이유', text: '현재 확인된 정보만으로는 복수의 평가 구간이 가능해 하나의 정책 경로로 확정할 수 없습니다.', sourceReferenceIds: [baseline.assessmentId] })
+  }
 
   if (boundary) {
     sources.push({ sourceType: 'POLICY_BOUNDARY', sourceId: boundary.boundaryCheckId, dataVersion: 'demo-v1', modelVersion: null, policyVersion: boundary.policyVersion })
     const copy = boundary.decision.status === 'STABLE'
-      ? ['POLICY_PATH_STABLE', '하나의 정책 경로가 확인됐습니다', '현재 평가 범위가 하나의 정책 경로에 속해 추가 증빙을 요청하지 않습니다.']
+      ? ['POLICY_PATH_STABLE', '추가 자료 없이 확인 완료', '현재 평가 범위가 하나의 정책 경로에 속하므로 개인정보를 더 수집하지 않고 결과와 근거를 안내합니다.']
       : boundary.decision.status === 'AMBIGUOUS'
-        ? ['POLICY_PATH_AMBIGUOUS', '정책 경계에 불확실성이 남아 있습니다', '현재 평가 범위가 둘 이상의 정책 경로에 걸쳐 최소 증빙 확인이 필요합니다.']
-        : ['POLICY_REVIEW_REQUIRED', '심사역 확인이 필요한 상태입니다', '정책 매핑만으로 경계를 확정할 수 없어 자동 판단하지 않고 심사역에게 이관합니다.']
+        ? ['POLICY_PATH_AMBIGUOUS', '다음으로 확인할 내용', '현재 경로를 구분하는 데 가장 영향이 큰 최소 증빙 한 건만 요청합니다. 검증을 통과한 정보만 보완평가에 반영합니다.']
+        : ['POLICY_REVIEW_REQUIRED', '자동 판단을 중단한 이유', '정책 제한 또는 확인이 필요한 상태이므로 증빙을 더 요구하지 않고 자동 판단을 중단해 심사역에게 이관합니다.']
     sections.push({ messageCode: copy[0], title: copy[1], text: copy[2], sourceReferenceIds: [boundary.boundaryCheckId] })
   }
 

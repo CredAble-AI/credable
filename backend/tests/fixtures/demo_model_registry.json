@@ -17,6 +17,21 @@
       "demoOnly": true
     },
     {
+      "modelVersion": "demo-corporate-assessment-v1",
+      "modelRole": "BASELINE_ASSESSMENT",
+      "featureSetVersion": "demo-neutral-feature-set-v2",
+      "validationStatus": "DEMO_ONLY",
+      "operationalState": "RUNNING",
+      "demoOnly": true
+    },
+    {
+      "modelVersion": "demo-corporate-supplemental-assessment-v1",
+      "modelRole": "SUPPLEMENTAL_ASSESSMENT",
+      "validationStatus": "DEMO_ONLY",
+      "operationalState": "RUNNING",
+      "demoOnly": true
+    },
+    {
       "modelVersion": "test-single-evidence-model-v1",
       "modelRole": "SUPPLEMENTAL_ASSESSMENT",
       "validationStatus": "DEMO_ONLY",

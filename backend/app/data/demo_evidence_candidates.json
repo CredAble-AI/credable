@@ -1,5 +1,5 @@
 {
-  "dataVersion": "demo-evidence-candidates-v3",
+  "dataVersion": "demo-evidence-candidates-v4",
   "selectionPolicyVersion": "demo-novel-evidence-selection-v3",
   "baselineInformationCoverageRules": [
     {
@@ -20,7 +20,8 @@
       "boundaryCodes": ["DEMO_BOUNDARY_1_2"],
       "applicableInformationGapCodes": [
         "DEMO_INFORMATION_GAP",
-        "DEMO_RECENT_PERFORMANCE_NOT_REFLECTED"
+        "DEMO_RECENT_PERFORMANCE_NOT_REFLECTED",
+        "DEMO_FINANCIAL_HISTORY_THIN"
       ],
       "informationContentCodes": [
         "RECENT_REVENUE_SERIES",
@@ -61,7 +62,8 @@
       "boundaryCodes": ["DEMO_BOUNDARY_1_2"],
       "applicableInformationGapCodes": [
         "DEMO_INFORMATION_GAP",
-        "DEMO_RECENT_PERFORMANCE_NOT_REFLECTED"
+        "DEMO_RECENT_PERFORMANCE_NOT_REFLECTED",
+        "DEMO_FINANCIAL_HISTORY_THIN"
       ],
       "informationContentCodes": [
         "RECENT_SETTLEMENT_SERIES",

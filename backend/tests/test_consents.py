@@ -1,3 +1,6 @@
+import json
+import sqlite3
+
 from fastapi.testclient import TestClient
 
 from app.repositories.consent_repository import SqliteConsentRepository
@@ -15,7 +18,7 @@ def create_session(client: TestClient) -> str:
     return response.json()["sessionId"]
 
 
-def test_list_consents_starts_pending_without_assuming_requirement(
+def test_list_consents_marks_baseline_sources_required_and_supplemental_sources_optional(
     client: TestClient,
 ) -> None:
     session_id = create_session(client)
@@ -25,7 +28,7 @@ def test_list_consents_starts_pending_without_assuming_requirement(
     assert response.status_code == 200
     body = response.json()
     assert body["sessionId"] == session_id
-    assert body["scopeVersion"] == "demo-consent-scopes-v1"
+    assert body["scopeVersion"] == "demo-consent-scopes-v2"
     assert body["demoOnly"] is True
     assert [item["sourceType"] for item in body["consents"]] == [
         "BANK_INTERNAL",
@@ -33,8 +36,14 @@ def test_list_consents_starts_pending_without_assuming_requirement(
         "CUSTOMER_SUBMITTED",
         "EXTERNAL_CONNECTED",
     ]
+    requirements = {item["sourceType"]: item["required"] for item in body["consents"]}
+    assert requirements == {
+        "BANK_INTERNAL": True,
+        "CREDIT_INFORMATION": True,
+        "CUSTOMER_SUBMITTED": False,
+        "EXTERNAL_CONNECTED": False,
+    }
     for consent in body["consents"]:
-        assert consent["required"] is None
         assert consent["status"] == "PENDING"
         assert consent["grantedAt"] is None
         assert consent["withdrawnAt"] is None
@@ -55,7 +64,7 @@ def test_grant_consent_persists_state_and_audit(
     granted = response.json()
     assert granted["sourceType"] == "BANK_INTERNAL"
     assert granted["status"] == "GRANTED"
-    assert granted["required"] is None
+    assert granted["required"] is True
     assert granted["grantedAt"].endswith("Z")
     assert granted["withdrawnAt"] is None
     assert granted["updatedAt"] == granted["grantedAt"]
@@ -120,6 +129,44 @@ def test_list_consents_combines_stored_and_pending_states(client: TestClient) ->
         "CUSTOMER_SUBMITTED": "GRANTED",
         "EXTERNAL_CONNECTED": "PENDING",
     }
+
+
+def test_list_consents_requires_fresh_consent_after_scope_version_changes(
+    client: TestClient,
+    consent_repository: SqliteConsentRepository,
+) -> None:
+    session_id = create_session(client)
+    client.post(f"/v1/sessions/{session_id}/consents/BANK_INTERNAL/grant")
+
+    with sqlite3.connect(consent_repository.database_path) as connection:
+        row = connection.execute(
+            """
+            SELECT state_json
+            FROM customer_consents
+            WHERE session_id = ? AND source_type = 'BANK_INTERNAL'
+            """,
+            (session_id,),
+        ).fetchone()
+        assert row is not None
+        state = json.loads(row[0])
+        state["scopeVersion"] = "demo-consent-scopes-v1"
+        connection.execute(
+            """
+            UPDATE customer_consents
+            SET state_json = ?
+            WHERE session_id = ? AND source_type = 'BANK_INTERNAL'
+            """,
+            (json.dumps(state), session_id),
+        )
+
+    response = client.get(f"/v1/sessions/{session_id}/consents")
+
+    bank_consent = next(
+        item for item in response.json()["consents"] if item["sourceType"] == "BANK_INTERNAL"
+    )
+    assert bank_consent["scopeVersion"] == "demo-consent-scopes-v2"
+    assert bank_consent["required"] is True
+    assert bank_consent["status"] == "PENDING"
 
 
 def test_withdrawal_requires_a_granted_consent(client: TestClient) -> None:

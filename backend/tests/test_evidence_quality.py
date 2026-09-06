@@ -73,7 +73,11 @@ def test_quality_is_empty_before_first_check(
     )
 
     assert response.status_code == 200
-    assert response.json() == {"sessionId": session_id, "quality": None}
+    assert response.json() == {
+        "sessionId": session_id,
+        "quality": None,
+        "underwriterReviewId": None,
+    }
 
 
 def test_quality_check_accepts_only_when_every_dimension_passes(
