@@ -247,10 +247,9 @@ def test_valid_demo_pdf_upload_preserves_only_verified_metadata(
         ("evidence.txt", "application/pdf", "official", 415, "EVIDENCE_FILE_TYPE_UNSUPPORTED"),
         ("evidence.pdf", "application/pdf", "invalid_magic", 422, "EVIDENCE_FILE_CONTENT_INVALID"),
         ("evidence.pdf", "application/pdf", "too_large", 413, "EVIDENCE_FILE_TOO_LARGE"),
-        ("evidence.pdf", "application/pdf", "different_pdf", 409, "DEMO_EVIDENCE_FILE_MISMATCH"),
     ],
 )
-def test_upload_rejects_invalid_file_or_unissued_pdf(
+def test_upload_rejects_invalid_file_structure(
     client: TestClient,
     data_source_service: DataSourceService,
     assessment_service: AssessmentService,
@@ -267,7 +266,6 @@ def test_upload_rejects_invalid_file_or_unissued_pdf(
         "official": demo_pdf_path().read_bytes(),
         "invalid_magic": b"not a pdf",
         "too_large": b"%PDF-" + b"x" * (5 * 1024 * 1024),
-        "different_pdf": b"%PDF-1.4\n%%EOF",
     }[content_kind]
 
     response = upload(
@@ -344,6 +342,77 @@ def test_uploaded_binary_quality_comes_from_hash_and_manifest_validation(
     }
     assert {item["status"] for item in quality["checks"]} == {"PASSED"}
     assert quality["eligibleForReassessment"] is True
+    assert quality["suspicionCodes"] == []
+    assert quality["nextAction"] == "RUN_REASSESSMENT"
+    assert quality["underwriterRequired"] is False
+
+
+def test_changed_pdf_routes_to_underwriter_without_storing_binary_or_reassessment(
+    client: TestClient,
+    data_source_service: DataSourceService,
+    assessment_service: AssessmentService,
+    evidence_submission_repository: SqliteEvidenceSubmissionRepository,
+    session_repository: SqliteCustomerSessionRepository,
+) -> None:
+    session_id = create_session(client)
+    selection = prepare_selection(client, session_id, data_source_service, assessment_service)
+    grant_evidence_consent(client, session_id, selection["selectionId"])
+    changed_content = b"%PDF-1.4\nchanged demo evidence\n%%EOF"
+
+    upload_response = upload(
+        client,
+        session_id,
+        selection["selectionId"],
+        changed_content,
+    )
+
+    assert upload_response.status_code == 200
+    submission = upload_response.json()["submission"]
+    assert submission["uploadedFile"]["sha256"] != (
+        "dcb17cca7569a46073f3b23e1e5eb0a0fbc0e7707995be056b557cb81bf6128d"
+    )
+    database_content = evidence_submission_repository.database_path.read_bytes()
+    assert changed_content not in database_content
+    assert b"changed demo evidence" not in database_content
+
+    quality_response = client.post(
+        f"/v1/sessions/{session_id}/evidence/submissions/{submission['submissionId']}/quality"
+    )
+
+    assert quality_response.status_code == 200
+    quality = quality_response.json()["quality"]
+    assert quality["status"] == "REVIEW_REQUIRED"
+    assert quality["eligibleForReassessment"] is False
+    assert quality["suspicionCodes"] == [
+        "DEMO_SERVER_FILE_HASH_NOT_VERIFIED",
+        "DEMO_FILE_METADATA_OR_HASH_CHANGED",
+    ]
+    assert quality["nextAction"] == "UNDERWRITER_REVIEW"
+    assert quality["underwriterRequired"] is True
+    failed_dimensions = {
+        item["dimension"] for item in quality["checks"] if item["status"] == "FAILED"
+    }
+    assert failed_dimensions == {"AUTHENTICITY", "MANIPULATION_RISK"}
+
+    reassessment = client.post(
+        f"/v1/sessions/{session_id}/assessment/supplemental/run",
+        json={"submissionId": submission["submissionId"]},
+    )
+    assert reassessment.status_code == 409
+    assert reassessment.json()["error"]["code"] == "EVIDENCE_QUALITY_NOT_ACCEPTED"
+    event = session_repository.list_audit_events(session_id)[-1]
+    assert event.output_summary["qualityStatus"] == "REVIEW_REQUIRED"
+    assert event.output_summary["suspicionCount"] == 2
+    assert event.output_summary["nextAction"] == "UNDERWRITER_REVIEW"
+    assert event.output_summary["underwriterRequired"] is True
+    burden = client.get(
+        f"/v1/admin/sessions/{session_id}/evidence-burden",
+        headers={"X-Admin-API-Key": "test-admin-api-key"},
+    )
+    assert burden.status_code == 200
+    assert burden.json()["acceptedCount"] == 0
+    assert burden.json()["rejectedCount"] == 0
+    assert burden.json()["reviewRequiredCount"] == 1
 
 
 def test_withdrawn_evidence_consent_blocks_new_quality_check(
@@ -475,6 +544,9 @@ def test_inconsistent_server_manifest_rejects_uploaded_binary_quality(
     quality = response.json()["quality"]
     assert quality["status"] == "REJECTED"
     assert quality["eligibleForReassessment"] is False
+    assert quality["suspicionCodes"] == []
+    assert quality["nextAction"] == "EXCLUDE_EVIDENCE"
+    assert quality["underwriterRequired"] is False
     consistency = next(item for item in quality["checks"] if item["dimension"] == "CONSISTENCY")
     assert consistency == {
         "dimension": "CONSISTENCY",
@@ -516,6 +588,8 @@ def test_changed_submission_snapshot_is_not_eligible_for_reassessment(
 
     assert response.status_code == 200
     quality = response.json()["quality"]
-    assert quality["status"] == "REJECTED"
+    assert quality["status"] == "REVIEW_REQUIRED"
     assert quality["eligibleForReassessment"] is False
+    assert quality["nextAction"] == "UNDERWRITER_REVIEW"
+    assert quality["underwriterRequired"] is True
     assert "DEMO_SERVER_DOCUMENT_PROVENANCE_INVALID" in quality["rejectionCodes"]

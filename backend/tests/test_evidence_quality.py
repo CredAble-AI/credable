@@ -9,6 +9,7 @@ from app.repositories.evidence_quality_repository import SqliteEvidenceQualityRe
 from app.repositories.session_repository import SqliteCustomerSessionRepository
 from app.schemas.audit import AuditStage
 from app.schemas.consent import ConsentSourceType
+from app.schemas.evidence_quality import EvidenceQualityState
 from app.services.assessment_service import AssessmentService
 from app.services.data_source_service import DataSourceService
 from app.services.evidence_quality_service import (
@@ -103,7 +104,10 @@ def test_quality_check_accepts_only_when_every_dimension_passes(
     assert len(quality["checks"]) == 6
     assert {item["status"] for item in quality["checks"]} == {"PASSED"}
     assert quality["rejectionCodes"] == []
+    assert quality["suspicionCodes"] == []
     assert quality["eligibleForReassessment"] is True
+    assert quality["nextAction"] == "RUN_REASSESSMENT"
+    assert quality["underwriterRequired"] is False
     assert quality["checkedAt"].endswith("Z")
     assert quality["submissionSnapshotHash"] == submission["submissionSnapshotHash"]
     assert quality["dataVersion"] == submission["dataVersion"]
@@ -120,7 +124,10 @@ def test_quality_check_accepts_only_when_every_dimension_passes(
     assert event.output_summary == {
         "qualityStatus": "ACCEPTED",
         "failedCheckCount": 0,
+        "suspicionCount": 0,
         "eligibleForReassessment": True,
+        "nextAction": "RUN_REASSESSMENT",
+        "underwriterRequired": False,
         "evidenceType": "CUSTOMER_SUBMITTED_RECENT_REVENUE_SUMMARY",
         "demoOnly": True,
     }
@@ -150,6 +157,33 @@ def test_quality_check_is_idempotent_for_same_submission(
     assert second == first
     assert stored == first
     assert evidence_quality_repository.count_checks(session_id) == 1
+
+
+def test_quality_state_reads_legacy_json_without_routing_fields(
+    client: TestClient,
+    data_source_service: DataSourceService,
+    assessment_service: AssessmentService,
+) -> None:
+    session_id = create_session(client)
+    submission = prepare_submission(
+        client,
+        session_id,
+        data_source_service,
+        assessment_service,
+    )
+    response = client.post(
+        f"/v1/sessions/{session_id}/evidence/submissions/{submission['submissionId']}/quality"
+    )
+    legacy_state = response.json()["quality"]
+    legacy_state.pop("suspicionCodes")
+    legacy_state.pop("nextAction")
+    legacy_state.pop("underwriterRequired")
+
+    restored = EvidenceQualityState.model_validate(legacy_state)
+
+    assert restored.suspicion_codes == []
+    assert restored.next_action == "RUN_REASSESSMENT"
+    assert restored.underwriter_required is False
 
 
 def test_quality_check_rejects_failed_or_unverified_dimension(
@@ -208,6 +242,9 @@ def test_quality_check_rejects_failed_or_unverified_dimension(
     quality = response.json()["quality"]
     assert quality["status"] == "REJECTED"
     assert quality["eligibleForReassessment"] is False
+    assert quality["suspicionCodes"] == []
+    assert quality["nextAction"] == "EXCLUDE_EVIDENCE"
+    assert quality["underwriterRequired"] is False
     assert quality["rejectionCodes"] == [
         "DEMO_FRESHNESS_POLICY_FAILED",
         "DEMO_AUTHENTICITY_NOT_VERIFIED",

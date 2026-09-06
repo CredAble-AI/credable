@@ -53,6 +53,7 @@ def test_admin_evidence_burden_returns_policy_neutral_empty_metrics(
         "pendingSubmissionCount": 0,
         "acceptedCount": 0,
         "rejectedCount": 0,
+        "reviewRequiredCount": 0,
         "unverifiedSubmissionCount": 0,
         "failedQualityDimensionCount": 0,
         "supplementalAssessmentCount": 0,
@@ -137,6 +138,7 @@ def test_admin_evidence_burden_aggregates_verified_session_history(
     assert burden["pendingSubmissionCount"] == 0
     assert burden["acceptedCount"] == 1
     assert burden["rejectedCount"] == 0
+    assert burden["reviewRequiredCount"] == 0
     assert burden["unverifiedSubmissionCount"] == 0
     assert burden["failedQualityDimensionCount"] == 0
     assert burden["supplementalAssessmentCount"] == 1
@@ -155,6 +157,7 @@ def test_admin_evidence_burden_aggregates_verified_session_history(
             "submissionCount": 1,
             "acceptedCount": 1,
             "rejectedCount": 0,
+            "reviewRequiredCount": 0,
             "firstRequestedAt": selection["selectedAt"],
             "lastRequestedAt": selection["selectedAt"],
         }
