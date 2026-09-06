@@ -6,24 +6,28 @@
 .session-summary { padding: 20px; border: 1px solid rgba(49,130,246,.13); border-radius: var(--radius-md); background: rgba(255,255,255,.78); }
 .session-summary span, .session-summary small { display: block; color: var(--color-text-muted); font-size: 11px; }.session-summary span { color: var(--color-primary); font-weight: 800; }.session-summary strong { display: block; margin-top: 14px; }.session-summary small { margin-top: 5px; }
 .consent-group { display: grid; gap: 12px; margin: 42px 0 0; padding: 0; border: 0; }
-.consent-group legend { width: 100%; margin-bottom: 14px; }.consent-group legend span { font-size: 22px; font-weight: 800; }.consent-group legend strong { margin-left: 12px; color: var(--color-text-muted); font-size: 13px; font-weight: 500; }
-.consent-item { position: relative; display: grid; grid-template-columns: 28px 1fr; gap: 16px; padding: 23px 24px; border: 1px solid var(--color-border); border-radius: var(--radius-sm); background: var(--color-surface); cursor: pointer; transition: border-color .2s, box-shadow .2s; }
-.consent-item:hover { border-color: rgba(49,130,246,.45); }
-.consent-item:has(input:checked) { border-color: rgba(49,130,246,.55); box-shadow: inset 0 0 0 1px rgba(49,130,246,.08); }
+.consent-group legend { width: 100%; margin-bottom: 14px; }.consent-group legend span { font-size: 22px; font-weight: 800; }.consent-group legend strong { margin-left: 12px; color: var(--color-text-muted); font-size: 13px; font-weight: 650; }
+.consent-item { position: relative; display: grid; grid-template-columns: 28px 1fr; gap: 16px; padding: 23px 24px; border: 1px solid var(--color-border); border-radius: var(--radius-sm); background: var(--color-surface); box-shadow: 0 4px 14px rgba(35,68,105,.04); cursor: pointer; transition: border-color .2s, background .2s, box-shadow .2s; }
+.consent-item:hover { border-color: rgba(49,130,246,.55); box-shadow: 0 8px 22px rgba(35,68,105,.08); }
+.consent-item:has(input:checked) { border-color: rgba(49,130,246,.78); background: linear-gradient(135deg, #fff, #eef6ff); box-shadow: 0 10px 28px rgba(49,130,246,.1), inset 0 0 0 1px rgba(49,130,246,.08); }
 .consent-item:has(input:focus-visible) { outline: 3px solid rgba(49,130,246,.4); outline-offset: 3px; }
 .consent-item:has(input:disabled) { cursor: wait; opacity: .72; }
 .consent-item input { position: absolute; width: 1px; height: 1px; opacity: 0; }
 .consent-item__box { display: grid; width: 26px; height: 26px; place-items: center; border: 1px solid #c5ccd3; border-radius: 8px; color: transparent; font-weight: 900; }
 .consent-item input:checked + .consent-item__box { color: #fff; border-color: var(--color-primary); background: var(--color-primary); }
 .consent-item__content strong { display: block; font-size: 17px; }
-.consent-item__content small { margin-top: 10px; color: var(--color-text-secondary); line-height: 1.5; }
+.consent-item__content small { margin-top: 10px; color: var(--color-text-secondary); font-size: 13px; line-height: 1.5; }
 .consent-item__description { display: block; }
-.consent-item__status { display: grid; grid-template-columns: 106px 1fr; gap: 10px; }
-.consent-item__content b { color: var(--color-text-muted); font-weight: 600; }
-.consent-item__content em { display: inline-flex; margin-top: 13px; padding: 5px 9px; border-radius: var(--radius-pill); color: var(--color-primary-dark); background: var(--color-sky-light); font-size: 11px; font-style: normal; font-weight: 700; }
+.consent-item__status { display: flex; align-items: center; gap: 12px; }
+.consent-item__status b { min-width: 94px; color: var(--color-text-secondary); font-weight: 700; }
+.consent-item__status span { display: inline-flex; min-height: 28px; align-items: center; padding: 4px 10px; border-radius: var(--radius-pill); color: #3d4d5e; background: #edf1f5; font-size: 12px; font-weight: 800; }
+.consent-item__status--granted span { color: #0b6842; background: #e3f6ec; }
+.consent-item__status--withdrawn span { color: #775000; background: #fff1c7; }
+.consent-item__status--updating span { color: #174f9a; background: #e3efff; }
+.consent-item__content em { display: inline-flex; margin-top: 13px; padding: 6px 10px; border-radius: var(--radius-pill); color: var(--color-primary-dark); background: var(--color-sky-light); font-size: 12px; font-style: normal; font-weight: 750; }
 .consent-item__content .consent-item__requirement--required { color: #825600; background: #fff1c2; }
 .consent-state { margin-top: 42px; padding: 24px; border: 1px solid var(--color-border); border-radius: var(--radius-sm); background: var(--color-surface); color: var(--color-text-secondary); text-align: center; }
 .consent-state--error p { color: #9c5960; }.consent-state--error small { display: block; margin-top: 6px; color: var(--color-text-muted); }.consent-state--error .button { margin-top: 18px; }
 .consent-actions { margin-top: 42px; padding-top: 28px; border-top: 1px solid var(--color-border); }.consent-actions > p { color: var(--color-text-secondary); font-size: 13px; text-align: right; }.consent-actions > div { display: flex; justify-content: flex-end; gap: 12px; margin-top: 12px; }.consent-actions button { border: 0; cursor: pointer; }
 .consent-actions > .consent-actions__message--error { color: #9c5960; }
-@media (max-width: 720px) { .consent-page { min-height: calc(100svh - 72px); padding: 48px 0 72px; }.consent-heading { grid-template-columns: 1fr; gap: 24px; }.session-summary { max-width: none; }.consent-item { padding: 20px 18px; }.consent-item__status { grid-template-columns: 1fr; gap: 2px; }.consent-actions > p { text-align: left; }.consent-actions > div { flex-direction: column-reverse; }.consent-actions .button { width: 100%; } }
+@media (max-width: 720px) { .consent-page { min-height: calc(100svh - 72px); padding: 48px 0 72px; }.consent-heading { grid-template-columns: 1fr; gap: 24px; }.session-summary { max-width: none; }.consent-item { padding: 20px 18px; }.consent-item__status { flex-wrap: wrap; gap: 8px; }.consent-item__status b { min-width: 100%; }.consent-actions > p { text-align: left; }.consent-actions > div { flex-direction: column-reverse; }.consent-actions .button { width: 100%; } }

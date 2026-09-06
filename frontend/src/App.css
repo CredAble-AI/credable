@@ -15,6 +15,30 @@
 .header nav a:hover { color: #fff; }
 .header .button { margin-left: 8px; }
 
+.customer-flow:has(.consent-page, .connection-page, .assessment-page, .products-page, .product-detail-page, .handoff-page) .header {
+  color: var(--color-navy);
+  border-bottom: 1px solid rgba(53, 81, 110, .14);
+  background: rgba(239, 248, 255, .9);
+  backdrop-filter: blur(12px);
+}
+.customer-flow:has(.consent-page, .connection-page, .assessment-page, .products-page, .product-detail-page, .handoff-page) .wordmark strong { color: var(--color-primary-dark); }
+.customer-flow:has(.consent-page, .connection-page, .assessment-page, .products-page, .product-detail-page, .handoff-page) .environment-indicator {
+  color: #33475b;
+  border-color: #bac8d6;
+  background: rgba(255, 255, 255, .92);
+  box-shadow: 0 6px 18px rgba(32, 64, 96, .08);
+}
+.customer-flow:has(.consent-page, .connection-page, .assessment-page, .products-page, .product-detail-page, .handoff-page) .environment-indicator i {
+  background: #b86100;
+  box-shadow: 0 0 0 4px rgba(184, 97, 0, .12);
+}
+.customer-flow:has(.consent-page, .connection-page, .assessment-page, .products-page, .product-detail-page, .handoff-page) .environment-indicator--live i {
+  background: #176bd6;
+  box-shadow: 0 0 0 4px rgba(23, 107, 214, .12);
+}
+.customer-flow:has(.consent-page, .connection-page, .assessment-page, .products-page, .product-detail-page, .handoff-page) .header nav { color: #40576d; }
+.customer-flow:has(.consent-page, .connection-page, .assessment-page, .products-page, .product-detail-page, .handoff-page) .header nav a:hover { color: var(--color-navy); }
+
 .hero {
   position: relative;
   min-height: 100svh;

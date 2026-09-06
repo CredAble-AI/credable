@@ -85,6 +85,7 @@ describe('ConsentPage', () => {
     expect(screen.getByText('도입 은행이 보유한 고객·계좌·대출 관련 데이터')).toBeInTheDocument()
     expect(screen.getByText('동의 범위 demo-consent-scopes-v1')).toBeInTheDocument()
     expect(screen.getAllByText('필수 여부 미확정 · Demo 데이터')).toHaveLength(2)
+    expect(screen.getAllByText('미동의')[0]?.closest('.consent-item__status')).toHaveClass('consent-item__status--pending')
     expect(screen.getByText(/서버에서 필수로 지정한 항목이 없습니다/)).toBeInTheDocument()
     expect(screen.getByRole('button', { name: '데이터 연결로 이동' })).toBeEnabled()
   })
@@ -102,6 +103,7 @@ describe('ConsentPage', () => {
 
     await waitFor(() => expect(consentProvider.grant).toHaveBeenCalledWith('ses_demo', 'BANK_INTERNAL', expect.any(AbortSignal)))
     await waitFor(() => expect(checkbox).toBeChecked())
+    expect(screen.getByText('동의함').closest('.consent-item__status')).toHaveClass('consent-item__status--granted')
     expect(screen.getByText('은행 내부 데이터 동의를 반영했습니다.')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: '데이터 연결로 이동' })).toBeEnabled()
   })
