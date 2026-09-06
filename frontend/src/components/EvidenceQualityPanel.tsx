@@ -31,7 +31,7 @@ const dimensionDescriptions: Record<EvidenceQualityState['checks'][number]['dime
   AUTHENTICITY: '업로드한 파일의 해시와 발급 시점의 검증값을 비교했습니다.',
   COMPLETENESS: '사업자 식별·월별 내역·기간 합계 등 필수 항목의 누락 여부를 확인했습니다.',
   CONSISTENCY: '월별 내역과 기간 합계가 서로 맞는지 확인했습니다.',
-  MANIPULATION_RISK: '파일명·형식·크기와 해시 변경 등 위·변조 의심 징후를 확인했습니다.',
+  MANIPULATION_RISK: '파일 형식·크기와 내용 해시 변경 등 위·변조 의심 징후를 확인했습니다.',
 }
 const formatDate = (value: string) => new Intl.DateTimeFormat('ko-KR', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(value))
 

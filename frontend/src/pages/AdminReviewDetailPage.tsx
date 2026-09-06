@@ -51,7 +51,7 @@ const rationaleLabels: Record<string, string> = {
   DEMO_SERVER_FILE_HASH_MATCHED: '서버 기준 해시와 업로드 파일이 일치합니다.', DEMO_SERVER_FILE_HASH_NOT_VERIFIED: '서버 기준 해시와의 일치를 확인하지 못했습니다.',
   DEMO_MANIFEST_REQUIRED_FIELDS_PRESENT: '평가에 필요한 필수 항목이 모두 있습니다.', DEMO_MANIFEST_REQUIRED_FIELDS_MISSING: '평가에 필요한 필수 항목이 누락됐습니다.',
   DEMO_MANIFEST_TOTALS_CONSISTENT: '월별 내역과 합계가 일치합니다.', DEMO_MANIFEST_TOTALS_INCONSISTENT: '월별 내역과 합계가 일치하지 않습니다.',
-  DEMO_FILE_METADATA_AND_HASH_UNCHANGED: '파일 메타데이터와 해시에서 변경 징후가 없습니다.', DEMO_FILE_METADATA_OR_HASH_CHANGED: '파일 메타데이터 또는 해시에서 변경 징후가 발견됐습니다.',
+  DEMO_FILE_METADATA_AND_HASH_UNCHANGED: '파일 형식·크기와 내용 해시에서 변경 징후가 없습니다.', DEMO_FILE_METADATA_OR_HASH_CHANGED: '파일 형식·크기 또는 내용 해시에서 변경 징후가 발견됐습니다.',
   EVIDENCE_CONSENT_NOT_ACTIVE: '해당 자료의 이용 동의가 현재 유효하지 않습니다.',
 }
 const evidenceTypeLabels: Record<string, string> = { CUSTOMER_SUBMITTED_RECENT_REVENUE_SUMMARY: '최근 매출·입금 요약', EXTERNAL_CONNECTED_SETTLEMENT_SUMMARY: '외부 정산 내역 요약', RECENT_REVENUE_SUMMARY: '최근 매출·입금 요약' }

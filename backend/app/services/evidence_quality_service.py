@@ -305,11 +305,12 @@ class EvidenceQualityService:
             and manifest.generated_on <= definition.quality_reference_at.date()
         )
         consistency_valid = self._manifest_totals_are_consistent(definition)
+        # 브라우저와 운영체제가 중복 다운로드 접미사나 유니코드 정규화를
+        # 적용할 수 있으므로 클라이언트 파일명은 무결성 판단에 사용하지 않는다.
         manipulation_valid = (
             authenticity_valid
             and uploaded is not None
             and definition is not None
-            and uploaded.file_name == definition.file_name
             and uploaded.content_type == definition.content_type
             and uploaded.size_bytes == definition.size_bytes
         )
