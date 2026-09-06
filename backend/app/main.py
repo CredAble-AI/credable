@@ -11,6 +11,7 @@ from app.adapters.assessment_adapter import (
     DemoSupplementalAssessmentAdapter,
 )
 from app.adapters.data_source_adapter import DemoDataSourceAdapter
+from app.adapters.explanation_adapter import DemoExplanationProvider
 from app.adapters.product_catalog_adapter import DemoProductCatalogAdapter
 from app.adapters.product_condition_adapter import DemoProductConditionAdapter
 from app.api.admin_audit import router as admin_audit_router
@@ -32,6 +33,7 @@ from app.repositories.evidence_consent_repository import SqliteEvidenceConsentRe
 from app.repositories.evidence_quality_repository import SqliteEvidenceQualityRepository
 from app.repositories.evidence_selection_repository import SqliteEvidenceSelectionRepository
 from app.repositories.evidence_submission_repository import SqliteEvidenceSubmissionRepository
+from app.repositories.explanation_repository import SqliteAssessmentExplanationRepository
 from app.repositories.feature_snapshot_repository import SqliteFeatureSnapshotRepository
 from app.repositories.loan_history_repository import SqliteLoanHistoryRepository
 from app.repositories.policy_boundary_repository import SqlitePolicyBoundaryRepository
@@ -80,6 +82,7 @@ from app.services.evidence_submission_service import (
     DemoEvidenceSubmissionCatalog,
     EvidenceSubmissionService,
 )
+from app.services.explanation_service import AssessmentExplanationService
 from app.services.feature_snapshot_service import FeatureSnapshotService
 from app.services.loan_history_service import DemoLoanHistoryCatalogService, LoanHistoryService
 from app.services.model_registry_service import DemoModelRegistryCatalog, ModelRegistryService
@@ -362,6 +365,20 @@ def build_assessment_comparison_service(
     )
 
 
+def build_assessment_explanation_service(
+    session_service: CustomerSessionService,
+    assessment_service: AssessmentService,
+    policy_boundary_service: PolicyBoundaryService,
+) -> AssessmentExplanationService:
+    return AssessmentExplanationService(
+        repository=SqliteAssessmentExplanationRepository(settings.database_path),
+        session_service=session_service,
+        assessment_repository=assessment_service.repository,
+        boundary_repository=policy_boundary_service.repository,
+        provider=DemoExplanationProvider(),
+    )
+
+
 def build_evidence_resolution_service(
     session_service: CustomerSessionService,
     assessment_service: AssessmentService,
@@ -407,6 +424,7 @@ def create_app(
     evidence_quality_service: EvidenceQualityService | None = None,
     supplemental_assessment_service: SupplementalAssessmentService | None = None,
     assessment_comparison_service: AssessmentComparisonService | None = None,
+    assessment_explanation_service: AssessmentExplanationService | None = None,
     assessment_review_request_service: AssessmentReviewRequestService | None = None,
     evidence_resolution_service: EvidenceResolutionService | None = None,
     product_catalog_service: ProductCatalogService | None = None,
@@ -540,6 +558,14 @@ def create_app(
             resolved_assessment_service,
         )
     )
+    resolved_assessment_explanation_service = (
+        assessment_explanation_service
+        or build_assessment_explanation_service(
+            resolved_session_service,
+            resolved_assessment_service,
+            resolved_policy_boundary_service,
+        )
+    )
     resolved_evidence_resolution_service = (
         evidence_resolution_service
         or build_evidence_resolution_service(
@@ -610,6 +636,7 @@ def create_app(
         resolved_evidence_quality_service.initialize()
         resolved_supplemental_assessment_service.initialize()
         resolved_assessment_comparison_service.initialize()
+        resolved_assessment_explanation_service.initialize()
         resolved_evidence_resolution_service.initialize()
         resolved_product_catalog_service.initialize()
         resolved_product_condition_service.initialize()
@@ -643,6 +670,7 @@ def create_app(
     application.state.evidence_quality_service = resolved_evidence_quality_service
     application.state.supplemental_assessment_service = resolved_supplemental_assessment_service
     application.state.assessment_comparison_service = resolved_assessment_comparison_service
+    application.state.assessment_explanation_service = resolved_assessment_explanation_service
     application.state.evidence_resolution_service = resolved_evidence_resolution_service
     application.state.product_catalog_service = resolved_product_catalog_service
     application.state.product_condition_service = resolved_product_condition_service
