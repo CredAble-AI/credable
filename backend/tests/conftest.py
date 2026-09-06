@@ -336,6 +336,7 @@ def evidence_selection_service(
     session_service: CustomerSessionService,
     policy_boundary_service: PolicyBoundaryService,
     data_source_service: DataSourceService,
+    feature_snapshot_repository: SqliteFeatureSnapshotRepository,
 ) -> EvidenceSelectionService:
     return EvidenceSelectionService(
         repository=evidence_selection_repository,
@@ -345,6 +346,7 @@ def evidence_selection_service(
         assessment_repository=assessment_repository,
         resolution_repository=policy_boundary_repository,
         submission_repository=evidence_submission_repository,
+        feature_snapshot_repository=feature_snapshot_repository,
         catalog=DemoEvidenceCandidateCatalog(settings.demo_evidence_candidates_path),
     )
 
