@@ -1,6 +1,6 @@
 export type AssessmentReviewTargetType = 'BASELINE_ASSESSMENT' | 'SUPPLEMENTAL_ASSESSMENT'
 export type AssessmentReviewProcessingStatus = 'PENDING' | 'IN_REVIEW' | 'COMPLETED'
-export type AssessmentReviewResultCode = 'EVIDENCE_CONFIRMED' | 'EVIDENCE_EXCLUDED' | 'ASSESSMENT_CONFIRMED' | 'CORRECTION_REQUIRED' | 'ADDITIONAL_INFORMATION_REQUIRED' | 'ESCALATED'
+export type AssessmentReviewResultCode = 'ASSESSMENT_CONFIRMED' | 'CORRECTION_REQUIRED' | 'ADDITIONAL_INFORMATION_REQUIRED' | 'ESCALATED'
 
 export interface AssessmentReviewRequestState {
   reviewRequestId: string
