@@ -185,7 +185,12 @@ def test_ambiguous_boundary_selects_one_minimum_evidence(
     assert state["underwriterRequired"] is False
     assert state["calibrationVersion"] == "demo-uncertainty-rule-table-v1"
     assert state["boundaryPolicyVersion"] == "demo-policy-boundary-v1"
-    assert state["selectionPolicyVersion"] == "demo-active-evidence-selection-v1"
+    assert state["selectionPolicyVersion"] == "demo-gap-aware-evidence-selection-v2"
+    assert state["sourceCreditAssessmentId"] == "bca_demo_001"
+    assert state["informationGapCodes"] == [
+        "DEMO_INFORMATION_GAP",
+        "DEMO_RECENT_PERFORMANCE_NOT_REFLECTED",
+    ]
     assert state["demoOnly"] is True
     assert state["selectedEvidence"] == {
         "evidenceType": "CUSTOMER_SUBMITTED_RECENT_REVENUE_SUMMARY",
@@ -197,6 +202,10 @@ def test_ambiguous_boundary_selects_one_minimum_evidence(
         "rationaleCodes": [
             "DEMO_RESOLVE_BOUNDARY_1_2",
             "DEMO_MINIMUM_SINGLE_REQUEST",
+        ],
+        "matchedInformationGapCodes": [
+            "DEMO_INFORMATION_GAP",
+            "DEMO_RECENT_PERFORMANCE_NOT_REFLECTED",
         ],
         "consentScope": {
             "scopeVersion": "demo-recent-revenue-consent-v1",
@@ -217,16 +226,19 @@ def test_ambiguous_boundary_selects_one_minimum_evidence(
     assert evidence_selection_repository.count_selections(session_id) == 1
     event = session_repository.list_audit_events(session_id)[-1]
     assert event.stage == AuditStage.EVIDENCE_SELECTED
-    assert event.policy_version == "demo-active-evidence-selection-v1"
+    assert event.policy_version == "demo-gap-aware-evidence-selection-v2"
     assert event.output_summary == {
         "selectionStatus": "SELECTED",
         "iteration": 1,
         "evaluatedCandidateCount": 2,
         "underwriterRequired": False,
         "calibrationVersion": "demo-uncertainty-rule-table-v1",
+        "informationGapCount": 2,
         "demoOnly": True,
+        "sourceCreditAssessmentId": "bca_demo_001",
         "selectedEvidenceType": "CUSTOMER_SUBMITTED_RECENT_REVENUE_SUMMARY",
         "evidenceValue": 0.5,
+        "matchedInformationGapCount": 2,
     }
 
     reopened = SqliteEvidenceSelectionRepository(evidence_selection_repository.database_path)
@@ -252,6 +264,81 @@ def test_same_boundary_check_does_not_create_duplicate_request(
     assert second == first
     assert latest == first
     assert evidence_selection_repository.count_selections(session_id) == 1
+
+
+def test_ambiguous_boundary_without_source_assessment_lineage_requires_review(
+    client: TestClient,
+    data_source_service: DataSourceService,
+    assessment_service: AssessmentService,
+    evidence_selection_service: EvidenceSelectionService,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    session_id = create_session(client)
+    boundary = prepare_ambiguous_boundary(
+        client,
+        session_id,
+        data_source_service,
+        assessment_service,
+    )
+    baseline = assessment_service.repository.get_for_session(
+        session_id,
+        boundary["assessmentId"],
+    )
+    assert baseline is not None
+    monkeypatch.setattr(
+        evidence_selection_service.assessment_repository,
+        "get_for_session",
+        lambda *_: baseline.model_copy(update={"source_assessment": None}),
+    )
+
+    response = client.post(f"/v1/sessions/{session_id}/evidence/next")
+
+    assert response.status_code == 200
+    selection = response.json()["selection"]
+    assert selection["status"] == "HUMAN_REVIEW"
+    assert selection["stopReason"] == "SOURCE_ASSESSMENT_LINEAGE_NOT_READY"
+    assert selection["selectedEvidence"] is None
+    assert selection["underwriterRequired"] is True
+
+
+def test_unmapped_source_information_gap_is_not_guessed(
+    client: TestClient,
+    data_source_service: DataSourceService,
+    assessment_service: AssessmentService,
+    evidence_selection_service: EvidenceSelectionService,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    session_id = create_session(client)
+    boundary = prepare_ambiguous_boundary(
+        client,
+        session_id,
+        data_source_service,
+        assessment_service,
+    )
+    baseline = assessment_service.repository.get_for_session(
+        session_id,
+        boundary["assessmentId"],
+    )
+    assert baseline is not None
+    assert baseline.source_assessment is not None
+    unmapped_source = baseline.source_assessment.model_copy(
+        update={"reason_codes": ["DEMO_UNMAPPED_INFORMATION_GAP"]}
+    )
+    monkeypatch.setattr(
+        evidence_selection_service.assessment_repository,
+        "get_for_session",
+        lambda *_: baseline.model_copy(update={"source_assessment": unmapped_source}),
+    )
+
+    response = client.post(f"/v1/sessions/{session_id}/evidence/next")
+
+    assert response.status_code == 200
+    selection = response.json()["selection"]
+    assert selection["status"] == "HUMAN_REVIEW"
+    assert selection["stopReason"] == "NO_CANDIDATE_FOR_INFORMATION_GAP"
+    assert selection["informationGapCodes"] == ["DEMO_UNMAPPED_INFORMATION_GAP"]
+    assert selection["selectedEvidence"] is None
+    assert selection["underwriterRequired"] is True
 
 
 @pytest.mark.parametrize(
