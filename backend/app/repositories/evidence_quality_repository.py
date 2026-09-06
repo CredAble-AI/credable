@@ -20,6 +20,13 @@ class EvidenceQualityRepository(ABC):
         """Return the quality result for a submission in the session."""
 
     @abstractmethod
+    def get_by_quality_check_id(
+        self,
+        quality_check_id: str,
+    ) -> tuple[str, EvidenceQualityState] | None:
+        """Return a quality result with its owning session."""
+
+    @abstractmethod
     def list_for_session(self, session_id: str) -> list[EvidenceQualityState]:
         """Return all Evidence quality results for a session in check order."""
 
@@ -101,6 +108,23 @@ class SqliteEvidenceQualityRepository(EvidenceQualityRepository):
                 (session_id, submission_id),
             ).fetchone()
         return EvidenceQualityState.model_validate_json(row["state_json"]) if row else None
+
+    def get_by_quality_check_id(
+        self,
+        quality_check_id: str,
+    ) -> tuple[str, EvidenceQualityState] | None:
+        with self._connect() as connection:
+            row = connection.execute(
+                """
+                SELECT session_id, state_json
+                FROM evidence_quality_checks
+                WHERE quality_check_id = ?
+                """,
+                (quality_check_id,),
+            ).fetchone()
+        if row is None:
+            return None
+        return row["session_id"], EvidenceQualityState.model_validate_json(row["state_json"])
 
     def list_for_session(self, session_id: str) -> list[EvidenceQualityState]:
         with self._connect() as connection:

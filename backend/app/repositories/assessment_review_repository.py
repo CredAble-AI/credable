@@ -16,6 +16,13 @@ class AssessmentReviewRepository(ABC):
         """Return the latest customer review request for a session."""
 
     @abstractmethod
+    def get_by_id(
+        self,
+        review_request_id: str,
+    ) -> tuple[str, AssessmentReviewRequestState] | None:
+        """Return a customer review request with its owning session."""
+
+    @abstractmethod
     def get_for_target(
         self,
         session_id: str,
@@ -90,6 +97,25 @@ class SqliteAssessmentReviewRepository(AssessmentReviewRepository):
                 (session_id,),
             ).fetchone()
         return AssessmentReviewRequestState.model_validate_json(row["state_json"]) if row else None
+
+    def get_by_id(
+        self,
+        review_request_id: str,
+    ) -> tuple[str, AssessmentReviewRequestState] | None:
+        with self._connect() as connection:
+            row = connection.execute(
+                """
+                SELECT session_id, state_json
+                FROM assessment_review_requests
+                WHERE review_request_id = ?
+                """,
+                (review_request_id,),
+            ).fetchone()
+        if row is None:
+            return None
+        return row["session_id"], AssessmentReviewRequestState.model_validate_json(
+            row["state_json"]
+        )
 
     def get_for_target(
         self,
