@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { normalizeEvidenceSelectionError } from '../api/evidenceSelectionClient'
 import { normalizePolicyBoundaryError } from '../api/policyBoundaryClient'
 import Header from '../components/Header'
@@ -43,6 +43,8 @@ const formatDate = (value: string) => new Intl.DateTimeFormat('ko-KR', { dateSty
 
 function EvidenceSelectionPage() {
   const navigate = useNavigate()
+  const [searchParams, setSearchParams] = useSearchParams()
+  const selectNextRequested = searchParams.get('selectNext') === '1'
   const { session, loading: sessionLoading } = useCustomerSession()
   const [result, setResult] = useState<EvidenceSelectionResponse | null>(null)
   const [error, setError] = useState<ApiError | null>(null)
@@ -75,7 +77,10 @@ function EvidenceSelectionPage() {
         : evidenceSelectionProvider.get(session.sessionId, controller.signal))
       if (next.sessionId !== session.sessionId) throw { code: 'EVIDENCE_SELECTION_SESSION_MISMATCH', message: '현재 세션의 Evidence 선택 결과를 확인할 수 없습니다.', retryable: true } satisfies ApiError
       if (next.selection && expectedBoundaryCheckId && next.selection.boundaryCheckId !== expectedBoundaryCheckId) throw { code: 'EVIDENCE_SELECTION_BOUNDARY_MISMATCH', message: '현재 정책 경계와 일치하는 Evidence 선택 결과를 확인할 수 없습니다.', retryable: true } satisfies ApiError
-      if (sequence === sequenceRef.current) setResult(next)
+      if (sequence === sequenceRef.current) {
+        setResult(next)
+        if (selectNextRequested) setSearchParams({}, { replace: true })
+      }
     } catch (caught) {
       if (!controller.signal.aborted && sequence === sequenceRef.current) {
         setError(stage === 'boundary' ? normalizePolicyBoundaryError(caught) : normalizeEvidenceSelectionError(caught))
@@ -84,12 +89,12 @@ function EvidenceSelectionPage() {
       if (sequence === sequenceRef.current) setPhase('idle')
       busyRef.current = false
     }
-  }, [navigate, session])
+  }, [navigate, selectNextRequested, session, setSearchParams])
 
   useEffect(() => {
-    if (session) queueMicrotask(() => void requestSelection())
+    if (session) queueMicrotask(() => void requestSelection(selectNextRequested))
     return () => { sequenceRef.current += 1; controllerRef.current?.abort(); busyRef.current = false }
-  }, [requestSelection, session])
+  }, [requestSelection, selectNextRequested, session])
 
   if (sessionLoading || !session) return null
   const selection = result?.selection ?? null
@@ -102,7 +107,7 @@ function EvidenceSelectionPage() {
     <header className="assessment-heading"><div>{isMockMode && <span className="assessment-badge">Mock result · Demo Only</span>}<p className="flow-kicker">MINIMUM EVIDENCE</p><h1>다음으로 확인할 자료 한 건을 보여드립니다</h1><p>서버가 현재 정책 경계를 확인하기 위해 선택한 한 건만 표시합니다. 프론트엔드는 후보를 다시 계산하거나 순위를 만들지 않습니다.</p></div><aside><span>현재 Demo 사례</span><strong>{session.demoProfile.displayName}</strong><small>{session.demoProfile.description}</small></aside></header>
 
     <div className="assessment-live" role="status" aria-live="polite">{phase === 'loading' ? '저장된 Evidence 선택 상태를 확인하고 있습니다.' : phase === 'selecting' ? '서버에서 다음 Evidence 한 건을 선택하고 있습니다.' : error ? 'Evidence 선택 상태를 확인하지 못했습니다.' : selection ? 'Evidence 선택 상태를 확인했습니다.' : '아직 선택된 Evidence가 없습니다.'}</div>
-    {error && <section className="assessment-error" role="alert"><div><strong>{error.message}</strong><small>오류 코드: {error.code}{error.requestId ? ` · Request ID: ${error.requestId}` : ''}</small></div>{error.retryable && <button type="button" onClick={() => void requestSelection()}>다시 확인</button>}</section>}
+    {error && <section className="assessment-error" role="alert"><div><strong>{error.message}</strong><small>오류 코드: {error.code}{error.requestId ? ` · Request ID: ${error.requestId}` : ''}</small></div>{error.retryable && <button type="button" onClick={() => void requestSelection(selectNextRequested)}>다시 확인</button>}</section>}
     {phase !== 'idle' && !result && <div className="assessment-skeleton" aria-hidden="true"><span /><span /></div>}
 
     {!error && phase === 'idle' && !selection && <section className="evidence-empty"><span aria-hidden="true">1</span><div><h2>다음 Evidence를 아직 선택하지 않았습니다</h2><p>자동으로 요청하지 않습니다. 아래 버튼을 선택하면 서버가 현재 경계를 기준으로 한 건만 선택합니다.</p></div><button className="button button--primary" type="button" onClick={() => void requestSelection(true)}>다음 Evidence 확인</button></section>}

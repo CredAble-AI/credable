@@ -33,7 +33,7 @@ const selected: EvidenceSelectionResponse = {
     selectedEvidence: { evidenceType: 'CUSTOMER_SUBMITTED_RECENT_REVENUE_SUMMARY', displayName: '최근 매출·입금 요약', description: '최근 매출 발생과 실제 입금 흐름을 확인할 수 있는 고객 제출 자료', sourceType: 'CUSTOMER_SUBMITTED', collectionMode: 'DEMO_FILE_UPLOAD', availability: 'CONSENT_REQUIRED', rationaleCodes: ['DEMO_RESOLVE_BOUNDARY_1_2', 'DEMO_MINIMUM_SINGLE_REQUEST'], consentScope: { scopeVersion: 'demo-recent-revenue-consent-v1', purposeCode: 'SUPPLEMENTAL_CREDIT_ASSESSMENT', purposeDescription: '기존 평가의 불확실성을 확인하기 위한 보완평가에 사용', dataCategories: ['MONTHLY_SALES'], periodStart: '2026-03-01', periodEnd: '2026-08-31', required: true }, demoOnly: true },
   },
 }
-const renderPage = () => render(<MemoryRouter initialEntries={['/evidence']}><Routes><Route path="/evidence" element={<EvidenceSelectionPage />} /><Route path="/assessment" element={<h1>기준평가 화면</h1>} /></Routes></MemoryRouter>)
+const renderPage = (entry = '/evidence') => render(<MemoryRouter initialEntries={[entry]}><Routes><Route path="/evidence" element={<EvidenceSelectionPage />} /><Route path="/assessment" element={<h1>기준평가 화면</h1>} /></Routes></MemoryRouter>)
 
 describe('EvidenceSelectionPage', () => {
   beforeEach(() => {
@@ -74,5 +74,17 @@ describe('EvidenceSelectionPage', () => {
 
     expect(await screen.findByRole('heading', { name: '기준평가 화면' })).toBeInTheDocument()
     await waitFor(() => expect(evidenceSelectionProvider.get).not.toHaveBeenCalled())
+  })
+
+  it('requests the next server-selected Evidence when entered from a resolution action', async () => {
+    const repeated = { ...selected, selection: selected.selection && { ...selected.selection, selectionId: 'evs_second', resolutionId: 'res_demo', iteration: 2 } }
+    vi.mocked(evidenceSelectionProvider.selectNext).mockResolvedValue(repeated)
+    vi.mocked(evidenceSelectionProvider.get).mockResolvedValue(repeated)
+
+    renderPage('/evidence?selectNext=1')
+
+    expect(await screen.findByText('evs_second')).toBeInTheDocument()
+    expect(screen.getByText('2')).toBeInTheDocument()
+    expect(evidenceSelectionProvider.selectNext).toHaveBeenCalledWith('ses_demo', expect.any(AbortSignal))
   })
 })
