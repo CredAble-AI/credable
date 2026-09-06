@@ -21,6 +21,25 @@ cd backend
 uv sync
 ```
 
+기본 설정은 외부 API를 호출하지 않는 Demo 설명 Provider입니다. 실제 Gemini 연결이 필요하면
+`.env.example`을 `.env`로 복사하고 로컬에서만 API 키와 Provider를 설정합니다. `.env`는 Git에서
+제외되며 API 키를 코드·로그·PR 또는 Frontend 환경변수에 넣지 않습니다.
+
+```bash
+cp .env.example .env
+```
+
+```env
+CREDABLE_EXPLANATION_PROVIDER=gemini
+GEMINI_API_KEY=<Google-AI-Studio에서-발급한-키>
+CREDABLE_GEMINI_MODEL=gemini-3.5-flash-lite
+CREDABLE_GEMINI_TIMEOUT_SECONDS=10
+```
+
+`CREDABLE_EXPLANATION_PROVIDER=gemini`인데 `GEMINI_API_KEY`가 없으면 서버 시작 단계에서 설정
+오류로 중단합니다. Gemini 호출 실패, 시간 초과 또는 구조화 출력 검증 실패는 평가 결과를
+바꾸지 않고 기존 `RULE_FALLBACK` 설명으로 전환됩니다.
+
 ## 개발 서버 실행
 
 ```bash
@@ -558,8 +577,10 @@ curl -X POST \
   http://127.0.0.1:8000/v1/sessions/<sessionId>/assessment/explanation/generate
 ```
 
-현재 Demo Provider는 자유 문장을 반환하지 않고, 서버가 현재 평가 사실에서 허용한
-`messageCode`만 선택합니다. 제공자가 허용되지 않은 코드를 선택하거나 오류가 나면
+Demo Provider와 Gemini Provider 모두 자유 금융 판단을 반환하지 않고, 서버가 현재 평가
+사실에서 허용한 `messageCode`만 선택합니다. Gemini에는 평가 원문, 세션·평가·근거 ID,
+금융 수치와 개인정보를 보내지 않고 설명 대상 유형, 허용 코드와 필수 현재 상태 코드만
+전달합니다. 제공자가 허용되지 않은 코드를 선택하거나 오류가 나면
 규칙 기반 `RULE_FALLBACK`으로 전환하고 사유 코드를 응답과 Audit에 보존합니다.
 실제 출력 문구는 서버 템플릿에서 렌더링하므로 Provider가 신용점수·등급,
 승인·부결, 금리·한도, 증빙 선택과 정책 경로를 새로 만들거나 변경할 수 없습니다.
@@ -569,8 +590,11 @@ curl -X POST \
 같은 입력 Snapshot을 다시 요청하면 기존 설명을 반환해 중복 생성과 Audit을 막습니다.
 평가·경계·비교·수집 판정 중 하나라도 바뀌어 최신 입력 해시와 저장된 설명이 다르면
 `GET`은 이전 설명을 노출하지 않고 `explanation: null`을 반환합니다.
-실제 생성형 AI 연결은 `ExplanationProvider` 계약을 구현하는 후속 범위이며,
-현재 `DEMO_TEMPLATE`을 실제 AI 결과로 표현해서는 안 됩니다.
+Gemini 연결 결과는 `GENERATIVE_AI`, 외부 호출 없는 Demo 결과는 `DEMO_TEMPLATE`, Gemini
+장애나 출력 검증 실패 시 결과는 `RULE_FALLBACK`으로 명확히 구분합니다. 무료 Gemini API
+티어는 입력이 Google 제품 개선에 사용될 수 있으므로 현재 합성 Demo와 위 최소 코드 입력에만
+사용합니다. 실제 고객·은행 데이터 전송은 개인정보·신용정보 처리 근거와 은행 데이터 거버넌스,
+별도의 운영 계약을 확정하기 전에는 허용하지 않습니다.
 
 ## 자사 상품 카탈로그 API
 
