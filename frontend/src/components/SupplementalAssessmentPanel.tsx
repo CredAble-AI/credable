@@ -4,6 +4,7 @@ import { supplementalAssessmentProvider } from '../hooks/useSupplementalAssessme
 import type { ApiError } from '../types/api'
 import type { SupplementalAssessmentResponse, SupplementalAssessmentState } from '../types/supplementalAssessment'
 import AssessmentComparisonPanel from './AssessmentComparisonPanel'
+import AssessmentReviewPanel from './AssessmentReviewPanel'
 
 interface SupplementalAssessmentPanelProps { sessionId: string; submissionId: string; qualityCheckId: string }
 type Phase = 'loading' | 'running' | 'idle'
@@ -66,6 +67,7 @@ function SupplementalAssessmentPanel({ sessionId, submissionId, qualityCheckId }
     <p>{assessment.status === 'COMPLETED' ? '백엔드가 검증된 Evidence를 반영한 별도 평가 결과를 반환했습니다.' : `서버 상태 코드 ${assessment.reasonCode ?? 'UNKNOWN'}`}</p>
     {uncertainty && <div className="supplemental-assessment__result"><div><span>가능한 Demo 평가 범위</span><strong>{uncertainty.gradeSet.length > 0 ? uncertainty.gradeSet.join(' · ') : '서버가 등급 범위를 제공하지 않음'}</strong></div><dl><div><dt>모델 추정값</dt><dd>{displayNumber(uncertainty.pointEstimate)}</dd></div><div><dt>수치 범위</dt><dd>{uncertainty.lowerBound === null || uncertainty.upperBound === null ? '제공되지 않음' : `${uncertainty.lowerBound} ~ ${uncertainty.upperBound}`}</dd></div><div><dt>보정 방식</dt><dd>{uncertainty.calibrationMode}</dd></div><div><dt>보정 버전</dt><dd><code>{uncertainty.calibrationVersion}</code></dd></div></dl></div>}
     <dl className="supplemental-assessment__metadata"><div><dt>반영 Evidence</dt><dd>{assessment.acceptedEvidenceCount}건</dd></div><div><dt>계산 시점</dt><dd>{formatDate(assessment.calculatedAt)}</dd></div><div><dt>기준평가 ID</dt><dd><code>{assessment.baselineAssessmentId}</code></dd></div><div><dt>보완평가 ID</dt><dd><code>{assessment.supplementalAssessmentId}</code></dd></div><div><dt>입력 Snapshot</dt><dd><code>{assessment.inputSnapshotId}</code></dd></div><div><dt>모델 버전</dt><dd><code>{assessment.modelVersion ?? '제공되지 않음'}</code></dd></div></dl>
+    {assessment.status === 'COMPLETED' && <AssessmentReviewPanel sessionId={sessionId} />}
     {assessment.status === 'COMPLETED' && <AssessmentComparisonPanel sessionId={sessionId} baselineAssessmentId={assessment.baselineAssessmentId} supplementalAssessmentId={assessment.supplementalAssessmentId} qualityCheckId={assessment.qualityCheckId} />}
   </section>
 }

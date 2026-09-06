@@ -13,6 +13,7 @@ vi.mock('../hooks/useAssessmentState', () => ({
   policyBoundaryProvider: { get: vi.fn(), check: vi.fn() },
 }))
 vi.mock('../hooks/useCustomerSession', () => ({ useCustomerSession: vi.fn() }))
+vi.mock('../components/AssessmentReviewPanel', () => ({ default: () => <div>심사역 재확인 패널</div> }))
 
 const session: CustomerSession = {
   sessionId: 'ses_demo',
@@ -142,6 +143,7 @@ describe('AssessmentPage', () => {
     expect(screen.getByText('DEMO_GRADE_B')).toBeInTheDocument()
     expect(screen.getByText('DEMO_GRADE_C')).toBeInTheDocument()
     expect(screen.getByRole('heading', { name: '추가 확인 필요' })).toBeInTheDocument()
+    expect(screen.getByText('심사역 재확인 패널')).toBeInTheDocument()
     expect(screen.getByText('DEMO_PATH_1')).toBeInTheDocument()
     expect(screen.getByText('DEMO_BOUNDARY_1_2')).toBeInTheDocument()
     expect(screen.getByRole('link', { name: '다음 Evidence 확인' })).toHaveAttribute('href', '/evidence')
@@ -168,6 +170,7 @@ describe('AssessmentPage', () => {
 
     expect((await screen.findAllByText('DEMO_VERIFIED_DATA_INSUFFICIENT')).length).toBeGreaterThan(0)
     expect(screen.getByText('이 상태는 신용이 낮거나 대출 자격이 없다는 의미가 아닙니다.')).toBeInTheDocument()
+    expect(screen.queryByText('심사역 재확인 패널')).not.toBeInTheDocument()
     expect(policyBoundaryProvider.get).not.toHaveBeenCalled()
     expect(policyBoundaryProvider.check).not.toHaveBeenCalled()
   })
