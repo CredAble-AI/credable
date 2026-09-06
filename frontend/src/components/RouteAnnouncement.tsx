@@ -12,6 +12,7 @@ const resolvePageName = (pathname: string) => {
   if (pathname === '/admin/reviews') return '심사역 검토 목록'
   if (/^\/admin\/reviews\/[^/]+$/.test(pathname)) return '심사역 검토 상세'
   if (/^\/admin\/sessions\/[^/]+\/audit$/.test(pathname)) return '세션 처리 이력'
+  if (/^\/admin\/sessions\/[^/]+\/evidence-burden$/.test(pathname)) return 'Evidence 요청 부담 지표'
   if (/^\/products\/[^/]+\/apply$/.test(pathname)) return '은행 신청 연결 안내'
   if (/^\/products\/[^/]+$/.test(pathname)) return '상품 상세'
   return '페이지를 찾을 수 없습니다'
