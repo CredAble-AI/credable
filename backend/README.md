@@ -347,17 +347,23 @@ curl -X POST \
 서버 정책의 `scopeVersion`과 일치할 때만 다운로드·업로드할 수 있으며, 아니면
 `EVIDENCE_CONSENT_REQUIRED`로 차단합니다. 동의·철회는 Audit에 고객 행위로 기록됩니다.
 
-업로드는 확장자·MIME·`%PDF-` magic bytes·5MB 제한을 확인한 뒤 실제 binary의 SHA-256을
-계산해 서버가 발급한 PDF manifest의 해시와 비교합니다. 원본 binary와 PDF 본문은 DB·Audit·
-로그에 저장하지 않고 서버가 확정한 파일명·크기·MIME·해시·문서 ID만 저장합니다. 같은
-`selectionId`와 같은 해시는 기존 제출을 반환하며 다른 해시는 `EVIDENCE_ALREADY_SUBMITTED`로
+업로드는 확장자·MIME·`%PDF-` magic bytes·5MB 제한을 먼저 확인하고 실제 binary의 SHA-256을
+계산합니다. 형식 오류는 원문을 저장하지 않고 즉시 거부합니다. 형식은 유효하지만 서버 발급
+PDF와 해시가 다른 파일은 메타데이터만 제출 이력으로 보존하고, 다음 품질 검증에서 자동평가가
+아닌 심사역 검토 경로로 분리합니다. 원본 binary와 PDF 본문은 DB·Audit·로그에 저장하지 않고
+서버가 확정한 파일명·크기·MIME·해시·문서 ID만 저장합니다. 같은 `selectionId`와 같은 해시는
+기존 제출을 반환하며, 이미 제출된 뒤 다른 파일을 다시 올리면 `EVIDENCE_ALREADY_SUBMITTED`로
 차단합니다. 기존 `DEMO_FIXTURE_REFERENCE` JSON API는 호환성을 위해 유지합니다.
 
 ## Demo Evidence 품질 검증 API
 
 제출된 Evidence를 출처·최신성·진위·완전성·일관성·조작 위험의 여섯 차원으로 검증합니다.
-모든 차원이 `PASSED`일 때만 `ACCEPTED`와 `eligibleForReassessment: true`를 반환하며,
-하나라도 `FAILED` 또는 `NOT_VERIFIED`이면 `REJECTED`로 차단합니다.
+모든 차원이 `PASSED`일 때만 `ACCEPTED`, `eligibleForReassessment: true`,
+`nextAction: RUN_REASSESSMENT`를 반환합니다. 최신성·완전성·일관성 등이 통과하지 못하면
+`REJECTED`와 `nextAction: EXCLUDE_EVIDENCE`로 분리합니다. 해시·진위 또는 조작 위험 검사가
+명시적으로 `FAILED`이면 `REVIEW_REQUIRED`, `underwriterRequired: true`,
+`nextAction: UNDERWRITER_REVIEW`를 반환하고 자동 보완평가를 중단합니다. 단순
+`NOT_VERIFIED`는 이상 징후로 과장하지 않고 `REJECTED`로 처리합니다.
 
 ```bash
 curl \
@@ -370,8 +376,10 @@ curl -X POST \
 `DEMO_FILE_UPLOAD` 제출은 Evidence 유형만으로 고정 결과를 고르지 않습니다. 업로드 때 계산한
 실제 파일 해시와 서버 발급 문서 ID를 manifest에 다시 연결한 뒤 출처, 기준시점, 필수 항목,
 월별 매출·입금 차이와 전체 합계를 검증해 여섯 차원으로 변환합니다. 해시·manifest·제출
-Snapshot 중 하나라도 일치하지 않으면 재평가 입력 자격을 주지 않습니다. 원본을 폐기한 뒤에도
-서버가 저장한 해시와 manifest로 같은 결과를 재현할 수 있습니다.
+Snapshot 중 하나라도 일치하지 않으면 재평가 입력 자격을 주지 않습니다. 이때
+`suspicionCodes`는 진위·조작 위험에서 실제로 실패한 코드만 제공하며 `rejectionCodes`에도 함께
+포함됩니다. 원본을 폐기한 뒤에도 서버가 저장한 해시와 manifest로 같은 결과를 재현할 수
+있습니다. 관리자 증빙부담 API도 `reviewRequiredCount`를 `rejectedCount`와 별도로 집계합니다.
 새 품질 검증을 시작할 때 증빙별 동의가 철회됐거나 제출 Snapshot의 동의 ID·범위 버전과
 일치하지 않으면 `EVIDENCE_CONSENT_NOT_ACTIVE`로 차단합니다. 이미 저장된 품질 결과는
 감사 가능한 과거 이력으로 유지합니다.
