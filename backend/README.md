@@ -306,9 +306,15 @@ curl -X POST \
 
 ## Demo 최소 증빙 선택 API
 
-최신 정책 경계 판정이 `AMBIGUOUS`이면 해당 경계를 해소할 수 있는 후보만 비교해 다음
-Evidence 한 건을 선택합니다. `STABLE`이면 `PATH_STABLE`로 추가 요청 없이 종료하고,
-`POLICY_BLOCKED`이거나 유효한 후보가 없으면 임의 선택하지 않고 심사역 확인 상태로 보냅니다.
+최신 정책 경계 판정이 `AMBIGUOUS`이면 해당 경계와 은행 기존 평가의
+`sourceAssessment.reasonCodes`에 둘 다 연결된 후보만 비교해 다음 Evidence 한 건을
+선택합니다. 선택 결과에는 `sourceCreditAssessmentId`, `informationGapCodes`와
+후보가 실제로 맞춰진 `matchedInformationGapCodes`를 남겨 요청 근거를 추적합니다.
+
+`STABLE`이면 `PATH_STABLE`로 추가 요청 없이 종료하고, `POLICY_BLOCKED`이거나 기존
+평가 계보·Reason Code 매핑·유효한 후보가 없으면 AI가 증빙을 추측하지 않고
+`HUMAN_REVIEW`로 보냅니다. 실제 은행 Reason Code와 인정 증빙 간 매핑은 은행별 여신·정책
+담당자가 확정해야 하며, 현재 매핑은 `DEMO_*` 합성 코드로만 구성됩니다.
 
 ```bash
 curl http://127.0.0.1:8000/v1/sessions/<sessionId>/evidence/next

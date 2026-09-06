@@ -31,6 +31,7 @@ class EvidenceCandidateDefinition(ApiModel):
     source_type: ConsentSourceType
     collection_mode: EvidenceCollectionMode
     boundary_codes: list[str] = Field(min_length=1)
+    applicable_information_gap_codes: list[str] = Field(min_length=1)
     boundary_resolution_value: float = Field(ge=0, le=1)
     quality_reliability: float = Field(ge=0, le=1)
     customer_effort: float = Field(ge=0, le=1)
@@ -44,6 +45,10 @@ class EvidenceCandidateDefinition(ApiModel):
     def validate_unique_codes(self) -> "EvidenceCandidateDefinition":
         if len(self.boundary_codes) != len(set(self.boundary_codes)):
             raise ValueError("boundaryCodes values must be unique")
+        if len(self.applicable_information_gap_codes) != len(
+            set(self.applicable_information_gap_codes)
+        ):
+            raise ValueError("applicableInformationGapCodes values must be unique")
         if len(self.rationale_codes) != len(set(self.rationale_codes)):
             raise ValueError("rationaleCodes values must be unique")
         return self
@@ -57,8 +62,15 @@ class SelectedEvidenceCandidate(ApiModel):
     collection_mode: EvidenceCollectionMode | None = None
     availability: EvidenceAvailability
     rationale_codes: list[str] = Field(min_length=1)
+    matched_information_gap_codes: list[str] = Field(default_factory=list)
     consent_scope: EvidenceConsentScopeDefinition | None = None
     demo_only: Literal[True] = True
+
+    @model_validator(mode="after")
+    def validate_information_gaps(self) -> "SelectedEvidenceCandidate":
+        if len(self.matched_information_gap_codes) != len(set(self.matched_information_gap_codes)):
+            raise ValueError("matchedInformationGapCodes values must be unique")
+        return self
 
 
 class EvidenceSelectionState(ApiModel):
@@ -75,12 +87,18 @@ class EvidenceSelectionState(ApiModel):
     calibration_version: str = Field(min_length=1)
     boundary_policy_version: str = Field(min_length=1)
     selection_policy_version: str = Field(min_length=1)
+    source_credit_assessment_id: str | None = Field(default=None, min_length=1)
+    information_gap_codes: list[str] = Field(default_factory=list)
     demo_only: Literal[True] = True
 
     @model_validator(mode="after")
     def validate_state(self) -> "EvidenceSelectionState":
         if self.selected_at.tzinfo is None:
             raise ValueError("selectedAt must include a timezone")
+        if len(self.information_gap_codes) != len(set(self.information_gap_codes)):
+            raise ValueError("informationGapCodes values must be unique")
+        if self.source_credit_assessment_id is None and self.information_gap_codes:
+            raise ValueError("informationGapCodes require sourceCreditAssessmentId")
         if self.iteration == 1 and self.resolution_id is not None:
             raise ValueError("first selection cannot reference an Evidence resolution")
         if self.iteration > 1 and self.resolution_id is None:

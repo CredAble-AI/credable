@@ -9,6 +9,7 @@ from app.repositories.assessment_repository import AssessmentRepository
 from app.repositories.evidence_selection_repository import EvidenceSelectionRepository
 from app.repositories.evidence_submission_repository import EvidenceSubmissionRepository
 from app.repositories.policy_boundary_repository import PolicyBoundaryRepository
+from app.schemas.assessment import ExistingAssessmentReference
 from app.schemas.audit import AuditActor, AuditStage, SessionAuditEvent
 from app.schemas.data_source import DataSourceState, RetrievalStatus, VerificationStatus
 from app.schemas.evidence_selection import (
@@ -40,12 +41,18 @@ class DemoEvidenceCandidateCatalog:
     def selection_policy_version(self) -> str:
         return self._load().selection_policy_version
 
-    def candidates_for(self, boundary_codes: list[str]) -> list[EvidenceCandidateDefinition]:
+    def candidates_for(
+        self,
+        boundary_codes: list[str],
+        information_gap_codes: list[str],
+    ) -> list[EvidenceCandidateDefinition]:
         required_codes = set(boundary_codes)
+        required_gaps = set(information_gap_codes)
         return [
             candidate
             for candidate in self._load().candidates
             if required_codes.intersection(candidate.boundary_codes)
+            and required_gaps.intersection(candidate.applicable_information_gap_codes)
         ]
 
     def is_ready(self) -> bool:
@@ -138,6 +145,11 @@ class EvidenceSelectionService:
             if resolution is not None
             else boundary_check.decision
         )
+        baseline = self.assessment_repository.get_for_session(
+            session_id,
+            boundary_check.assessment_id,
+        )
+        source_assessment = baseline.source_assessment if baseline is not None else None
         state, selected_evidence_value = self._build_state(
             boundary_check_id=boundary_check.boundary_check_id,
             resolution_id=resolution.resolution_id if resolution is not None else None,
@@ -155,10 +167,18 @@ class EvidenceSelectionService:
                 else boundary_check.policy_version
             ),
             excluded_evidence_types=excluded_evidence_types,
+            source_assessment=source_assessment,
         )
         selection_input = resolution if resolution is not None else boundary_check
         selection_input_json = json.dumps(
-            selection_input.model_dump(mode="json", by_alias=True),
+            {
+                "decisionInput": selection_input.model_dump(mode="json", by_alias=True),
+                "sourceAssessment": (
+                    source_assessment.model_dump(mode="json", by_alias=True)
+                    if source_assessment is not None
+                    else None
+                ),
+            },
             ensure_ascii=False,
             separators=(",", ":"),
             sort_keys=True,
@@ -169,8 +189,11 @@ class EvidenceSelectionService:
             "evaluatedCandidateCount": state.evaluated_candidate_count,
             "underwriterRequired": state.underwriter_required,
             "calibrationVersion": state.calibration_version,
+            "informationGapCount": len(state.information_gap_codes),
             "demoOnly": state.demo_only,
         }
+        if state.source_credit_assessment_id is not None:
+            output_summary["sourceCreditAssessmentId"] = state.source_credit_assessment_id
         if state.resolution_id is not None:
             output_summary["resolutionId"] = state.resolution_id
         if state.selected_evidence is not None:
@@ -178,6 +201,9 @@ class EvidenceSelectionService:
                 {
                     "selectedEvidenceType": state.selected_evidence.evidence_type,
                     "evidenceValue": selected_evidence_value,
+                    "matchedInformationGapCount": len(
+                        state.selected_evidence.matched_information_gap_codes
+                    ),
                 }
             )
         if state.stop_reason is not None:
@@ -217,6 +243,7 @@ class EvidenceSelectionService:
         calibration_version: str,
         boundary_policy_version: str,
         excluded_evidence_types: set[str],
+        source_assessment: ExistingAssessmentReference | None,
     ) -> tuple[EvidenceSelectionState, float | None]:
         selected_at = datetime.now(UTC)
         common = {
@@ -228,6 +255,12 @@ class EvidenceSelectionService:
             "calibration_version": calibration_version,
             "boundary_policy_version": boundary_policy_version,
             "selection_policy_version": self.catalog.selection_policy_version,
+            "source_credit_assessment_id": (
+                source_assessment.credit_assessment_id if source_assessment is not None else None
+            ),
+            "information_gap_codes": (
+                source_assessment.reason_codes if source_assessment is not None else []
+            ),
         }
         if decision.status == BoundaryStatus.STABLE:
             return (
@@ -252,16 +285,43 @@ class EvidenceSelectionService:
                 None,
             )
 
+        if source_assessment is None:
+            return (
+                EvidenceSelectionState(
+                    **common,
+                    status=EvidenceSelectionStatus.HUMAN_REVIEW,
+                    evaluated_candidate_count=0,
+                    stop_reason="SOURCE_ASSESSMENT_LINEAGE_NOT_READY",
+                    underwriter_required=True,
+                ),
+                None,
+            )
+        if not source_assessment.reason_codes:
+            return (
+                EvidenceSelectionState(
+                    **common,
+                    status=EvidenceSelectionStatus.HUMAN_REVIEW,
+                    evaluated_candidate_count=0,
+                    stop_reason="SOURCE_INFORMATION_GAP_NOT_AVAILABLE",
+                    underwriter_required=True,
+                ),
+                None,
+            )
+
         source_states = {item.source_type: item for item in data_sources}
         definitions = [
             item
-            for item in self.catalog.candidates_for(decision.crossed_boundary_codes)
+            for item in self.catalog.candidates_for(
+                decision.crossed_boundary_codes,
+                source_assessment.reason_codes,
+            )
             if item.evidence_type not in excluded_evidence_types
         ]
         candidates = [
             self._score_candidate(
                 definition,
                 decision.crossed_boundary_codes,
+                source_assessment.reason_codes,
                 source_states.get(definition.source_type),
             )
             for definition in definitions
@@ -281,7 +341,7 @@ class EvidenceSelectionService:
                     stop_reason=(
                         "NO_NEW_USEFUL_EVIDENCE"
                         if excluded_evidence_types
-                        else "NO_USEFUL_EVIDENCE"
+                        else "NO_CANDIDATE_FOR_INFORMATION_GAP"
                     ),
                     underwriter_required=True,
                 ),
@@ -324,6 +384,7 @@ class EvidenceSelectionService:
         self,
         definition: EvidenceCandidateDefinition,
         crossed_boundary_codes: list[str],
+        information_gap_codes: list[str],
         source_state: DataSourceState | None,
     ) -> tuple[SelectedEvidenceCandidate, float]:
         evidence_value = (
@@ -335,6 +396,11 @@ class EvidenceSelectionService:
         )
         if not any(code in definition.boundary_codes for code in crossed_boundary_codes):
             raise ValueError("candidate must cover a crossed policy boundary")
+        matched_information_gap_codes = sorted(
+            set(information_gap_codes).intersection(definition.applicable_information_gap_codes)
+        )
+        if not matched_information_gap_codes:
+            raise ValueError("candidate must apply to a source assessment information gap")
         return (
             SelectedEvidenceCandidate(
                 evidence_type=definition.evidence_type,
@@ -344,6 +410,7 @@ class EvidenceSelectionService:
                 collection_mode=definition.collection_mode,
                 availability=self._availability(source_state),
                 rationale_codes=definition.rationale_codes,
+                matched_information_gap_codes=matched_information_gap_codes,
                 consent_scope=definition.consent_scope,
             ),
             round(evidence_value, 6),
