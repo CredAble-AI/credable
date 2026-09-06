@@ -17,10 +17,13 @@ from app.repositories.session_repository import SqliteCustomerSessionRepository
 from app.schemas.assessment import (
     AssessmentUncertainty,
     CalibrationMode,
+    DemoSupplementalAssessmentCatalogData,
     SupplementalAssessmentInputSnapshot,
 )
 from app.schemas.audit import AuditStage
 from app.schemas.consent import ConsentSourceType
+from app.schemas.evidence_selection import DemoEvidenceCandidateCatalogData
+from app.schemas.session import DemoProfileCatalogData
 from app.services.assessment_service import (
     AssessmentService,
     SupplementalAssessmentService,
@@ -966,3 +969,32 @@ def test_non_comparable_assessments_are_routed_to_underwriter(
     assert resolution["reasonCode"] == "UNCERTAINTY_COMPARISON_NOT_RELIABLE"
     assert resolution["possibleRoutes"] == []
     assert resolution["crossedBoundaryCodes"] == []
+
+
+def test_every_selectable_evidence_candidate_has_a_supplemental_result() -> None:
+    """Each Evidence a profile can be asked for must have a configured supplemental result.
+
+    Without this the second request of a scenario silently falls back to
+    MODEL_NOT_CONFIGURED instead of showing the reassessment.
+    """
+    profiles = DemoProfileCatalogData.model_validate_json(
+        settings.demo_profiles_path.read_text(encoding="utf-8")
+    ).profiles
+    candidates = DemoEvidenceCandidateCatalogData.model_validate_json(
+        settings.demo_evidence_candidates_path.read_text(encoding="utf-8")
+    ).candidates
+    configured = {
+        (item.demo_profile_id, item.evidence_type_key())
+        for item in DemoSupplementalAssessmentCatalogData.model_validate_json(
+            settings.demo_supplemental_assessments_path.read_text(encoding="utf-8")
+        ).assessments
+    }
+
+    missing = [
+        (profile.demo_profile_id, candidate.evidence_type)
+        for profile in profiles
+        for candidate in candidates
+        if (profile.demo_profile_id, (candidate.evidence_type,)) not in configured
+    ]
+
+    assert missing == []
