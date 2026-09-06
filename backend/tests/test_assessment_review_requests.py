@@ -12,7 +12,6 @@ from app.schemas.consent import ConsentSourceType
 from app.services.assessment_service import AssessmentService, SupplementalAssessmentService
 from app.services.data_source_service import DataSourceService
 
-
 REVIEW_REQUEST_BODY = {"customerReasonCode": "MISSING_RECENT_INFORMATION"}
 
 

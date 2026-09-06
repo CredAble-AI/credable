@@ -6,7 +6,6 @@ from fastapi.testclient import TestClient
 import app.main as main_module
 from app.core.config import Settings
 
-
 REVIEW_REQUEST_BODY = {"customerReasonCode": "MISSING_RECENT_INFORMATION"}
 
 
