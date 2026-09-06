@@ -34,6 +34,7 @@ describe('App routing', () => {
 
     expect(screen.getByRole('heading', { level: 1, name: '심사역 검토 목록' })).toBeInTheDocument()
     expect(screen.getByLabelText('관리자 Demo API Key')).toHaveAttribute('type', 'password')
+    expect(screen.getByRole('link', { name: '본문 바로가기' })).toHaveAttribute('href', '#main-content')
     expect(screen.queryByRole('link', { name: 'CredAble 홈' })).not.toBeInTheDocument()
   })
 
