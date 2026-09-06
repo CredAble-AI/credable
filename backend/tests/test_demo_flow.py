@@ -99,10 +99,10 @@ def test_small_business_demo_flow_reaches_partial_comparison(
     assert comparison["status"] == "PARTIAL"
     assert len(comparison["items"]) == 4
     items = {item["productId"]: item for item in comparison["items"]}
-    assert items["demo-working-capital"]["personalizedConditions"]["maxAmount"] == {
-        "amount": "24000000",
-        "currency": "KRW",
-    }
+    # The MVP compares published conditions and confirmation status only; it
+    # never returns a per-customer amount or rate.
+    assert all(item["personalizedConditions"] is None for item in comparison["items"])
+    assert items["demo-working-capital"]["conditionStatus"] == "PUBLIC_ONLY"
     assert items["demo-daily-bridge"]["conditionStatus"] == "PUBLIC_ONLY"
     assert items["demo-steady-business"]["conditionStatus"] == "INSUFFICIENT_DATA"
     assert items["demo-balance-partner"]["conditionStatus"] == "QUERY_FAILED"
@@ -122,7 +122,9 @@ def test_small_business_demo_flow_reaches_partial_comparison(
         AuditStage.PRODUCT_CONDITIONS_QUERIED,
     ]
     assert events[-3].model_version == "demo-small-business-assessment-v1"
-    assert events[-1].policy_version == "demo-policy-v1"
+    # No condition carries a per-customer policy version any more, so the query
+    # audit records none instead of inventing one.
+    assert events[-1].policy_version is None
     assert all(event.output_summary["demoOnly"] is True for event in events)
 
 

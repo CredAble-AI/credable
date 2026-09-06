@@ -56,7 +56,7 @@ const available: ProductComparisonResult = {
     product: {
       productId: 'prd_demo', productName: 'CredAble 운영자금', eligibilitySummary: '등록 사업자 대상',
       publicConditions: { maxAmount: { amount: '50000000', currency: 'KRW' }, annualRateRange: { minPercent: '4.50', maxPercent: '7.00' }, termRangeMonths: { minMonths: 12, maxMonths: 60 }, repaymentMethods: ['원리금균등'] },
-      personalizedConditions: null, conditionStatus: 'PUBLIC_ONLY', conditionReasonCode: null,
+      conditionStatus: 'PUBLIC_ONLY', conditionReasonCode: null,
       officialSource: { sourceName: 'CredAble Demo Bank', sourceUrl: null, effectiveDate: '2026-09-06' }, productVersion: 'demo-v1', applicationUrl: null, applicationReference: null, finalApprovalRequired: true, demoOnly: true,
     },
   }],
@@ -99,5 +99,16 @@ describe('ProductComparisonPage', () => {
 
     expect(await screen.findByRole('alert')).toHaveTextContent('상품 조건 조회에 실패했습니다.')
     expect(screen.getByRole('heading', { name: 'CredAble 운영자금' })).toBeInTheDocument()
+  })
+
+  it('never offers a per-customer amount or rate', async () => {
+    vi.mocked(mockProductProvider.get).mockResolvedValue(available)
+    renderPage()
+
+    expect(await screen.findByRole('heading', { name: 'CredAble 운영자금' })).toBeInTheDocument()
+    expect(screen.queryByText('개인화 조회 조건')).not.toBeInTheDocument()
+    expect(screen.queryByText(/개인화 조회 한도/)).not.toBeInTheDocument()
+    expect(screen.queryByText(/개인화 조회 금리/)).not.toBeInTheDocument()
+    expect(screen.getByText('이 서비스는 공개 조건과 확인 상태만 보여주며, 개인별 한도·금리와 승인 가능성을 산출하지 않습니다.')).toBeInTheDocument()
   })
 })

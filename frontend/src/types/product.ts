@@ -1,7 +1,8 @@
 import type { DemoProfileType } from './customerSession'
 
 export type ComparisonStatus = 'CATALOG_UNAVAILABLE' | 'PUBLIC_ONLY' | 'AVAILABLE' | 'PARTIAL'
-export type ComparisonSortField = 'PUBLIC_MAX_AMOUNT' | 'PUBLIC_MIN_ANNUAL_RATE' | 'PERSONALIZED_MAX_AMOUNT' | 'PERSONALIZED_MIN_ANNUAL_RATE'
+/** The MVP compares published conditions only, so no per-customer field is sortable. */
+export type ComparisonSortField = 'PUBLIC_MAX_AMOUNT' | 'PUBLIC_MIN_ANNUAL_RATE'
 export type ProductConditionStatus = 'PUBLIC_ONLY' | 'PERSONALIZED_AVAILABLE' | 'INELIGIBLE' | 'INSUFFICIENT_DATA' | 'POLICY_NOT_CONFIGURED' | 'QUERY_FAILED'
 export type ProductCatalogStatus = 'NOT_LOADED' | 'CATALOG_NOT_CONFIGURED' | 'AVAILABLE' | 'FAILED'
 export type ProductConditionQueryStatus = 'NOT_QUERIED' | 'CATALOG_UNAVAILABLE' | 'COMPLETED' | 'PARTIAL' | 'FAILED'
@@ -43,9 +44,6 @@ export interface ProductCatalogResponse {
 export interface ProductCondition {
   productId: string
   status: ProductConditionStatus
-  personalizedMaxAmount: MoneyAmount | null
-  personalizedAnnualRateRange: AnnualRateRange | null
-  personalizedTermRangeMonths: TermRangeMonths | null
   policyVersion: string | null
   queriedAt: string
   reasonCode: string | null
@@ -74,19 +72,11 @@ export interface PublicProductConditions {
   termRangeMonths: TermRangeMonths | null
   repaymentMethods: string[]
 }
-export interface PersonalizedProductConditions {
-  maxAmount: MoneyAmount | null
-  annualRateRange: AnnualRateRange | null
-  termRangeMonths: TermRangeMonths | null
-  policyVersion: string
-  queriedAt: string
-}
 export interface ProductComparisonItem {
   productId: string
   productName: string
   eligibilitySummary: string
   publicConditions: PublicProductConditions
-  personalizedConditions: PersonalizedProductConditions | null
   conditionStatus: ProductConditionStatus | null
   conditionReasonCode: string | null
   officialSource: ProductOfficialSource
