@@ -405,10 +405,7 @@ def test_changed_pdf_routes_to_underwriter_without_storing_binary_or_reassessmen
     assert event.output_summary["suspicionCount"] == 2
     assert event.output_summary["nextAction"] == "UNDERWRITER_REVIEW"
     assert event.output_summary["underwriterRequired"] is True
-    burden = client.get(
-        f"/v1/admin/sessions/{session_id}/evidence-burden",
-        headers={"X-Admin-API-Key": "test-admin-api-key"},
-    )
+    burden = client.get(f"/v1/admin/sessions/{session_id}/evidence-burden")
     assert burden.status_code == 200
     assert burden.json()["acceptedCount"] == 0
     assert burden.json()["rejectedCount"] == 0

@@ -7,7 +7,7 @@ const demoResult = (sessionId: string): AdminEvidenceBurdenResponse => ({
 })
 
 export const mockAdminEvidenceBurdenProvider: AdminEvidenceBurdenProvider = {
-  async get(_apiKey, sessionId, signal) {
+  async get(sessionId, signal) {
     if (signal.aborted) throw new DOMException('Aborted', 'AbortError')
     return demoResult(sessionId)
   },

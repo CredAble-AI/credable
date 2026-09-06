@@ -2,7 +2,7 @@ import type { AdminEvidenceBurdenResponse } from '../types/adminEvidenceBurden'
 import type { ApiError } from '../types/api'
 
 export interface AdminEvidenceBurdenProvider {
-  get(apiKey: string, sessionId: string, signal: AbortSignal): Promise<AdminEvidenceBurdenResponse>
+  get(sessionId: string, signal: AbortSignal): Promise<AdminEvidenceBurdenResponse>
 }
 
 export const normalizeAdminEvidenceBurdenError = (error: unknown): ApiError => {
@@ -10,10 +10,9 @@ export const normalizeAdminEvidenceBurdenError = (error: unknown): ApiError => {
   return { code: 'ADMIN_EVIDENCE_BURDEN_REQUEST_FAILED', message: 'Evidence 부담 지표를 확인하지 못했습니다.', retryable: true }
 }
 
-const get = async (apiKey: string, sessionId: string, signal: AbortSignal): Promise<AdminEvidenceBurdenResponse> => {
+const get = async (sessionId: string, signal: AbortSignal): Promise<AdminEvidenceBurdenResponse> => {
   const response = await fetch(`/v1/admin/sessions/${encodeURIComponent(sessionId)}/evidence-burden`, {
     method: 'GET',
-    headers: { 'X-Admin-API-Key': apiKey },
     signal,
   })
   if (!response.ok) {

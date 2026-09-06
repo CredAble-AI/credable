@@ -226,12 +226,7 @@ def test_openapi_exposes_health_routes(client: TestClient) -> None:
     assert "/v1/sessions/{session_id}/comparison" in paths
     assert "/v1/admin/sessions/{session_id}/audit-events" in paths
 
-    security_schemes = response.json()["components"]["securitySchemes"]
-    assert security_schemes["AdminApiKey"] == {
-        "type": "apiKey",
-        "in": "header",
-        "name": "X-Admin-API-Key",
-    }
+    assert "securitySchemes" not in response.json().get("components", {})
 
 
 def test_removed_legacy_case_routes_return_not_found(client: TestClient) -> None:

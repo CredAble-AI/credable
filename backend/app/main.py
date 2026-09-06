@@ -20,7 +20,6 @@ from app.api.admin_reviews import router as admin_reviews_router
 from app.api.demo_profiles import router as demo_profiles_router
 from app.api.health import router as health_router
 from app.api.sessions import router as sessions_router
-from app.core.admin_auth import AdminApiKeyAuthenticator
 from app.core.config import ExplanationProviderMode, Settings, settings
 from app.core.errors import ApiDomainError
 from app.repositories.assessment_repository import SqliteAssessmentRepository
@@ -103,11 +102,6 @@ def build_session_service() -> CustomerSessionService:
         repository=SqliteCustomerSessionRepository(settings.database_path),
         catalog=DemoProfileCatalog(settings.demo_profiles_path),
     )
-
-
-def build_admin_authenticator() -> AdminApiKeyAuthenticator:
-    api_key = settings.admin_api_key.get_secret_value() if settings.admin_api_key else None
-    return AdminApiKeyAuthenticator(api_key)
 
 
 def build_consent_service(session_service: CustomerSessionService) -> ConsentService:
@@ -445,7 +439,6 @@ def create_app(
     product_catalog_service: ProductCatalogService | None = None,
     product_condition_service: ProductConditionService | None = None,
     model_registry_service: ModelRegistryService | None = None,
-    admin_authenticator: AdminApiKeyAuthenticator | None = None,
 ) -> FastAPI:
     resolved_session_service = session_service or build_session_service()
     resolved_bank_data_service = bank_data_service or build_bank_data_service(
@@ -606,7 +599,6 @@ def create_app(
         catalog_service=resolved_product_catalog_service,
         condition_service=resolved_product_condition_service,
     )
-    resolved_admin_authenticator = admin_authenticator or build_admin_authenticator()
     resolved_admin_audit_service = AdminAuditService(resolved_session_service)
     resolved_admin_evidence_burden_service = AdminEvidenceBurdenService(
         session_service=resolved_session_service,
@@ -690,7 +682,6 @@ def create_app(
     application.state.product_catalog_service = resolved_product_catalog_service
     application.state.product_condition_service = resolved_product_condition_service
     application.state.product_comparison_service = resolved_product_comparison_service
-    application.state.admin_authenticator = resolved_admin_authenticator
     application.state.admin_audit_service = resolved_admin_audit_service
     application.state.admin_evidence_burden_service = resolved_admin_evidence_burden_service
     application.state.assessment_review_request_service = resolved_assessment_review_request_service

@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
+import { fireEvent, render, screen, within } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import App from './App'
@@ -7,18 +7,15 @@ describe('administrator journey integration', () => {
   beforeEach(() => localStorage.clear())
   afterEach(() => localStorage.clear())
 
-  it('processes a review and follows its session oversight routes with an in-memory key', async () => {
+  it('processes a demo review and follows its session oversight routes without an access key', async () => {
     render(<MemoryRouter initialEntries={['/admin/reviews']}><App /></MemoryRouter>)
 
     expect(screen.getByRole('heading', { level: 1, name: '심사역 검토 목록' })).toBeInTheDocument()
     expect(localStorage).toHaveLength(0)
-    fireEvent.change(screen.getByLabelText('관리자 Demo API Key'), { target: { value: 'integration-demo-key' } })
-    fireEvent.click(screen.getByRole('button', { name: '관리자 화면 확인' }))
 
     const pendingReviewHeading = await screen.findByRole('heading', { level: 2, name: 'uwr_demo_assessment' })
     const pendingReviewCard = pendingReviewHeading.closest('article') as HTMLElement
     expect(within(pendingReviewCard).getByText('접수 대기')).toBeInTheDocument()
-    expect(screen.queryByText('integration-demo-key')).not.toBeInTheDocument()
     expect(localStorage).toHaveLength(0)
     fireEvent.click(within(pendingReviewCard).getByRole('link', { name: '상세 확인' }))
 
@@ -48,8 +45,6 @@ describe('administrator journey integration', () => {
     const completedReviewHeading = await screen.findByRole('heading', { level: 2, name: 'uwr_demo_assessment' })
     expect(within(completedReviewHeading.closest('article') as HTMLElement).getByText('처리 완료')).toBeInTheDocument()
 
-    fireEvent.click(screen.getByRole('button', { name: '관리자 키 지우기' }))
-    await waitFor(() => expect(screen.getByLabelText('관리자 Demo API Key')).toBeInTheDocument())
     expect(localStorage).toHaveLength(0)
   })
 })

@@ -1,8 +1,7 @@
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, Query, Request
+from fastapi import APIRouter, Query, Request
 
-from app.api.admin_audit import require_admin_api_key
 from app.schemas.error import ApiErrorResponse
 from app.schemas.review_workflow import UnderwriterReviewStatus
 from app.schemas.underwriter_review import (
@@ -24,10 +23,8 @@ def get_underwriter_review_queue_service(request: Request) -> UnderwriterReviewQ
     response_model=UnderwriterReviewQueueResponse,
     response_model_exclude_none=True,
     responses={
-        401: {"model": ApiErrorResponse},
         503: {"model": ApiErrorResponse},
     },
-    dependencies=[Depends(require_admin_api_key)],
 )
 async def list_underwriter_reviews(
     request: Request,
@@ -47,10 +44,8 @@ async def list_underwriter_reviews(
     response_model=UnderwriterReviewDetailResponse,
     response_model_exclude_none=True,
     responses={
-        401: {"model": ApiErrorResponse},
         404: {"model": ApiErrorResponse},
     },
-    dependencies=[Depends(require_admin_api_key)],
 )
 async def get_underwriter_review(
     review_id: str,
@@ -64,11 +59,9 @@ async def get_underwriter_review(
     response_model=UnderwriterReviewDetailResponse,
     response_model_exclude_none=True,
     responses={
-        401: {"model": ApiErrorResponse},
         404: {"model": ApiErrorResponse},
         409: {"model": ApiErrorResponse},
     },
-    dependencies=[Depends(require_admin_api_key)],
 )
 async def claim_underwriter_review(
     review_id: str,
@@ -85,11 +78,9 @@ async def claim_underwriter_review(
     response_model=UnderwriterReviewDetailResponse,
     response_model_exclude_none=True,
     responses={
-        401: {"model": ApiErrorResponse},
         404: {"model": ApiErrorResponse},
         409: {"model": ApiErrorResponse},
     },
-    dependencies=[Depends(require_admin_api_key)],
 )
 async def complete_underwriter_review(
     review_id: str,

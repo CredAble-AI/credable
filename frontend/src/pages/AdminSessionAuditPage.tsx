@@ -1,9 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { normalizeAdminAuditError } from '../api/adminAuditClient'
-import AdminApiKeyForm from '../components/AdminApiKeyForm'
 import { adminAuditProvider } from '../hooks/useAdminAuditState'
-import { useAdminAuth } from '../hooks/useAdminAuth'
 import type { AdminAuditEventListResponse, AuditActor, AuditStage, SessionAuditEvent } from '../types/adminAudit'
 import type { ApiError } from '../types/api'
 import './AdminSessionAuditPage.css'
@@ -21,7 +19,6 @@ function AuditEventCard({ event }: { event: SessionAuditEvent }) {
 
 function AdminSessionAuditPage() {
   const { sessionId = '' } = useParams()
-  const { apiKey, clear } = useAdminAuth()
   const [result, setResult] = useState<AdminAuditEventListResponse | null>(null)
   const [cursors, setCursors] = useState<Array<string | null>>([null])
   const [error, setError] = useState<ApiError | null>(null)
@@ -31,13 +28,13 @@ function AdminSessionAuditPage() {
   const cursor = cursors[cursors.length - 1] ?? null
 
   const load = useCallback(async () => {
-    if (!apiKey || !sessionId) return
+    if (!sessionId) return
     controllerRef.current?.abort()
     const controller = new AbortController(); controllerRef.current = controller
     const sequence = ++sequenceRef.current
     setLoading(true); setError(null)
     try {
-      const response = await adminAuditProvider.list(apiKey, sessionId, PAGE_SIZE, cursor, controller.signal)
+      const response = await adminAuditProvider.list(sessionId, PAGE_SIZE, cursor, controller.signal)
       if (response.sessionId !== sessionId || response.events.some((event) => event.sessionId !== sessionId)) throw { code: 'ADMIN_AUDIT_RESPONSE_INVALID', message: '요청한 세션과 일치하는 감사 이력을 확인할 수 없습니다.', retryable: true } satisfies ApiError
       if (sequence === sequenceRef.current) setResult(response)
     } catch (caught) {
@@ -45,30 +42,28 @@ function AdminSessionAuditPage() {
     } finally {
       if (sequence === sequenceRef.current) setLoading(false)
     }
-  }, [apiKey, cursor, sessionId])
+  }, [cursor, sessionId])
 
   useEffect(() => {
-    if (apiKey) queueMicrotask(() => void load())
+    queueMicrotask(() => void load())
     return () => { sequenceRef.current += 1; controllerRef.current?.abort() }
-  }, [apiKey, load])
+  }, [load])
 
-  const resetKey = () => { clear(); setResult(null); setError(null); setCursors([null]) }
   const showNewer = () => { setResult(null); setError(null); setCursors((current) => current.slice(0, -1)) }
   const showOlder = () => {
     if (!result?.nextCursor) return
     setResult(null); setError(null); setCursors((current) => [...current, result.nextCursor])
   }
-  const authFailed = error?.code === 'ADMIN_AUTHENTICATION_FAILED'
   const page = cursors.length
 
   return <main id="main-content" tabIndex={-1} className="admin-main"><div className="admin-container admin-audit"><Link className="admin-back-link" to="/admin/reviews">← 검토 목록</Link><header className="admin-heading"><p>SESSION AUDIT TRAIL</p><h1>세션 처리 이력</h1><span>서버가 기록한 처리 단계와 추적 메타데이터를 최신순으로 확인합니다. 원본 금융정보는 이 화면에 제공되지 않습니다.</span></header>
-    {!apiKey ? <AdminApiKeyForm /> : <><section className="admin-audit-context" aria-label="조회 중인 세션"><div><span>SESSION ID</span><code>{sessionId}</code></div><div className="admin-audit-context__actions"><Link to={`/admin/sessions/${encodeURIComponent(sessionId)}/evidence-burden`}>Evidence 부담 지표</Link><button type="button" onClick={() => void load()} disabled={loading}>상태 새로고침</button></div></section><div className="admin-live" role="status" aria-live="polite">{loading ? `${page}페이지 감사 이력을 불러오고 있습니다.` : error ? '감사 이력을 확인하지 못했습니다.' : result ? `${page}페이지에서 ${result.events.length}건을 표시합니다.` : '감사 이력을 확인해주세요.'}</div>
-      {error && <section className="admin-error" role="alert"><div><strong>{error.message}</strong><small>{error.code}{error.requestId ? ` · Request ID: ${error.requestId}` : ''}</small></div><button type="button" onClick={authFailed ? resetKey : () => void load()}>{authFailed ? '키 다시 입력' : '다시 확인'}</button></section>}
+    <p className="admin-demo-notice">합성 Demo 데이터 전용 화면이며 별도 관리자 인증 없이 시연할 수 있습니다.</p>
+    <section className="admin-audit-context" aria-label="조회 중인 세션"><div><span>SESSION ID</span><code>{sessionId}</code></div><div className="admin-audit-context__actions"><Link to={`/admin/sessions/${encodeURIComponent(sessionId)}/evidence-burden`}>Evidence 부담 지표</Link><button type="button" onClick={() => void load()} disabled={loading}>상태 새로고침</button></div></section><div className="admin-live" role="status" aria-live="polite">{loading ? `${page}페이지 감사 이력을 불러오고 있습니다.` : error ? '감사 이력을 확인하지 못했습니다.' : result ? `${page}페이지에서 ${result.events.length}건을 표시합니다.` : '감사 이력을 확인해주세요.'}</div>
+      {error && <section className="admin-error" role="alert"><div><strong>{error.message}</strong><small>{error.code}{error.requestId ? ` · Request ID: ${error.requestId}` : ''}</small></div><button type="button" onClick={() => void load()}>다시 확인</button></section>}
       {loading && !result && <div className="admin-audit-skeleton" aria-hidden="true"><span /><span /></div>}
       {!loading && result?.events.length === 0 && <section className="admin-empty"><h2>기록된 처리 이력이 없습니다</h2><p>이 세션에서 처리 단계가 기록되면 최신 이력부터 표시됩니다.</p></section>}
       {result && result.events.length > 0 && <section className="admin-audit-timeline" aria-label="세션 감사 이력">{result.events.map((event) => <AuditEventCard event={event} key={event.eventId} />)}</section>}
       {result && <nav className="admin-pagination" aria-label="감사 이력 페이지"><button type="button" disabled={loading || cursors.length === 1} onClick={showNewer}>최신 이력 보기</button><span>{page}페이지</span><button type="button" disabled={loading || !result.nextCursor} onClick={showOlder}>이전 이력 보기</button></nav>}
-    </>}
   </div></main>
 }
 

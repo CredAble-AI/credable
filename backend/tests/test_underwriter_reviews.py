@@ -18,8 +18,6 @@ from app.services.policy_boundary_service import (
     PolicyBoundaryService,
 )
 
-ADMIN_HEADERS = {"X-Admin-API-Key": "test-admin-api-key"}
-
 
 def create_completed_assessment(
     client: TestClient,
@@ -90,23 +88,16 @@ def create_suspicious_quality(
 
 
 def get_only_review(client: TestClient) -> dict:
-    response = client.get("/v1/admin/underwriter-reviews", headers=ADMIN_HEADERS)
+    response = client.get("/v1/admin/underwriter-reviews")
     assert response.status_code == 200
     assert response.json()["totalCount"] == 1
     return response.json()["items"][0]
 
 
-def test_underwriter_review_queue_requires_admin_authentication(client: TestClient) -> None:
-    response = client.get("/v1/admin/underwriter-reviews")
-
-    assert response.status_code == 401
-    assert response.json()["error"]["code"] == "ADMIN_AUTHENTICATION_FAILED"
-
-
 def test_underwriter_review_queue_is_empty_without_suspicious_quality(
     client: TestClient,
 ) -> None:
-    response = client.get("/v1/admin/underwriter-reviews", headers=ADMIN_HEADERS)
+    response = client.get("/v1/admin/underwriter-reviews")
 
     assert response.status_code == 200
     assert response.json() == {
@@ -129,7 +120,7 @@ def test_underwriter_review_queue_exposes_only_safe_review_context(
         assessment_service,
     )
 
-    response = client.get("/v1/admin/underwriter-reviews", headers=ADMIN_HEADERS)
+    response = client.get("/v1/admin/underwriter-reviews")
 
     assert response.status_code == 200
     payload = response.json()
@@ -194,10 +185,9 @@ def test_policy_blocked_boundary_is_exposed_in_underwriter_queue(
     assert review["dataVersion"] == assessment["inputSnapshotId"]
     assert review["policyVersion"] == "test-blocked-policy-v1"
     endpoint = f"/v1/admin/underwriter-reviews/{review['reviewId']}"
-    assert client.post(f"{endpoint}/claim", headers=ADMIN_HEADERS).status_code == 200
+    assert client.post(f"{endpoint}/claim").status_code == 200
     completed = client.post(
         f"{endpoint}/complete",
-        headers=ADMIN_HEADERS,
         json={"resultCode": "ASSESSMENT_CONFIRMED"},
     )
     assert completed.status_code == 200
@@ -303,11 +293,9 @@ def test_underwriter_review_queue_supports_bounded_offset_paging(
 
     first_page = client.get(
         "/v1/admin/underwriter-reviews?limit=1&offset=0",
-        headers=ADMIN_HEADERS,
     )
     second_page = client.get(
         "/v1/admin/underwriter-reviews?limit=1&offset=1",
-        headers=ADMIN_HEADERS,
     )
 
     assert first_page.status_code == 200
@@ -323,11 +311,9 @@ def test_underwriter_review_queue_rejects_unbounded_page_parameters(
 ) -> None:
     too_large = client.get(
         "/v1/admin/underwriter-reviews?limit=101",
-        headers=ADMIN_HEADERS,
     )
     negative_offset = client.get(
         "/v1/admin/underwriter-reviews?offset=-1",
-        headers=ADMIN_HEADERS,
     )
 
     assert too_large.status_code == 422
@@ -337,10 +323,7 @@ def test_underwriter_review_queue_rejects_unbounded_page_parameters(
 def test_underwriter_review_queue_allows_offset_past_last_item(
     client: TestClient,
 ) -> None:
-    response = client.get(
-        "/v1/admin/underwriter-reviews?offset=999",
-        headers=ADMIN_HEADERS,
-    )
+    response = client.get("/v1/admin/underwriter-reviews?offset=999")
 
     assert response.status_code == 200
     assert response.json()["totalCount"] == 0
@@ -361,15 +344,13 @@ def test_evidence_review_accepts_only_evidence_result_codes(
     review_id = f"uwr_{quality['qualityCheckId'].removeprefix('evq_')}"
     endpoint = f"/v1/admin/underwriter-reviews/{review_id}"
 
-    claimed = client.post(f"{endpoint}/claim", headers=ADMIN_HEADERS)
+    claimed = client.post(f"{endpoint}/claim")
     invalid = client.post(
         f"{endpoint}/complete",
-        headers=ADMIN_HEADERS,
         json={"resultCode": "ASSESSMENT_CONFIRMED"},
     )
     completed = client.post(
         f"{endpoint}/complete",
-        headers=ADMIN_HEADERS,
         json={"resultCode": "EVIDENCE_EXCLUDED"},
     )
 

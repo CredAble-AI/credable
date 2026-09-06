@@ -1,8 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { normalizeAdminReviewError } from '../api/adminReviewClient'
-import AdminApiKeyForm from '../components/AdminApiKeyForm'
-import { useAdminAuth } from '../hooks/useAdminAuth'
 import { adminReviewProvider } from '../hooks/useAdminReviewState'
 import type { ApiError } from '../types/api'
 import type { AdminReviewQueueItem, AdminReviewResultCode, AdminReviewStatus, AdminReviewTriggerType } from '../types/adminReview'
@@ -44,7 +42,6 @@ function ReviewFacts({ review }: { review: AdminReviewQueueItem }) {
 
 function AdminReviewDetailPage() {
   const { reviewId = '' } = useParams()
-  const { apiKey, clear } = useAdminAuth()
   const [review, setReview] = useState<AdminReviewQueueItem | null>(null)
   const [resultCode, setResultCode] = useState<AdminReviewResultCode | ''>('')
   const [error, setError] = useState<ApiError | null>(null)
@@ -74,33 +71,30 @@ function AdminReviewDetailPage() {
   }, [commitResponse])
 
   const load = useCallback(() => {
-    if (!apiKey || !reviewId) return Promise.resolve()
-    return run('loading', (signal) => adminReviewProvider.get(apiKey, reviewId, signal))
-  }, [apiKey, reviewId, run])
+    if (!reviewId) return Promise.resolve()
+    return run('loading', (signal) => adminReviewProvider.get(reviewId, signal))
+  }, [reviewId, run])
 
   useEffect(() => {
-    if (apiKey) queueMicrotask(() => void load())
+    queueMicrotask(() => void load())
     return () => { sequenceRef.current += 1; controllerRef.current?.abort() }
-  }, [apiKey, load])
+  }, [load])
 
   const options = useMemo(() => review ? allowedResults[review.triggerType] : [], [review])
   const busy = phase !== 'idle'
-  const authFailed = error?.code === 'ADMIN_AUTHENTICATION_FAILED'
-  const resetKey = () => { clear(); setReview(null); setError(null); setResultCode('') }
-  const claim = () => { if (apiKey) void run('claiming', (signal) => adminReviewProvider.claim(apiKey, reviewId, signal)) }
-  const complete = () => { if (apiKey && resultCode) void run('completing', (signal) => adminReviewProvider.complete(apiKey, reviewId, resultCode, signal)) }
+  const claim = () => { void run('claiming', (signal) => adminReviewProvider.claim(reviewId, signal)) }
+  const complete = () => { if (resultCode) void run('completing', (signal) => adminReviewProvider.complete(reviewId, resultCode, signal)) }
 
   return <main id="main-content" tabIndex={-1} className="admin-main"><div className="admin-container admin-detail"><Link className="admin-back-link" to="/admin/reviews">← 검토 목록</Link><header className="admin-heading"><p>UNDERWRITER REVIEW DETAIL</p><h1>심사역 검토 상세</h1><span>서버가 등록한 검토 요청의 상태를 확인하고 확정된 결과 코드로 처리합니다.</span></header>
-    {!apiKey ? <AdminApiKeyForm /> : <>
-      <div className="admin-detail-toolbar"><span role="status" aria-live="polite">{phase === 'loading' ? '검토 상세를 불러오고 있습니다.' : phase === 'claiming' ? '검토 요청을 접수하고 있습니다.' : phase === 'completing' ? '검토를 완료하고 있습니다.' : review ? `${statusLabels[review.status]} 상태입니다.` : error ? '검토 상세를 확인하지 못했습니다.' : '검토 상세를 확인해주세요.'}</span><button type="button" onClick={() => void load()} disabled={busy}>상태 새로고침</button></div>
-      {error && <section className="admin-error" role="alert"><div><strong>{error.message}</strong><small>{error.code}{error.requestId ? ` · Request ID: ${error.requestId}` : ''}</small></div><button type="button" onClick={authFailed ? resetKey : () => void load()}>{authFailed ? '키 다시 입력' : '다시 확인'}</button></section>}
+    <p className="admin-demo-notice">합성 Demo 데이터 전용 화면이며 별도 관리자 인증 없이 시연할 수 있습니다.</p>
+    <div className="admin-detail-toolbar"><span role="status" aria-live="polite">{phase === 'loading' ? '검토 상세를 불러오고 있습니다.' : phase === 'claiming' ? '검토 요청을 접수하고 있습니다.' : phase === 'completing' ? '검토를 완료하고 있습니다.' : review ? `${statusLabels[review.status]} 상태입니다.` : error ? '검토 상세를 확인하지 못했습니다.' : '검토 상세를 확인해주세요.'}</span><button type="button" onClick={() => void load()} disabled={busy}>상태 새로고침</button></div>
+      {error && <section className="admin-error" role="alert"><div><strong>{error.message}</strong><small>{error.code}{error.requestId ? ` · Request ID: ${error.requestId}` : ''}</small></div><button type="button" onClick={() => void load()}>다시 확인</button></section>}
       {phase === 'loading' && !review && <div className="admin-detail-skeleton" aria-hidden="true"><span /><span /></div>}
       {review && <><ReviewFacts review={review} /><section className="admin-review-action" aria-labelledby="review-action-title"><p>REVIEW ACTION</p><h2 id="review-action-title">검토 처리</h2>
         {review.status === 'PENDING' && <><p>이 요청을 접수하면 상태가 검토 중으로 변경됩니다.</p><button type="button" onClick={claim} disabled={busy}>{phase === 'claiming' ? '접수 중…' : '검토 접수'}</button></>}
         {review.status === 'IN_REVIEW' && <><label htmlFor="review-result">처리 결과</label><select id="review-result" value={resultCode} onChange={(event) => setResultCode(event.target.value as AdminReviewResultCode | '')} disabled={busy}><option value="">처리 결과 선택</option>{options.map((code) => <option value={code} key={code}>{resultLabels[code]} · {code}</option>)}</select><p className="admin-review-action__warning">완료 후에는 처리 결과를 변경할 수 없습니다.</p><button type="button" onClick={complete} disabled={busy || !resultCode}>{phase === 'completing' ? '완료 처리 중…' : '선택한 결과로 검토 완료'}</button></>}
         {review.status === 'COMPLETED' && <p className="admin-review-action__complete">이 검토 요청은 <strong>{review.resultCode ? resultLabels[review.resultCode] : '서버 확정 결과'}</strong>로 처리 완료되었습니다.</p>}
       </section></>}
-    </>}
   </div></main>
 }
 

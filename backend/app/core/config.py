@@ -14,11 +14,6 @@ class ExplanationProviderMode(StrEnum):
     GEMINI = "gemini"
 
 
-def load_admin_api_key() -> SecretStr | None:
-    value = os.getenv("CREDABLE_ADMIN_API_KEY")
-    return SecretStr(value) if value else None
-
-
 def load_gemini_api_key() -> SecretStr | None:
     value = os.getenv("GEMINI_API_KEY")
     return SecretStr(value) if value else None
@@ -71,7 +66,6 @@ class Settings(BaseModel):
     demo_product_conditions_path: Path = (
         BACKEND_ROOT / "app" / "data" / "demo_product_conditions.json"
     )
-    admin_api_key: SecretStr | None = Field(default_factory=load_admin_api_key)
     explanation_provider: ExplanationProviderMode = Field(
         default_factory=load_explanation_provider_mode
     )

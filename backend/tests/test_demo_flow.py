@@ -16,8 +16,6 @@ from app.services.data_source_service import DataSourceService
 from app.services.product_catalog_service import ProductCatalogService
 from app.services.product_condition_service import ProductConditionService
 
-ADMIN_HEADERS = {"X-Admin-API-Key": "test-admin-api-key"}
-
 
 def configure_demo_adapters(
     data_source_service: DataSourceService,
@@ -260,12 +258,10 @@ def test_complete_demo_journey_connects_evidence_products_and_admin(
 
     burden_response = client.get(
         f"/v1/admin/sessions/{session_id}/evidence-burden",
-        headers=ADMIN_HEADERS,
     )
     audit_response = client.get(
         f"/v1/admin/sessions/{session_id}/audit-events",
         params={"limit": 100},
-        headers=ADMIN_HEADERS,
     )
     assert burden_response.status_code == 200
     burden = burden_response.json()

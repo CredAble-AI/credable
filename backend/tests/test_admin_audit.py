@@ -1,11 +1,6 @@
 import pytest
 from fastapi.testclient import TestClient
 
-from app.core.admin_auth import AdminApiKeyAuthenticator
-from app.core.config import Settings
-
-ADMIN_HEADERS = {"X-Admin-API-Key": "test-admin-api-key"}
-
 
 def create_demo_session(client: TestClient) -> str:
     response = client.post(
@@ -14,40 +9,6 @@ def create_demo_session(client: TestClient) -> str:
     )
     assert response.status_code == 201
     return response.json()["sessionId"]
-
-
-def test_admin_audit_requires_configured_api_key(client: TestClient) -> None:
-    missing = client.get("/v1/admin/sessions/ses_unknown/audit-events")
-    invalid = client.get(
-        "/v1/admin/sessions/ses_unknown/audit-events",
-        headers={"X-Admin-API-Key": "wrong-key"},
-    )
-
-    assert missing.status_code == 401
-    assert missing.json()["error"]["code"] == "ADMIN_AUTHENTICATION_FAILED"
-    assert invalid.status_code == 401
-    assert invalid.json()["error"]["code"] == "ADMIN_AUTHENTICATION_FAILED"
-
-
-def test_unconfigured_admin_authentication_fails_closed(client: TestClient) -> None:
-    client.app.state.admin_authenticator = AdminApiKeyAuthenticator(None)
-
-    response = client.get(
-        "/v1/admin/sessions/ses_unknown/audit-events",
-        headers=ADMIN_HEADERS,
-    )
-
-    assert response.status_code == 503
-    assert response.json()["error"]["code"] == "ADMIN_AUTHENTICATION_NOT_CONFIGURED"
-
-
-def test_settings_load_admin_api_key_from_environment(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setenv("CREDABLE_ADMIN_API_KEY", "environment-admin-key")
-
-    configured = Settings()
-
-    assert configured.admin_api_key is not None
-    assert configured.admin_api_key.get_secret_value() == "environment-admin-key"
 
 
 def test_admin_can_page_session_audit_events_without_raw_financial_data(
@@ -62,7 +23,6 @@ def test_admin_can_page_session_audit_events_without_raw_financial_data(
     first_page = client.get(
         f"/v1/admin/sessions/{session_id}/audit-events",
         params={"limit": 2},
-        headers=ADMIN_HEADERS,
     )
 
     assert first_page.status_code == 200
@@ -98,7 +58,6 @@ def test_admin_can_page_session_audit_events_without_raw_financial_data(
     second_page = client.get(
         f"/v1/admin/sessions/{session_id}/audit-events",
         params={"limit": 2, "cursor": body["nextCursor"]},
-        headers=ADMIN_HEADERS,
     )
 
     assert second_page.status_code == 200
@@ -116,7 +75,6 @@ def test_admin_audit_rejects_invalid_cursor(client: TestClient) -> None:
     response = client.get(
         f"/v1/admin/sessions/{session_id}/audit-events",
         params={"cursor": "not-a-valid-cursor"},
-        headers=ADMIN_HEADERS,
     )
 
     assert response.status_code == 400
@@ -124,10 +82,7 @@ def test_admin_audit_rejects_invalid_cursor(client: TestClient) -> None:
 
 
 def test_admin_audit_uses_session_not_found_contract(client: TestClient) -> None:
-    response = client.get(
-        "/v1/admin/sessions/ses_does_not_exist/audit-events",
-        headers=ADMIN_HEADERS,
-    )
+    response = client.get("/v1/admin/sessions/ses_does_not_exist/audit-events")
 
     assert response.status_code == 404
     assert response.json()["error"]["code"] == "CUSTOMER_SESSION_NOT_FOUND"
@@ -138,7 +93,6 @@ def test_admin_audit_rejects_out_of_range_limit(client: TestClient, limit: int) 
     response = client.get(
         "/v1/admin/sessions/ses_unknown/audit-events",
         params={"limit": limit},
-        headers=ADMIN_HEADERS,
     )
 
     assert response.status_code == 422

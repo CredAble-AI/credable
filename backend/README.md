@@ -302,7 +302,10 @@ curl -X POST \
 `ASSESSMENT_REVIEW_TARGET_NOT_READY`로 차단합니다. 이 기능은 평가값을 다시 계산하거나 금융
 판단을 변경하지 않고 은행 심사역 검토 큐에 요청을 추가하는 역할만 수행합니다. 응답의
 `processing`은 `PENDING`, `IN_REVIEW`, `COMPLETED` 상태와 고객에게 공개 가능한 결과·처리시각을
-제공하며 내부 심사역 식별자는 노출하지 않습니다.
+제공합니다. 합성 Demo에서는 평가 완료 후 고객 화면과 해당 심사역 상세 화면을 연결하기 위해
+`underwriterReviewId`를 함께 반환합니다. 이는 담당자나 실제 금융기관 내부 식별자가 아닌 합성
+검토 워크플로 식별자이며, 실제 운영에서는 고객 응답에서 제거하고 별도 심사역 채널이 내부
+권한으로 조회해야 합니다.
 
 ## Demo 정책 경계 판정 API
 
@@ -647,25 +650,20 @@ Frontend에서 마지막에 배치해야 하며, 원본 순서에는 추천·순
 
 ## 은행 관리자 감사 이력 API
 
-은행 관리자는 세션에서 수행된 처리 단계를 최신순으로 조회할 수 있습니다. 서버 실행 전에
-관리자 API 키를 환경변수로 설정하고 요청 헤더로 전달합니다.
+은행 관리자는 세션에서 수행된 처리 단계를 최신순으로 조회할 수 있습니다. 공모전 MVP에서는
+합성 Demo 흐름을 끊김 없이 시연하기 위해 별도 관리자 인증을 요구하지 않습니다.
 
 ```bash
-export CREDABLE_ADMIN_API_KEY='<관리자용-비밀키>'
-
-curl \
-  -H 'X-Admin-API-Key: <관리자용-비밀키>' \
-  'http://127.0.0.1:8000/v1/admin/sessions/<sessionId>/audit-events?limit=50'
+curl 'http://127.0.0.1:8000/v1/admin/sessions/<sessionId>/audit-events?limit=50'
 ```
 
 응답에는 처리 단계·시각·요청 ID·입력 Snapshot Hash·데이터/모델/정책 버전과 결과 요약만
 포함하며 원본 금융데이터는 제공하지 않습니다. 기본 조회 개수는 50개, 최대 100개이며 다음
-페이지는 응답의 `nextCursor`를 같은 이름의 `cursor` Query Parameter로 전달합니다. API 키가
-설정되지 않은 서버는 관리자 요청을 허용하지 않습니다.
+페이지는 응답의 `nextCursor`를 같은 이름의 `cursor` Query Parameter로 전달합니다.
 
-현재 API 키 방식은 Demo용입니다. 실제 은행 연동에서는 SSO/RBAC와 은행별 데이터 격리로
-교체해야 하며, 관리자 조회 행위 자체의 감사 기록과 이력 보존·삭제 정책은 아직 포함하지
-않습니다.
+인증 없는 접근은 `demoOnly: true`인 합성 데이터 전용 MVP 정책입니다. 실제 은행 연동에서는
+고객 화면과 분리된 심사역 채널, SSO/RBAC, 은행별 데이터 격리와 담당자 식별이 선행되어야
+합니다. 관리자 조회 행위 자체의 감사 기록과 이력 보존·삭제 정책은 아직 포함하지 않습니다.
 
 ## 은행 심사역 검토 큐 API
 
@@ -675,9 +673,7 @@ curl \
 생성하지 않습니다.
 
 ```bash
-curl \
-  -H 'X-Admin-API-Key: <관리자용-비밀키>' \
-  'http://127.0.0.1:8000/v1/admin/underwriter-reviews?limit=50&offset=0'
+curl 'http://127.0.0.1:8000/v1/admin/underwriter-reviews?limit=50&offset=0'
 ```
 
 응답에는 결정 가능한 금융 원문 대신 `reviewId`, 세션·Trigger ID, Evidence 유형 또는 평가
@@ -693,19 +689,16 @@ curl \
 정책 경계가 `POLICY_BLOCKED`인 동일 원인은 `POLICY_BOUNDARY`를 대표 Trigger로 한 번만
 노출하며, 후속 선택 상태를 중복 큐 항목으로 만들지 않습니다.
 
-심사역은 같은 관리자 인증으로 검토 상세 조회, 접수와 완료 처리를 수행합니다.
+심사역 Demo 화면에서 검토 상세 조회, 접수와 완료 처리를 수행합니다.
 
 ```bash
 curl \
-  -H 'X-Admin-API-Key: <관리자용-비밀키>' \
   http://127.0.0.1:8000/v1/admin/underwriter-reviews/<reviewId>
 
 curl -X POST \
-  -H 'X-Admin-API-Key: <관리자용-비밀키>' \
   http://127.0.0.1:8000/v1/admin/underwriter-reviews/<reviewId>/claim
 
 curl -X POST \
-  -H 'X-Admin-API-Key: <관리자용-비밀키>' \
   -H 'Content-Type: application/json' \
   -d '{"resultCode":"ASSESSMENT_CONFIRMED"}' \
   http://127.0.0.1:8000/v1/admin/underwriter-reviews/<reviewId>/complete
@@ -721,8 +714,8 @@ curl -X POST \
 
 처리 결과는 검토 이력일 뿐 기존 평가값·품질 결과·대출조건을 자동으로 변경하지 않습니다.
 정정이나 추가자료 결과를 실제 평가 흐름에 반영하는 규칙은 은행 정책 확정 후 별도 기능으로
-연결해야 합니다. 실제 운영 인증은 Demo API Key와 고정 Demo 심사역 주체가 아닌 SSO/RBAC,
-실제 담당자 식별 및 조직별 접근통제로 교체해야 합니다.
+연결해야 합니다. 실제 운영에서는 현재의 인증 없는 Demo 접근과 고정 Demo 심사역 주체를
+SSO/RBAC, 실제 담당자 식별 및 조직별 접근통제로 교체해야 합니다.
 
 ## 은행 관리자 Evidence 부담 지표 API
 
@@ -731,9 +724,7 @@ curl -X POST \
 교차검증해 계산합니다.
 
 ```bash
-curl \
-  -H 'X-Admin-API-Key: <관리자용-비밀키>' \
-  http://127.0.0.1:8000/v1/admin/sessions/<sessionId>/evidence-burden
+curl http://127.0.0.1:8000/v1/admin/sessions/<sessionId>/evidence-burden
 ```
 
 응답은 전체·반복 요청 수, 준비 상태별 요청 수, 제출 대기 수, 품질 검증 통과·탈락 수,

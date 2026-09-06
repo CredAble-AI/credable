@@ -122,9 +122,8 @@ class AssessmentReviewRequestService:
                 session_id=session_id,
                 review_request=None,
             )
-        workflow = self.workflow_repository.get(
-            f"uwr_{review.review_request_id.removeprefix('arr_')}"
-        )
+        underwriter_review_id = f"uwr_{review.review_request_id.removeprefix('arr_')}"
+        workflow = self.workflow_repository.get(underwriter_review_id)
         processing = (
             CustomerReviewProcessing(status=UnderwriterReviewStatus.PENDING)
             if workflow is None
@@ -138,5 +137,6 @@ class AssessmentReviewRequestService:
         return AssessmentReviewRequestResponse(
             session_id=session_id,
             review_request=review,
+            underwriter_review_id=underwriter_review_id,
             processing=processing,
         )
