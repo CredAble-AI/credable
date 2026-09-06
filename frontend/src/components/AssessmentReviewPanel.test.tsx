@@ -31,6 +31,7 @@ describe('AssessmentReviewPanel', () => {
     expect(await screen.findByRole('button', { name: '평가 결과 재확인 요청' })).toBeInTheDocument()
     expect(assessmentReviewProvider.get).toHaveBeenCalledWith('ses_demo', expect.any(AbortSignal))
     expect(assessmentReviewProvider.request).not.toHaveBeenCalled()
+    expect(screen.queryByRole('complementary', { name: 'Demo 화면 전환' })).not.toBeInTheDocument()
   })
 
   it('submits an explicit request and displays the server-selected assessment target', async () => {
@@ -44,6 +45,8 @@ describe('AssessmentReviewPanel', () => {
     expect(screen.getByText('sam_demo')).toBeInTheDocument()
     expect(screen.getByText('PENDING')).toBeInTheDocument()
     expect(screen.getByRole('link', { name: '심사역 검토 화면 보기 (Demo)' })).toHaveAttribute('href', '/admin/reviews/uwr_demo')
+    expect(screen.getByRole('complementary', { name: 'Demo 화면 전환' })).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: '심사역 검토로 전환' })).toHaveAttribute('href', '/admin/reviews/uwr_demo')
     expect(screen.getByText(/실제 운영 환경에서는 권한이 분리된 별도 심사역 시스템/)).toBeInTheDocument()
   })
 
