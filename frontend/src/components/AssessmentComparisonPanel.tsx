@@ -4,6 +4,7 @@ import { assessmentComparisonProvider } from '../hooks/useAssessmentComparisonSt
 import type { ApiError } from '../types/api'
 import type { AssessmentUncertainty } from '../types/assessment'
 import type { AssessmentComparisonContext, AssessmentComparisonResponse, AssessmentComparisonState, AssessmentUncertaintyChange } from '../types/assessmentComparison'
+import EvidenceResolutionPanel from './EvidenceResolutionPanel'
 
 interface AssessmentComparisonPanelProps extends AssessmentComparisonContext { sessionId: string }
 type Phase = 'loading' | 'comparing' | 'idle'
@@ -81,6 +82,7 @@ function AssessmentComparisonPanel({ sessionId, baselineAssessmentId, supplement
     <div className="assessment-comparison__cards"><UncertaintyCard label="기준평가" uncertainty={comparison.beforeUncertainty} /><UncertaintyCard label="보완평가" uncertainty={comparison.afterUncertainty} /></div>
     <div className="assessment-comparison__reasons"><span>서버 비교 근거</span>{comparison.rationaleCodes.map((code) => <code key={code}>{code}</code>)}</div>
     <dl className="assessment-comparison__metadata"><div><dt>비교 기준</dt><dd>{basisLabels[comparison.basis]}</dd></div><div><dt>비교 시점</dt><dd>{formatDate(comparison.comparedAt)}</dd></div><div><dt>비교 ID</dt><dd><code>{comparison.comparisonId}</code></dd></div><div><dt>기준평가 모델</dt><dd><code>{comparison.baselineModelVersion ?? '제공되지 않음'}</code></dd></div><div><dt>보완평가 모델</dt><dd><code>{comparison.supplementalModelVersion ?? '제공되지 않음'}</code></dd></div></dl>
+    <EvidenceResolutionPanel sessionId={sessionId} comparisonId={comparison.comparisonId} supplementalAssessmentId={comparison.supplementalAssessmentId} />
   </section>
 }
 

@@ -5,6 +5,7 @@ import type { AssessmentComparisonResponse, AssessmentComparisonState } from '..
 import AssessmentComparisonPanel from './AssessmentComparisonPanel'
 
 vi.mock('../hooks/useAssessmentComparisonState', () => ({ assessmentComparisonProvider: { get: vi.fn(), compare: vi.fn() } }))
+vi.mock('./EvidenceResolutionPanel', () => ({ default: () => <div>Evidence 수집 판단 패널</div> }))
 
 const comparison: AssessmentComparisonState = {
   comparisonId: 'acp_demo', baselineAssessmentId: 'asm_demo', supplementalAssessmentId: 'sam_demo', qualityCheckId: 'evq_demo', basis: 'GRADE_SET', uncertaintyChange: 'NARROWED',
@@ -33,6 +34,7 @@ describe('AssessmentComparisonPanel', () => {
     expect(screen.getByText('DEMO_GRADE_B · DEMO_GRADE_C')).toBeInTheDocument()
     expect(screen.getByText('GRADE_SET_PROPER_SUBSET')).toBeInTheDocument()
     expect(screen.getByText(/승인 가능성 상승/)).toBeInTheDocument()
+    expect(screen.getByText('Evidence 수집 판단 패널')).toBeInTheDocument()
   })
 
   it('ignores a comparison from a previous supplemental assessment', async () => {
