@@ -79,7 +79,7 @@
 @keyframes assessment-loading { to { background-position: -150% 0; } }
 @media (max-width: 760px) {
   .assessment-page { min-height: calc(100svh - 72px); padding: 96px 0 64px; }
-  .assessment-steps { gap: 6px; font-size: 10px; }
+  .assessment-steps { flex-wrap: wrap; gap: 6px; overflow: visible; font-size: 10px; }
   .assessment-steps span:not(:last-child)::after, .assessment-steps strong::after { margin-left: 6px; }
   .assessment-heading { grid-template-columns: 1fr; gap: 24px; }
   .assessment-result { grid-template-columns: 1fr; padding: 24px; }
