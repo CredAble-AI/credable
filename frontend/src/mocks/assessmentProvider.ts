@@ -6,6 +6,8 @@ import type { PolicyBoundaryCheckResponse } from '../types/policyBoundary'
 
 const assessmentResults = new Map<string, AssessmentResponse>()
 const boundaryResults = new Map<string, PolicyBoundaryCheckResponse>()
+export const getMockAssessmentResult = (sessionId: string) => assessmentResults.get(sessionId)?.assessment ?? null
+export const getMockPolicyBoundaryResult = (sessionId: string) => boundaryResults.get(sessionId)?.boundaryCheck ?? null
 const wait = (signal: AbortSignal, milliseconds = 700) => new Promise<void>((resolve, reject) => {
   const timer = window.setTimeout(resolve, milliseconds)
   signal.addEventListener('abort', () => { window.clearTimeout(timer); reject(new DOMException('Aborted', 'AbortError')) }, { once: true })

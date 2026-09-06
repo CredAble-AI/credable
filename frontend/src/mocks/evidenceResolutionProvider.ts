@@ -2,6 +2,7 @@ import type { EvidenceResolutionProvider } from '../api/evidenceResolutionClient
 import type { EvidenceResolutionState } from '../types/evidenceResolution'
 
 const results = new Map<string, EvidenceResolutionState>()
+export const getMockEvidenceResolutionResult = (sessionId: string) => results.get(sessionId) ?? null
 
 export const mockEvidenceResolutionProvider: EvidenceResolutionProvider = {
   async get(sessionId, signal) {

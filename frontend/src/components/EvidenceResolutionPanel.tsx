@@ -4,6 +4,7 @@ import { normalizeEvidenceResolutionError } from '../api/evidenceResolutionClien
 import { evidenceResolutionProvider } from '../hooks/useEvidenceResolutionState'
 import type { ApiError } from '../types/api'
 import type { EvidenceResolutionContext, EvidenceResolutionResponse, EvidenceResolutionState, EvidenceResolutionStatus } from '../types/evidenceResolution'
+import AssessmentExplanationPanel from './AssessmentExplanationPanel'
 
 interface EvidenceResolutionPanelProps extends EvidenceResolutionContext { sessionId: string }
 type Phase = 'loading' | 'resolving' | 'idle'
@@ -65,13 +66,13 @@ function EvidenceResolutionPanel({ sessionId, comparisonId, supplementalAssessme
   if (!resolution) return <section className="evidence-resolution" aria-labelledby="resolution-title"><div className="evidence-resolution__heading"><div><span>COLLECTION DECISION</span><h5 id="resolution-title">추가 Evidence가 필요한지 확인합니다</h5></div><strong>판단 전</strong></div><p>서버가 보완평가 이후의 정책 경계를 확인해 수집 종료, 추가 요청 또는 심사역 이관을 결정합니다.</p>{error && <div className="evidence-resolution__error" role="alert"><p>{error.message}</p><small>{error.code}{error.requestId ? ` · 요청 ID ${error.requestId}` : ''}</small></div>}<button className="button button--secondary" type="button" disabled={phase === 'resolving'} onClick={() => void request(true)}>{phase === 'resolving' ? '백엔드에서 판단 중…' : '다음 단계 확인'}</button></section>
 
   const copy = statusCopy[resolution.status]
-  return <section className={`evidence-resolution evidence-resolution--${resolution.status.toLowerCase()}`} aria-labelledby="resolution-title">
+  return <><section className={`evidence-resolution evidence-resolution--${resolution.status.toLowerCase()}`} aria-labelledby="resolution-title">
     <div className="evidence-resolution__heading"><div><span>COLLECTION DECISION</span><h5 id="resolution-title">{copy.title}</h5></div><strong>{resolution.status}</strong></div>
     <p>{copy.description}</p>
     <div className="evidence-resolution__action"><span>서버 다음 행동</span><strong>{resolution.nextAction}</strong>{resolution.nextAction === 'SHOW_UPDATED_RESULTS' && <Link className="button button--primary" to="/products">자사 상품 조건 확인</Link>}{resolution.nextAction === 'REQUEST_NEXT_EVIDENCE' && <Link className="button button--primary" to="/evidence?selectNext=1">다음 Evidence 한 건 확인</Link>}</div>
     {(resolution.possibleRoutes.length > 0 || resolution.crossedBoundaryCodes.length > 0) && <div className="evidence-resolution__codes">{resolution.possibleRoutes.length > 0 && <div><span>가능한 Demo 경로</span>{resolution.possibleRoutes.map((code) => <code key={code}>{code}</code>)}</div>}{resolution.crossedBoundaryCodes.length > 0 && <div><span>남은 정책 경계</span>{resolution.crossedBoundaryCodes.map((code) => <code key={code}>{code}</code>)}</div>}</div>}
     <dl className="evidence-resolution__metadata"><div><dt>수집 중단</dt><dd>{resolution.stopEvidenceCollection ? '중단' : '계속'}</dd></div><div><dt>심사역 확인</dt><dd>{resolution.underwriterRequired ? '필요' : '서버 응답상 필요 없음'}</dd></div><div><dt>판단 사유</dt><dd><code>{resolution.reasonCode}</code></dd></div><div><dt>판단 시점</dt><dd>{formatDate(resolution.resolvedAt)}</dd></div><div><dt>판단 ID</dt><dd><code>{resolution.resolutionId}</code></dd></div><div><dt>보정 버전</dt><dd><code>{resolution.calibrationVersion ?? '제공되지 않음'}</code></dd></div><div><dt>경계 정책 버전</dt><dd><code>{resolution.boundaryPolicyVersion}</code></dd></div></dl>
-  </section>
+  </section><AssessmentExplanationPanel key={resolution.resolutionId} sessionId={sessionId} /></>
 }
 
 export default EvidenceResolutionPanel
