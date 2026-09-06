@@ -6,6 +6,10 @@ from pydantic import Field, model_validator
 
 from app.schemas.assessment_review import AssessmentReviewTargetType
 from app.schemas.base import ApiModel
+from app.schemas.review_workflow import (
+    UnderwriterReviewResultCode,
+    UnderwriterReviewStatus,
+)
 
 
 class UnderwriterReviewTriggerType(StrEnum):
@@ -25,12 +29,19 @@ class UnderwriterReviewQueueItem(ApiModel):
     requested_at: datetime
     data_version: str = Field(min_length=1)
     policy_version: str = Field(min_length=1)
+    status: UnderwriterReviewStatus = UnderwriterReviewStatus.PENDING
+    result_code: UnderwriterReviewResultCode | None = None
+    started_at: datetime | None = None
+    completed_at: datetime | None = None
     demo_only: bool
 
     @model_validator(mode="after")
     def validate_review_item(self) -> "UnderwriterReviewQueueItem":
         if self.requested_at.tzinfo is None:
             raise ValueError("requestedAt must include a timezone")
+        for value in (self.started_at, self.completed_at):
+            if value is not None and value.tzinfo is None:
+                raise ValueError("review processing timestamps must include a timezone")
         if len(self.reason_codes) != len(set(self.reason_codes)):
             raise ValueError("reasonCodes must be unique")
         evidence_trigger = self.trigger_type == UnderwriterReviewTriggerType.EVIDENCE_QUALITY
@@ -43,6 +54,24 @@ class UnderwriterReviewQueueItem(ApiModel):
             self.target_type is not None and self.target_assessment_id is not None
         ):
             raise ValueError("customer review requires an assessment target")
+        if self.status == UnderwriterReviewStatus.PENDING and any(
+            value is not None for value in (self.result_code, self.started_at, self.completed_at)
+        ):
+            raise ValueError("PENDING queue item cannot have processing metadata")
+        if self.status == UnderwriterReviewStatus.IN_REVIEW and (
+            self.started_at is None or self.result_code is not None or self.completed_at is not None
+        ):
+            raise ValueError("IN_REVIEW queue item requires only startedAt")
+        if self.status == UnderwriterReviewStatus.COMPLETED and (
+            self.started_at is None or self.result_code is None or self.completed_at is None
+        ):
+            raise ValueError("COMPLETED queue item requires result metadata")
+        if (
+            self.started_at is not None
+            and self.completed_at is not None
+            and self.completed_at < self.started_at
+        ):
+            raise ValueError("completedAt cannot precede startedAt")
         return self
 
 
@@ -60,3 +89,11 @@ class UnderwriterReviewQueueResponse(ApiModel):
         if self.items and self.offset + len(self.items) > self.total_count:
             raise ValueError("page cannot exceed totalCount")
         return self
+
+
+class UnderwriterReviewCompleteRequest(ApiModel):
+    result_code: UnderwriterReviewResultCode
+
+
+class UnderwriterReviewDetailResponse(ApiModel):
+    review: UnderwriterReviewQueueItem

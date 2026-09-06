@@ -5,6 +5,7 @@ from typing import Literal
 from pydantic import Field, model_validator
 
 from app.schemas.base import ApiModel
+from app.schemas.review_workflow import CustomerReviewProcessing
 
 
 class AssessmentReviewTargetType(StrEnum):
@@ -38,3 +39,4 @@ class AssessmentReviewRequestState(ApiModel):
 class AssessmentReviewRequestResponse(ApiModel):
     session_id: str = Field(min_length=1)
     review_request: AssessmentReviewRequestState | None
+    processing: CustomerReviewProcessing | None = None
