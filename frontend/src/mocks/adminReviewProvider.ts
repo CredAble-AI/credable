@@ -1,6 +1,6 @@
 import type { AdminReviewProvider } from '../api/adminReviewClient'
 import type { ApiError } from '../types/api'
-import type { AdminReviewQueueItem, AdminReviewResultCode, AdminReviewTriggerType } from '../types/adminReview'
+import type { AdminReviewCaseContext, AdminReviewQueueItem, AdminReviewResultCode, AdminReviewTriggerType } from '../types/adminReview'
 
 const items: AdminReviewQueueItem[] = [
   { reviewId: 'uwr_demo_assessment', sessionId: 'ses_demo_sole', triggerType: 'CUSTOMER_ASSESSMENT_REVIEW', triggerId: 'arr_demo_assessment', targetType: 'SUPPLEMENTAL_ASSESSMENT', targetAssessmentId: 'sam_demo', reasonCodes: ['CUSTOMER_REQUESTED_ASSESSMENT_REVIEW'], requestedAt: '2026-09-06T02:00:00Z', dataVersion: 'demo-v1', policyVersion: 'assessment-review-request-policy-v1', status: 'PENDING', demoOnly: true },
@@ -25,6 +25,21 @@ const assertNotAborted = (signal: AbortSignal) => {
   if (signal.aborted) throw new DOMException('Aborted', 'AbortError')
 }
 
+const emptyContext = (): AdminReviewCaseContext => ({ assessment: null, boundaryCheck: null, selection: null, submission: null, quality: null, supplementalAssessment: null, comparison: null, resolution: null })
+const contextFor = (review: AdminReviewQueueItem): AdminReviewCaseContext => {
+  const context = emptyContext()
+  if (review.triggerType === 'CUSTOMER_ASSESSMENT_REVIEW') {
+    context.supplementalAssessment = { supplementalAssessmentId: review.targetAssessmentId ?? 'sam_demo', baselineAssessmentId: 'asm_demo', qualityCheckId: 'evq_demo', submissionId: 'sub_demo', status: 'COMPLETED', calculatedAt: '2026-09-06T01:55:00Z', inputSnapshotId: 'ssi_demo', modelVersion: 'demo-supplemental-v1', reasonCode: null, uncertainty: { pointEstimate: null, lowerBound: null, upperBound: null, gradeSet: ['DEMO_GRADE_B'], calibrationMode: 'RULE_TABLE', calibrationVersion: 'demo-v1', demoOnly: true }, acceptedEvidenceCount: 1, demoOnly: true }
+  }
+  if (review.triggerType === 'EVIDENCE_QUALITY') {
+    context.submission = { submissionId: 'sub_demo_evidence', selectionId: 'evs_demo_evidence', evidenceType: review.evidenceType ?? 'RECENT_REVENUE_SUMMARY', sourceType: 'CUSTOMER_SUBMITTED', submissionMode: 'DEMO_FILE_UPLOAD', status: 'RECEIVED', submittedAt: '2026-09-06T01:08:00Z', observedAt: '2026-09-05T01:08:00Z', submissionSnapshotHash: 'a'.repeat(64), dataVersion: 'demo-v1', uploadedFile: { demoFileId: 'demo_recent_revenue_tampered', fileName: '최근_매출_입금_요약서_변조의심.pdf', contentType: 'application/pdf', sizeBytes: 4096, sha256: 'b'.repeat(64) }, evidenceConsentId: 'evc_demo', consentScopeVersion: 'demo-v1', demoOnly: true }
+    context.quality = { qualityCheckId: review.triggerId, submissionId: 'sub_demo_evidence', evidenceType: review.evidenceType ?? 'RECENT_REVENUE_SUMMARY', status: 'REVIEW_REQUIRED', checks: [
+      { dimension: 'PROVENANCE', status: 'PASSED', rationaleCode: 'DEMO_SERVER_DOCUMENT_PROVENANCE_CONFIRMED' }, { dimension: 'FRESHNESS', status: 'PASSED', rationaleCode: 'DEMO_MANIFEST_POINT_IN_TIME_VALID' }, { dimension: 'AUTHENTICITY', status: 'NOT_VERIFIED', rationaleCode: 'DEMO_SERVER_FILE_HASH_NOT_VERIFIED' }, { dimension: 'COMPLETENESS', status: 'PASSED', rationaleCode: 'DEMO_MANIFEST_REQUIRED_FIELDS_PRESENT' }, { dimension: 'CONSISTENCY', status: 'PASSED', rationaleCode: 'DEMO_MANIFEST_TOTALS_CONSISTENT' }, { dimension: 'MANIPULATION_RISK', status: 'FAILED', rationaleCode: 'DEMO_FILE_METADATA_OR_HASH_CHANGED' },
+    ], rejectionCodes: ['DEMO_SERVER_FILE_HASH_NOT_VERIFIED', 'DEMO_FILE_METADATA_OR_HASH_CHANGED'], suspicionCodes: ['DEMO_FILE_METADATA_OR_HASH_CHANGED'], eligibleForReassessment: false, nextAction: 'UNDERWRITER_REVIEW', underwriterRequired: true, checkedAt: review.requestedAt, submissionSnapshotHash: 'a'.repeat(64), dataVersion: review.dataVersion, qualityPolicyVersion: review.policyVersion, demoOnly: true }
+  }
+  return context
+}
+
 export const registerMockAdminReview = (review: AdminReviewQueueItem) => {
   if (!items.some((item) => item.reviewId === review.reviewId)) items.unshift(review)
 }
@@ -39,7 +54,8 @@ export const mockAdminReviewProvider: AdminReviewProvider = {
   },
   async get(reviewId, signal) {
     assertNotAborted(signal)
-    return { review: items[findReviewIndex(reviewId)] }
+    const review = items[findReviewIndex(reviewId)]
+    return { review, context: contextFor(review) }
   },
   async claim(reviewId, signal) {
     assertNotAborted(signal)
@@ -47,7 +63,7 @@ export const mockAdminReviewProvider: AdminReviewProvider = {
     const review = items[index]
     if (review.status === 'COMPLETED') throw { code: 'UNDERWRITER_REVIEW_ALREADY_COMPLETED', message: '이미 완료된 검토 요청입니다.', retryable: false } satisfies ApiError
     if (review.status === 'PENDING') items[index] = { ...review, status: 'IN_REVIEW', startedAt: new Date().toISOString() }
-    return { review: items[index] }
+    return { review: items[index], context: contextFor(items[index]) }
   },
   async complete(reviewId, resultCode, signal) {
     assertNotAborted(signal)
@@ -57,6 +73,6 @@ export const mockAdminReviewProvider: AdminReviewProvider = {
     if (!allowedResults[review.triggerType].includes(resultCode)) throw { code: 'UNDERWRITER_REVIEW_RESULT_NOT_ALLOWED', message: '이 검토 유형에 사용할 수 없는 처리 결과입니다.', retryable: false } satisfies ApiError
     if (review.status === 'COMPLETED' && review.resultCode !== resultCode) throw { code: 'UNDERWRITER_REVIEW_RESULT_CONFLICT', message: '이미 다른 결과로 완료된 검토 요청입니다.', retryable: false } satisfies ApiError
     items[index] = { ...review, status: 'COMPLETED', resultCode, completedAt: review.completedAt ?? new Date().toISOString() }
-    return { review: items[index] }
+    return { review: items[index], context: contextFor(items[index]) }
   },
 }

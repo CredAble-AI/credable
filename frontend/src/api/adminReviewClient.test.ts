@@ -3,7 +3,7 @@ import type { AdminReviewDetailResponse, AdminReviewQueueResponse } from '../typ
 import { liveAdminReviewProvider } from './adminReviewClient'
 
 const response: AdminReviewQueueResponse = { totalCount: 0, limit: 20, offset: 0, items: [], demoOnly: true }
-const detail: AdminReviewDetailResponse = { review: { reviewId: 'uwr_demo', sessionId: 'ses_demo', triggerType: 'CUSTOMER_ASSESSMENT_REVIEW', triggerId: 'arr_demo', targetType: 'SUPPLEMENTAL_ASSESSMENT', targetAssessmentId: 'sam_demo', reasonCodes: ['CUSTOMER_REQUESTED_ASSESSMENT_REVIEW'], requestedAt: '2026-09-06T02:00:00Z', dataVersion: 'demo-v1', policyVersion: 'assessment-review-request-policy-v1', status: 'IN_REVIEW', demoOnly: true } }
+const detail: AdminReviewDetailResponse = { review: { reviewId: 'uwr_demo', sessionId: 'ses_demo', triggerType: 'CUSTOMER_ASSESSMENT_REVIEW', triggerId: 'arr_demo', targetType: 'SUPPLEMENTAL_ASSESSMENT', targetAssessmentId: 'sam_demo', reasonCodes: ['CUSTOMER_REQUESTED_ASSESSMENT_REVIEW'], requestedAt: '2026-09-06T02:00:00Z', dataVersion: 'demo-v1', policyVersion: 'assessment-review-request-policy-v1', status: 'IN_REVIEW', demoOnly: true }, context: { assessment: null, boundaryCheck: null, selection: null, submission: null, quality: null, supplementalAssessment: null, comparison: null, resolution: null } }
 
 describe('liveAdminReviewProvider', () => {
   it('loads a filtered review page without authentication headers', async () => {

@@ -32,6 +32,10 @@ export interface EvidenceSelectionState {
   calibrationVersion: string
   boundaryPolicyVersion: string
   selectionPolicyVersion: string
+  sourceCreditAssessmentId?: string | null
+  informationGapCodes?: string[]
+  baselineFeatureSnapshotId?: string | null
+  baselineInformationCoverageCodes?: string[]
   demoOnly: true
 }
 

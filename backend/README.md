@@ -730,6 +730,12 @@ curl -X POST \
   http://127.0.0.1:8000/v1/admin/underwriter-reviews/<reviewId>/complete
 ```
 
+상세 조회 응답의 `context`는 세션에서 가장 최근에 발생한 상태를 임의로 조합하지 않고,
+현재 검토 요청의 Trigger ID에서 시작해 저장된 계보를 역추적한 결과만 제공합니다. 따라서
+고객 재확인 요청에는 해당 평가, Evidence 품질 검토에는 해당 제출 파일과 6개 품질검증 결과,
+보완평가 검토에는 해당 전·후 비교와 후속 처리 상태가 연결됩니다. 화면에서는 이 자료를 우선
+표시하고 ID·정책·데이터 버전은 접힌 감사·문의용 기술 정보로 분리합니다.
+
 상태는 `PENDING → IN_REVIEW → COMPLETED` 순서만 허용합니다. `EVIDENCE_QUALITY`에는
 `EVIDENCE_CONFIRMED`, `EVIDENCE_EXCLUDED`를 사용할 수 있고, 나머지 네 Trigger에는
 `ASSESSMENT_CONFIRMED`, `CORRECTION_REQUIRED`를 사용할 수 있습니다.
